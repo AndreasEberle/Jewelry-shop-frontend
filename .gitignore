@@ -1,0 +1,45 @@
+# dependencies
+node_modules/
+
+# production build output
+.next/
+out/
+build/
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# macOS system files
+.DS_Store
+
+# VSCode settings
+.vscode/
+
+# logs
+logs
+*.log
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# testing
+coverage/
+
+# optional npm cache directory
+.npm/
+
+# next.js cache
+.cache/
+
+# miscellaneous
+*.swp
+*~
