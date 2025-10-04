@@ -7,6 +7,7 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // This ensures cookies are sent with requests
 })
 
 // Request interceptor to add auth token
@@ -38,3 +39,4 @@ api.interceptors.response.use(
 )
 
 export default api
+

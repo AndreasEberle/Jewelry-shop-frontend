@@ -28,6 +28,16 @@ export interface RegisterData {
   firstName: string
   lastName: string
   phone?: string
+  countryCode?: string
+  dateOfBirth?: string
+  gender?: string
+  address?: {
+    street: string
+    city: string
+    state: string
+    zipCode: string
+    country: string
+  }
 }
 
 export const authService = {
@@ -59,6 +69,10 @@ export const authService = {
 
   // OAuth2 login (redirect to backend)
   oauth2Login(provider: 'google' = 'google'): void {
+    // Store current page for redirect after OAuth
+    const currentPath = window.location.pathname + window.location.search
+    localStorage.setItem('oauth_redirect_url', currentPath)
+    
     window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/oauth2/authorization/${provider}`
   },
 
@@ -69,8 +83,10 @@ export const authService = {
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
+      // Clear localStorage for email/password users
       localStorage.removeItem('jwt_token')
-      window.location.href = '/'
+      localStorage.removeItem('jwt_refresh_token')
+      // Don't redirect here - let AuthContext handle it
     }
   },
 
@@ -82,7 +98,16 @@ export const authService = {
 
   // Check if user is authenticated
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('jwt_token')
+    // Check localStorage first (for email/password login)
+    const localToken = localStorage.getItem('jwt_token')
+    if (localToken) {
+      return true
+    }
+    
+    // For OAuth users, tokens are stored in HTTP-only cookies
+    // We can't check cookies directly, so we assume authenticated if we have a user in context
+    // The actual authentication check will happen when making API calls
+    return false
   },
 
   // Get stored token
@@ -103,3 +128,4 @@ export const authService = {
     return data
   }
 }
+

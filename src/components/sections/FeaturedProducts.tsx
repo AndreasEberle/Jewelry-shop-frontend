@@ -2,63 +2,80 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Star, ShoppingCart, Heart } from 'lucide-react'
-
-interface Product {
-  id: string
-  name: string
-  price: number
-  image: string
-  rating: number
-  category: string
-}
+import { Star, ShoppingCart, Heart, Loader2 } from 'lucide-react'
+import { Product } from '@/types'
+import { productService } from '@/services/productService'
+import { useCart } from '@/contexts/CartContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { useCurrency } from '@/contexts/CurrencyContext'
 
 export function FeaturedProducts() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [addingToCart, setAddingToCart] = useState<string | null>(null)
+  const { addToCart } = useCart()
+  const { isAuthenticated } = useAuth()
+  const { currentCurrency, formatPrice } = useCurrency()
 
-  // Mock data for now - will be replaced with API call
+  // Fetch featured products from API
   useEffect(() => {
-    const mockProducts: Product[] = [
-      {
-        id: '1',
-        name: 'Diamond Engagement Ring',
-        price: 2999.99,
-        image: '/api/products/1/images/1',
-        rating: 4.8,
-        category: 'Rings'
-      },
-      {
-        id: '2',
-        name: 'Pearl Necklace',
-        price: 1299.99,
-        image: '/api/products/2/images/1',
-        rating: 4.6,
-        category: 'Necklaces'
-      },
-      {
-        id: '3',
-        name: 'Gold Earrings',
-        price: 899.99,
-        image: '/api/products/3/images/1',
-        rating: 4.7,
-        category: 'Earrings'
-      },
-      {
-        id: '4',
-        name: 'Sapphire Bracelet',
-        price: 1599.99,
-        image: '/api/products/4/images/1',
-        rating: 4.9,
-        category: 'Bracelets'
+    const fetchProducts = async () => {
+      try {
+        const featuredProducts = await productService.getFeaturedProducts(8, currentCurrency)
+        setProducts(featuredProducts)
+      } catch (error) {
+        console.error('Failed to fetch featured products:', error)
+        // Fallback to mock data if API fails
+        const mockProducts: Product[] = [
+          {
+            id: '1',
+            name: 'Diamond Engagement Ring',
+            price: 2999.99,
+            sku: 'RING-001',
+            description: 'Beautiful diamond engagement ring',
+            category: { id: '1', name: 'Rings' },
+            tags: [{ id: '1', name: 'Diamond' }],
+            images: [{ id: '1', url: '/api/products/1/images/1', altText: 'Diamond Ring', isPrimary: true }],
+            inventory: { quantity: 5, lowStockThreshold: 2 },
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
+          {
+            id: '2',
+            name: 'Pearl Necklace',
+            price: 1299.99,
+            sku: 'NECK-001',
+            description: 'Elegant pearl necklace',
+            category: { id: '2', name: 'Necklaces' },
+            tags: [{ id: '2', name: 'Pearl' }],
+            images: [{ id: '2', url: '/api/products/2/images/1', altText: 'Pearl Necklace', isPrimary: true }],
+            inventory: { quantity: 8, lowStockThreshold: 3 },
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+        ]
+        setProducts(mockProducts)
+      } finally {
+        setLoading(false)
       }
-    ]
-    
-    setTimeout(() => {
-      setProducts(mockProducts)
-      setLoading(false)
-    }, 1000)
-  }, [])
+    }
+
+    fetchProducts()
+  }, [currentCurrency])
+
+  const handleAddToCart = async (product: Product) => {
+    setAddingToCart(product.id)
+    try {
+      await addToCart(product, 1)
+      // You could add a toast notification here
+    } catch (error: any) {
+      alert(error.message || 'Failed to add item to cart')
+    } finally {
+      setAddingToCart(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -95,8 +112,8 @@ export function FeaturedProducts() {
             <div key={product.id} className="card group hover:shadow-lg transition-shadow duration-300">
               <div className="relative">
                 <img
-                  src={product.image}
-                  alt={product.name}
+                  src={product.images?.[0]?.url || '/placeholder-jewelry.jpg'}
+                  alt={product.images?.[0]?.altText || product.name}
                   className="w-full h-48 object-cover rounded-t-lg"
                 />
                 <button className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -111,24 +128,36 @@ export function FeaturedProducts() {
                       <Star
                         key={i}
                         className={`h-4 w-4 ${
-                          i < Math.floor(product.rating) ? 'fill-current' : 'text-gray-300'
+                          i < 4 ? 'fill-current' : 'text-gray-300'
                         }`}
                       />
                     ))}
                   </div>
-                  <span className="text-sm text-gray-600 ml-2">({product.rating})</span>
+                  <span className="text-sm text-gray-600 ml-2">(4.5)</span>
                 </div>
                 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">{product.category}</p>
+                <p className="text-sm text-gray-600 mb-4">
+                  {product.categories && product.categories.length > 0 
+                    ? product.categories[0].name 
+                    : 'Jewelry'}
+                </p>
                 
                 <div className="flex items-center justify-between">
                   <span className="text-2xl font-bold text-primary-600">
-                    ${product.price.toLocaleString()}
+                    {formatPrice(product.displayPrice || product.price, product.displayCurrency || product.baseCurrency)}
                   </span>
-                  <button className="btn btn-primary flex items-center">
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Add to Cart
+                  <button 
+                    onClick={() => handleAddToCart(product)}
+                    disabled={addingToCart === product.id}
+                    className="btn btn-primary flex items-center disabled:opacity-50"
+                  >
+                    {addingToCart === product.id ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                    )}
+                    {addingToCart === product.id ? 'Adding...' : 'Add to Cart'}
                   </button>
                 </div>
               </div>
@@ -145,3 +174,4 @@ export function FeaturedProducts() {
     </section>
   )
 }
+

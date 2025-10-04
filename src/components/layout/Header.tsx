@@ -2,10 +2,29 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, User, Search, Menu, X } from 'lucide-react'
+import { ShoppingCart, User, Search, Menu, X, LogOut } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
+import { useCart } from '@/contexts/CartContext'
+import { AuthModal } from '@/components/auth/AuthModal'
+import { CurrencySelector } from '@/components/CurrencySelector'
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+
+  const openAuthModal = (mode: 'login' | 'register' = 'login') => {
+    setAuthMode(mode)
+    setIsAuthModalOpen(true)
+  }
+
+  const closeAuthModal = () => {
+    setIsAuthModalOpen(false)
+    // Reset to login mode when closing
+    setAuthMode('login')
+  }
+  const { user, isAuthenticated, logout } = useAuth()
+  const { itemCount } = useCart()
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -39,18 +58,56 @@ export function Header() {
 
           {/* Right side icons */}
           <div className="flex items-center space-x-4">
+            <CurrencySelector />
             <button className="p-2 text-gray-700 hover:text-primary-600 transition-colors">
               <Search className="h-5 w-5" />
             </button>
-            <button className="p-2 text-gray-700 hover:text-primary-600 transition-colors">
-              <User className="h-5 w-5" />
-            </button>
-            <button className="p-2 text-gray-700 hover:text-primary-600 transition-colors relative">
+            
+            {/* User Authentication */}
+            {isAuthenticated ? (
+              <div className="flex items-center space-x-2">
+                <Link
+                  href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
+                  className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
+                  title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                >
+                  <User className="h-5 w-5" />
+                </Link>
+                <button
+                  onClick={logout}
+                  className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => openAuthModal('login')}
+                  className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
+                  title="Login"
+                >
+                  <User className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => openAuthModal('register')}
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Sign Up
+                </button>
+              </div>
+            )}
+            
+            {/* Cart */}
+            <Link href="/cart" className="p-2 text-gray-700 hover:text-primary-600 transition-colors relative">
               <ShoppingCart className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                0
-              </span>
-            </button>
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {itemCount}
+                </span>
+              )}
+            </Link>
             
             {/* Mobile menu button */}
             <button
@@ -81,10 +138,63 @@ export function Header() {
               <Link href="/contact" className="block px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors">
                 Contact
               </Link>
+              
+              {/* Mobile Auth */}
+              {!isAuthenticated ? (
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      setAuthMode('login')
+                      setIsAuthModalOpen(true)
+                      setIsMenuOpen(false)
+                    }}
+                    className="block w-full text-left px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAuthMode('register')
+                      setIsAuthModalOpen(true)
+                      setIsMenuOpen(false)
+                    }}
+                    className="block w-full text-left px-3 py-2 text-primary-600 hover:text-primary-700 transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <Link
+                    href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full text-left px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors"
+                  >
+                    {user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                  </Link>
+                  <button
+                    onClick={() => {
+                      logout()
+                      setIsMenuOpen(false)
+                    }}
+                    className="block w-full text-left px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
+      
+      {/* Auth Modal */}
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={closeAuthModal}
+          initialMode={authMode}
+        />
     </header>
   )
 }
+

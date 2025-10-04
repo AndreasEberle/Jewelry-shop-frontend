@@ -6,10 +6,16 @@ export interface Product {
   description: string
   price: number
   sku: string
-  category: {
+  material?: string
+  gemstone?: string
+  weightGrams?: number
+  baseCurrency: string
+  displayCurrency?: string
+  displayPrice?: number
+  categories: Array<{
     id: string
     name: string
-  }
+  }>
   tags: Array<{
     id: string
     name: string
@@ -71,8 +77,9 @@ export const productService = {
   },
 
   // Get featured products
-  async getFeaturedProducts(limit: number = 8): Promise<Product[]> {
-    const response = await api.get(`/api/products/featured?limit=${limit}`)
+  async getFeaturedProducts(limit: number = 8, currency?: string): Promise<Product[]> {
+    const headers = currency ? { 'X-Currency': currency } : {}
+    const response = await api.get(`/api/products/featured?limit=${limit}`, { headers })
     return response.data
   },
 
@@ -86,3 +93,4 @@ export const productService = {
     return this.getProducts({ ...filters, search: query })
   }
 }
+
