@@ -32,6 +32,7 @@ const countries: Country[] = [
   { code: 'DK', name: 'Denmark', flag: '🇩🇰', phoneCode: '+45' },
   { code: 'FI', name: 'Finland', flag: '🇫🇮', phoneCode: '+358' },
   { code: 'CH', name: 'Switzerland', flag: '🇨🇭', phoneCode: '+41' },
+  { code: 'LI', name: 'Liechtenstein', flag: '🇱🇮', phoneCode: '+423' },
   { code: 'AT', name: 'Austria', flag: '🇦🇹', phoneCode: '+43' },
   { code: 'BE', name: 'Belgium', flag: '🇧🇪', phoneCode: '+32' },
   { code: 'PL', name: 'Poland', flag: '🇵🇱', phoneCode: '+48' },

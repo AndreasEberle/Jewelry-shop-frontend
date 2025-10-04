@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { LoginCredentials, RegisterData } from '@/types'
 import { CountryCodePicker } from './CountryCodePicker'
 import { Modal } from '@/components/ui/Modal'
+import { Eye, EyeOff } from 'lucide-react'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [mode, setMode] = useState<'login' | 'register'>(initialMode)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Update mode when initialMode changes
   useEffect(() => {
@@ -58,8 +60,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     firstName: '',
     lastName: '',
     phone: '',
-    countryCode: 'US',
-    phoneCode: '+1',
+    countryCode: 'CH', // Default to Switzerland
+    phoneCode: '+41', // Default to Switzerland
     dateOfBirth: '',
     gender: '',
     address: {
@@ -67,12 +69,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       city: '',
       state: '',
       zipCode: '',
-      country: ''
+      country: 'Switzerland' // Default to Switzerland
     }
   })
 
   const { login, register, oauth2Login } = useAuth()
 
+  // Detect user's country based on browser locale
+  const detectCountry = () => {
+    const locale = navigator.language || navigator.languages?.[0] || 'en-US'
+    const country = locale.split('-')[1] || 'US'
+    
+    // Map country codes to phone codes and country names
+    const countryMap: { [key: string]: { phoneCode: string, countryName: string } } = {
+      'CH': { phoneCode: '+41', countryName: 'Switzerland' },
+      'LI': { phoneCode: '+423', countryName: 'Liechtenstein' },
+      'DE': { phoneCode: '+49', countryName: 'Germany' },
+      'FR': { phoneCode: '+33', countryName: 'France' },
+      'IT': { phoneCode: '+39', countryName: 'Italy' },
+      'AT': { phoneCode: '+43', countryName: 'Austria' },
+      'US': { phoneCode: '+1', countryName: 'United States' },
+      'GB': { phoneCode: '+44', countryName: 'United Kingdom' },
+      'CA': { phoneCode: '+1', countryName: 'Canada' }
+    }
+    
+    return countryMap[country] || countryMap['CH'] // Default to Switzerland
+  }
+
+  // Set default country on component mount
+  React.useEffect(() => {
+    const detectedCountry = detectCountry()
+    setFormData(prev => ({
+      ...prev,
+      countryCode: detectedCountry.phoneCode.includes('+41') ? 'CH' : 
+                  detectedCountry.phoneCode.includes('+423') ? 'LI' : 'CH',
+      phoneCode: detectedCountry.phoneCode,
+      address: {
+        ...prev.address,
+        country: detectedCountry.countryName
+      }
+    }))
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,16 +130,75 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone || undefined,
-          countryCode: formData.countryCode,
-          dateOfBirth: formData.dateOfBirth || undefined,
-          gender: formData.gender || undefined,
+          countryCode: formData.phoneCode, // Use phoneCode (+41, +423, etc.)
+          phoneNumber: formData.phone || undefined,
+          dateOfBirth: formData.dateOfBirth && formData.dateOfBirth.trim() !== '' ? formData.dateOfBirth : undefined,
+          gender: formData.gender && formData.gender.trim() !== '' ? formData.gender : undefined,
           address: formData.address.street ? formData.address : undefined
         }
         await register(userData)
       }
       onClose()
     } catch (err: any) {
-      setError(err.response?.data?.message || err.message || 'An error occurred')
+      // Make error messages more human-friendly
+      let errorMessage = 'An error occurred'
+      
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err.response?.data?.error) {
+        // Handle specific error messages from backend
+        errorMessage = err.response.data.error
+      } else if (err.response?.data?.errors) {
+        // Handle validation errors
+        const validationErrors = err.response.data.errors
+        if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+          errorMessage = validationErrors.map((error: any) => {
+            const message = error.defaultMessage || error.message
+            // Convert technical validation messages to human-friendly ones
+            if (message.includes('Password must contain at least one uppercase letter, one lowercase letter, and one number')) {
+              return 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+            }
+            if (message.includes('Password must be at least 8 characters')) {
+              return 'Password must be at least 8 characters long'
+            }
+            if (message.includes('Email should be valid')) {
+              return 'Please enter a valid email address'
+            }
+            if (message.includes('is required')) {
+              return 'This field is required'
+            }
+            if (message.includes('Validation failed')) {
+              return 'Please check your information and try again'
+            }
+            if (message.includes('Password') && message.includes('Pattern')) {
+              return 'Password does not meet requirements. Must be at least 8 characters with uppercase, lowercase, and number'
+            }
+            return message
+          }).join('. ')
+        } else {
+          errorMessage = 'Please check your input and try again.'
+        }
+        } else if (err.message) {
+          // Handle specific error types
+          if (err.message.includes('Bad credentials')) {
+            errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+          } else if (err.message.includes('Network Error')) {
+            errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.'
+          } else if (err.message.includes('Request failed with status code 400')) {
+            errorMessage = 'Please check your information and try again.'
+          } else if (err.message.includes('Request failed with status code 401')) {
+            errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+          } else if (err.message.includes('Request failed with status code 500')) {
+            errorMessage = 'Server error. Please try again later.'
+          } else if (err.message.includes('Password') && err.message.includes('Pattern')) {
+            errorMessage = 'Password does not meet requirements. Must be at least 8 characters with uppercase, lowercase, and number'
+          } else {
+            errorMessage = err.message
+          }
+        }
+      
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -200,19 +296,46 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Password <span className="text-red-500">*</span>
               </label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-                minLength={8}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required
+                  minLength={8}
+                  className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
               {mode === 'register' && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Must be at least 8 characters with uppercase, lowercase, and number
-                </p>
+                <div className="mt-2 text-xs text-gray-600">
+                  <p className="mb-1">Password must contain:</p>
+                  <ul className="list-disc list-inside ml-2 space-y-1">
+                    <li className={formData.password.length >= 8 ? 'text-green-600' : 'text-gray-500'}>
+                      At least 8 characters
+                    </li>
+                    <li className={/[a-z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}>
+                      One lowercase letter
+                    </li>
+                    <li className={/[A-Z]/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}>
+                      One uppercase letter
+                    </li>
+                    <li className={/\d/.test(formData.password) ? 'text-green-600' : 'text-gray-500'}>
+                      One number
+                    </li>
+                  </ul>
+                </div>
               )}
             </div>
           </div>
@@ -233,8 +356,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     onChange={(countryCode, phoneCode) => {
                       setFormData(prev => ({
                         ...prev,
-                        countryCode,
-                        phoneCode
+                        countryCode, // Keep country code for the picker
+                        phoneCode   // Store phone code for backend
                       }))
                     }}
                   />

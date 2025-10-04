@@ -4,18 +4,39 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { User, Mail, LogOut } from 'lucide-react'
+import { LanguageSelector } from '@/components/LanguageSelector'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useLanguageChange } from '@/hooks/useLanguageChange'
 
 export default function UserAccountPage() {
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
   const router = useRouter()
+  const { forceUpdate } = useLanguageChange() // This will trigger re-render on language change
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/')
+    // Only redirect after loading is complete
+    if (!isLoading) {
+      if (!user) {
+        // No user data - redirect to homepage
+        router.push('/')
+      }
+      // If user exists, stay on this page
     }
-  }, [isAuthenticated, router])
+  }, [user, router, isLoading])
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <User className="h-16 w-16 text-gray-400 mx-auto mb-4 animate-pulse" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading...</h2>
+          <p className="text-gray-600">Checking your authentication status.</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated || !user) {
     return (
@@ -74,6 +95,16 @@ export default function UserAccountPage() {
                       </label>
                       <p className="mt-1 text-sm text-gray-900">{user.email}</p>
                     </div>
+                  </div>
+                </div>
+
+                {/* Settings */}
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                    Settings / Einstellungen
+                  </h2>
+                  <div className="space-y-4">
+                    <LanguageSelector />
                   </div>
                 </div>
 

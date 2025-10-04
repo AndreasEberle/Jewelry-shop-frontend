@@ -15,21 +15,13 @@ export const CurrencySelector: React.FC<CurrencySelectorProps> = ({ className = 
   const currencyNames: Record<string, string> = {
     'CHF': 'Swiss Franc',
     'EUR': 'Euro',
-    'USD': 'US Dollar',
-    'JPY': 'Japanese Yen',
-    'GBP': 'British Pound',
-    'CAD': 'Canadian Dollar',
-    'AUD': 'Australian Dollar'
+    'JPY': 'Japanese Yen'
   }
 
   const currencyFlags: Record<string, string> = {
     'CHF': '🇨🇭',
     'EUR': '🇪🇺',
-    'USD': '🇺🇸',
-    'JPY': '🇯🇵',
-    'GBP': '🇬🇧',
-    'CAD': '🇨🇦',
-    'AUD': '🇦🇺'
+    'JPY': '🇯🇵'
   }
 
   const handleCurrencyChange = async (currency: string) => {
@@ -41,11 +33,19 @@ export const CurrencySelector: React.FC<CurrencySelectorProps> = ({ className = 
     <div className={`relative ${className}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        disabled={isLoading}
+        disabled={isLoading || !currentCurrency}
         className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
       >
         <Globe className="h-4 w-4" />
-        <span>{currencyFlags[currentCurrency]} {currentCurrency}</span>
+        <span>
+          {isLoading ? (
+            <span className="animate-pulse">Loading...</span>
+          ) : currentCurrency ? (
+            `${currencyFlags[currentCurrency]} ${currentCurrency}`
+          ) : (
+            <span className="animate-pulse">Loading...</span>
+          )}
+        </span>
         <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 

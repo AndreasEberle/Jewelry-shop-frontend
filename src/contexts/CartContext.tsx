@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Cart, CartItem, Product } from '@/types'
 import { cartService } from '@/services/cartService'
 import { authService } from '@/services/authService'
+import { useAuth } from './AuthContext'
 
 interface CartContextType {
   cart: Cart | null
@@ -36,26 +37,54 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [cart, setCart] = useState<Cart | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hasMigrated, setHasMigrated] = useState(false)
+  const { user, isAuthenticated } = useAuth()
 
-  // Load cart when user is authenticated or load guest cart
+  // Load cart when user authentication state changes
   useEffect(() => {
-    if (authService.isAuthenticated()) {
-      refreshCart()
+    if (isAuthenticated && user) {
+      console.log('CartContext: User authenticated, loading backend cart')
+      // Load cart immediately when user is authenticated
+      const loadCart = async () => {
+        try {
+          // Only migrate if we haven't already migrated
+          if (!hasMigrated) {
+            console.log('CartContext: Migrating guest cart...')
+            await migrateGuestCartToBackend()
+          } else {
+            console.log('CartContext: Already migrated, just refreshing cart')
+            await refreshCart()
+          }
+        } catch (error) {
+          console.error('CartContext: Error during migration and refresh:', error)
+          // Still try to refresh even if migration fails
+          await refreshCart()
+        }
+      }
+      
+      loadCart()
     } else {
+      console.log('CartContext: User not authenticated, loading guest cart')
+      setHasMigrated(false) // Reset migration flag when user logs out
       loadGuestCart()
     }
-  }, [])
+  }, [isAuthenticated, user, hasMigrated])
 
-  // Listen for user login events to migrate guest cart
+  // Listen for user logout events to clear cart
   useEffect(() => {
-    const handleUserLogin = () => {
-      if (authService.isAuthenticated()) {
-        migrateGuestCartToBackend()
-      }
+    const handleUserLogout = () => {
+      console.log('CartContext: User logged out, clearing cart')
+      setCart({ items: [], total: 0, itemCount: 0 })
+      setError(null)
+      setHasMigrated(false) // Reset migration flag on logout
+      // Clear guest cart from localStorage
+      localStorage.removeItem('guest_cart')
     }
 
-    window.addEventListener('userLoggedIn', handleUserLogin)
-    return () => window.removeEventListener('userLoggedIn', handleUserLogin)
+    window.addEventListener('userLoggedOut', handleUserLogout)
+    return () => {
+      window.removeEventListener('userLoggedOut', handleUserLogout)
+    }
   }, [])
 
   const loadGuestCart = () => {
@@ -69,50 +98,113 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     const guestCartKey = 'guest_cart'
     const guestCart = JSON.parse(localStorage.getItem(guestCartKey) || '{"items":[],"total":0,"itemCount":0}')
     
-    if (guestCart.items.length > 0) {
+    console.log('CartContext: migrateGuestCartToBackend called')
+    console.log('CartContext: Guest cart items:', guestCart.items.length)
+    console.log('CartContext: Guest cart data:', guestCart)
+    console.log('CartContext: Has migrated flag:', hasMigrated)
+    
+    if (guestCart.items.length > 0 && !hasMigrated) {
+      console.log('CartContext: Migrating guest cart items to backend...')
       try {
         // Add each guest cart item to backend cart
         for (const item of guestCart.items) {
+          console.log('CartContext: Adding item to backend:', item.product.id, 'quantity:', item.quantity)
+          console.log('CartContext: Product ID type:', typeof item.product.id)
+          console.log('CartContext: Full product object:', item.product)
+          
+          // Validate that productId is a proper UUID
+          if (!item.product.id || typeof item.product.id !== 'string') {
+            console.error('CartContext: Invalid product ID:', item.product.id)
+            continue
+          }
+          
           await cartService.addToCart({
             productId: item.product.id,
             quantity: item.quantity
           })
         }
         
+        console.log('CartContext: Successfully migrated guest cart to backend')
+        
+        // Mark as migrated BEFORE clearing guest cart
+        setHasMigrated(true)
+        
         // Clear guest cart after successful migration
         localStorage.removeItem(guestCartKey)
-        
-        // Refresh backend cart
-        await refreshCart()
+        console.log('CartContext: Cleared guest cart from localStorage')
       } catch (error) {
-        console.error('Failed to migrate guest cart:', error)
+        console.error('CartContext: Failed to migrate guest cart:', error)
         // Keep guest cart if migration fails
       }
+    } else if (hasMigrated) {
+      console.log('CartContext: Already migrated, skipping migration')
+    } else {
+      console.log('CartContext: No guest cart items to migrate')
     }
+    
+    // Always refresh the cart after migration attempt to load existing backend cart
+    console.log('CartContext: Refreshing cart to show current state...')
+    await refreshCart()
   }
 
   const refreshCart = async () => {
-    if (!authService.isAuthenticated()) {
+    console.log('CartContext: refreshCart called')
+    console.log('CartContext: isAuthenticated:', isAuthenticated, 'user:', user ? `${user.email}` : 'null')
+    
+    if (!isAuthenticated || !user) {
+      console.log('CartContext: User not authenticated, not refreshing cart')
       setCart(null)
       return
     }
 
+    console.log('CartContext: Refreshing cart for authenticated user:', user.email)
     setIsLoading(true)
     setError(null)
     
     try {
+      console.log('CartContext: Calling cartService.getCart()...')
       const cartData = await cartService.getCart()
-      setCart({
+      console.log('CartContext: Cart data received from backend:', cartData)
+      console.log('CartContext: Cart items count:', cartData.items.length)
+      console.log('CartContext: Cart total:', cartData.total)
+      console.log('CartContext: Cart itemCount:', cartData.itemCount)
+      
+      // Convert backend response to frontend Cart format
+      const frontendCart = {
         items: cartData.items.map(item => ({
-          product: item.product,
+          id: item.id,
+          product: {
+            id: item.productId,
+            name: item.productName,
+            price: item.productPrice,
+            // Add other required Product fields with defaults
+            description: '',
+            category: '',
+            images: [],
+            active: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          },
           quantity: item.quantity
         })),
         total: cartData.total,
         itemCount: cartData.itemCount
-      })
+      }
+      
+      console.log('CartContext: Setting frontend cart state:', frontendCart)
+      setCart(frontendCart)
+      console.log('CartContext: Cart state updated successfully')
     } catch (err: any) {
+      console.error('CartContext: Failed to refresh cart:', err)
+      console.error('CartContext: Error details:', {
+        message: err.message,
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data
+      })
       setError(err.message || 'Failed to load cart')
-      console.error('Cart loading error:', err)
+      // Don't clear cart on API failures - keep existing cart
+      // This prevents cart from disappearing on temporary API failures
     } finally {
       setIsLoading(false)
     }
@@ -123,7 +215,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setError(null)
 
     try {
-      if (authService.isAuthenticated()) {
+      if (isAuthenticated && user) {
         // User is logged in - use backend cart
         await cartService.addToCart({
           productId: product.id,
@@ -176,7 +268,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setError(null)
 
     try {
-      if (authService.isAuthenticated()) {
+      if (isAuthenticated && user) {
         // User is logged in - use backend cart
         await cartService.updateCartItem({
           itemId,
@@ -200,7 +292,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setError(null)
 
     try {
-      if (authService.isAuthenticated()) {
+      if (isAuthenticated && user) {
         // User is logged in - use backend cart
         await cartService.removeFromCart(itemId)
         await refreshCart()
@@ -221,7 +313,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setError(null)
 
     try {
-      if (authService.isAuthenticated()) {
+      if (isAuthenticated && user) {
         // User is logged in - use backend cart
         await cartService.clearCart()
         await refreshCart()

@@ -15,6 +15,7 @@ api.interceptors.request.use(
   (config) => {
     // Add JWT token if available
     const token = localStorage.getItem('jwt_token')
+    console.log('API Interceptor: Request to', config.url, 'Token:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -27,10 +28,15 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log('API Interceptor: Response from', response.config.url, 'Status:', response.status)
+    return response
+  },
   (error) => {
+    console.log('API Interceptor: Error from', error.config?.url, 'Status:', error.response?.status, 'Message:', error.message)
     if (error.response?.status === 401) {
       // Handle unauthorized access
+      console.log('API Interceptor: 401 error - clearing token and redirecting')
       localStorage.removeItem('jwt_token')
       window.location.href = '/login'
     }

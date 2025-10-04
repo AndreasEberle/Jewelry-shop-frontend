@@ -3,18 +3,17 @@ import { Cart, CartItem, Product } from '@/types'
 
 export interface CartResponse {
   id: string
-  userId: string
   items: Array<{
     id: string
-    product: Product
+    productId: string
+    productName: string
+    productPrice: number
     quantity: number
-    createdAt: string
-    updatedAt: string
+    unitPrice: number
+    subtotal: number
   }>
   total: number
   itemCount: number
-  createdAt: string
-  updatedAt: string
 }
 
 export interface AddToCartRequest {

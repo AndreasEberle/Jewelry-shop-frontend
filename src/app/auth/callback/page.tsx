@@ -11,6 +11,7 @@ export default function AuthCallbackPage() {
   const { setUser } = useAuth()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
+  const [countdown, setCountdown] = useState(3)
   const hasProcessed = useRef(false)
 
   useEffect(() => {
@@ -37,30 +38,61 @@ export default function AuthCallbackPage() {
         console.log('Token:', token ? 'Present' : 'Missing')
         console.log('User:', user ? 'Present' : 'Missing')
         console.log('RefreshToken:', refreshToken ? 'Present' : 'Missing')
+        console.log('IsAdmin:', isAdmin)
+        console.log('RedirectUrl:', redirectUrl)
+        
+        // Log the actual values for debugging
+        if (user) {
+          console.log('Raw user data:', user)
+        }
 
         if (!token || !user) {
+          console.error('Missing authentication data:', { token: !!token, user: !!user })
           throw new Error('Missing authentication data')
         }
 
-        // Note: Tokens are already set as HTTP-only cookies by the backend
-        // No need to store them in localStorage
+        // Store tokens in localStorage for OAuth users
+        localStorage.setItem('jwt_token', token)
+        if (refreshToken) {
+          localStorage.setItem('jwt_refresh_token', refreshToken)
+        }
 
         // Parse user data
-        const userData = JSON.parse(decodeURIComponent(user))
-        console.log('Parsed user data:', userData)
+        let userData
+        try {
+          userData = JSON.parse(decodeURIComponent(user))
+          console.log('Parsed user data:', userData)
+        } catch (parseError) {
+          console.error('Failed to parse user data:', parseError)
+          console.error('Raw user data:', user)
+          throw new Error('Invalid user data format')
+        }
         
         // Only update state if component is still mounted
         if (isMounted) {
           // Set user directly in auth context
-          console.log('Setting user in context...')
+          console.log('OAuth callback: Setting user in context...')
           setUser(userData)
-          console.log('User set in context')
+          console.log('OAuth callback: User set in context:', userData)
           
-          // Trigger cart migration after successful OAuth login
-          window.dispatchEvent(new CustomEvent('userLoggedIn'))
+          // Mark that we've checked auth to prevent it from being cleared
+          window.dispatchEvent(new CustomEvent('authChecked', { detail: { user: userData } }))
+          
+          // Cart migration will happen automatically via AuthContext state change
+          console.log('OAuth callback: User state updated, cart migration will happen automatically')
 
           setStatus('success')
           setMessage(`Welcome back, ${userData.firstName || userData.email}!`)
+          
+          // Start countdown
+          let count = 3
+          const countdownInterval = setInterval(() => {
+            count--
+            setCountdown(count)
+            if (count <= 0) {
+              clearInterval(countdownInterval)
+            }
+          }, 1000)
         }
 
         // Clean up stored redirect URL
@@ -69,61 +101,42 @@ export default function AuthCallbackPage() {
         // Redirect to the original page after ensuring React has finished rendering
         console.log('Redirecting to:', redirectUrl)
         
-        // Use multiple redirect strategies
-        console.log('Setting up automatic redirect strategies...')
+        // Simple, direct redirect approach
+        console.log('Setting up automatic redirect...')
+        console.log('Redirect URL:', redirectUrl)
+        console.log('Component mounted:', isMounted)
         
-        // Strategy 1: Immediate redirect (after state is set)
-        setTimeout(() => {
-          if (isMounted) {
-            console.log('Strategy 1: Attempting immediate redirect...')
-            try {
-              window.location.replace(redirectUrl)
-              console.log('Strategy 1: Immediate redirect successful')
-              return
-            } catch (error) {
-              console.error('Strategy 1: Immediate redirect failed:', error)
-            }
-          }
-        }, 500)
-
-        // Strategy 2: Delayed redirect (main strategy)
-        setTimeout(() => {
-          if (isMounted) {
-            console.log('Strategy 2: Attempting delayed redirect...')
-            try {
-              window.location.replace(redirectUrl)
-              console.log('Strategy 2: Delayed redirect successful')
-              return
-            } catch (error) {
-              console.error('Strategy 2: Delayed redirect failed:', error)
-              // Fallback to window.location.href
+        // Try immediate redirect first
+        console.log('Attempting immediate redirect...')
+        try {
+          window.location.replace(redirectUrl)
+          console.log('Immediate redirect successful')
+        } catch (error) {
+          console.error('Immediate redirect failed:', error)
+          
+          // Fallback with delay
+          console.log('Setting up delayed redirect fallback...')
+          setTimeout(() => {
+            if (isMounted) {
+              console.log('Delayed redirect attempt...')
               try {
                 window.location.href = redirectUrl
-                console.log('Strategy 2: Fallback redirect successful')
-                return
-              } catch (hrefError) {
-                console.error('Strategy 2: All redirect methods failed:', hrefError)
-                // Last resort: router.push
-                if (isMounted) {
+                console.log('Delayed redirect successful')
+              } catch (delayedError) {
+                console.error('Delayed redirect failed:', delayedError)
+                console.log('Trying router.push as last resort...')
+                try {
                   router.push(redirectUrl)
+                  console.log('Router.push successful')
+                } catch (routerError) {
+                  console.error('All redirect methods failed:', routerError)
                 }
               }
+            } else {
+              console.log('Component unmounted, skipping delayed redirect')
             }
-          }
-        }, 2000)
-
-        // Strategy 3: Final fallback
-        setTimeout(() => {
-          if (isMounted) {
-            console.log('Strategy 3: Final fallback redirect...')
-            try {
-              window.location.href = redirectUrl
-              console.log('Strategy 3: Final fallback successful')
-            } catch (error) {
-              console.error('Strategy 3: Final fallback failed:', error)
-            }
-          }
-        }, 3000)
+          }, 1000)
+        }
 
       } catch (error) {
         console.error('OAuth callback error:', error)
@@ -133,12 +146,40 @@ export default function AuthCallbackPage() {
           setStatus('error')
           setMessage(`Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
           
-          // Redirect to home after 3 seconds
-          setTimeout(() => {
-            if (isMounted) {
-              router.push('/')
-            }
-          }, 3000)
+          // Add fallback: try to get user from API
+          console.log('OAuth callback: Trying fallback API call...')
+          fetch('/api/auth/me', { credentials: 'include' })
+            .then(response => response.json())
+            .then(userData => {
+              if (userData && userData.email) {
+                console.log('OAuth callback: Fallback successful, user found:', userData)
+                setUser(userData)
+                setStatus('success')
+                setMessage(`Welcome back, ${userData.firstName || userData.email}!`)
+                // Redirect after fallback success
+                setTimeout(() => {
+                  if (isMounted) {
+                    window.location.replace(redirectUrl)
+                  }
+                }, 2000)
+              } else {
+                // No user found, redirect to home
+                setTimeout(() => {
+                  if (isMounted) {
+                    router.push('/')
+                  }
+                }, 3000)
+              }
+            })
+            .catch(fallbackError => {
+              console.error('OAuth callback: Fallback also failed:', fallbackError)
+              // Redirect to home after 3 seconds
+              setTimeout(() => {
+                if (isMounted) {
+                  router.push('/')
+                }
+              }, 3000)
+            })
         }
       }
     }
@@ -175,8 +216,14 @@ export default function AuthCallbackPage() {
             </h2>
             <p className="text-gray-600 mb-4">{message}</p>
             <p className="text-sm text-gray-500 mb-4">
-              Redirecting you automatically...
+              Redirecting you automatically in {countdown} seconds...
             </p>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-1000"
+                style={{ width: `${((3 - countdown) / 3) * 100}%` }}
+              ></div>
+            </div>
             <button
               onClick={() => {
                 try {

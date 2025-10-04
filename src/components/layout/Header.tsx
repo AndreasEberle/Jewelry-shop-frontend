@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ShoppingCart, User, Search, Menu, X, LogOut } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCart } from '@/contexts/CartContext'
+import { useLanguage } from '@/contexts/LanguageContext'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { CurrencySelector } from '@/components/CurrencySelector'
 
@@ -23,8 +24,16 @@ export function Header() {
     // Reset to login mode when closing
     setAuthMode('login')
   }
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
   const { itemCount } = useCart()
+  const { currentLanguage, getLanguageFlag } = useLanguage()
+
+  // Debug logging for Header
+  console.log('Header: Auth state:', { 
+    user: user ? `${user.email} (${user.roles?.join(', ')})` : 'null', 
+    isAuthenticated, 
+    isLoading 
+  })
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -66,13 +75,18 @@ export function Header() {
             {/* User Authentication */}
             {isAuthenticated ? (
               <div className="flex items-center space-x-2">
-                <Link
-                  href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
-                  className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
-                >
-                  <User className="h-5 w-5" />
-                </Link>
+                <div className="flex items-center space-x-1">
+                  <Link
+                    href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
+                    className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
+                    title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                  >
+                    <User className="h-5 w-5" />
+                  </Link>
+                  <span className="text-lg" title={`Current language: ${currentLanguage}`}>
+                    {getLanguageFlag(currentLanguage)}
+                  </span>
+                </div>
                 <button
                   onClick={logout}
                   className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
@@ -81,15 +95,34 @@ export function Header() {
                   <LogOut className="h-5 w-5" />
                 </button>
               </div>
+            ) : isLoading ? (
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1">
+                  <div className="p-2 text-gray-400">
+                    <User className="h-5 w-5 animate-pulse" />
+                  </div>
+                  <span className="text-lg animate-pulse">
+                    {getLanguageFlag(currentLanguage)}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-400 animate-pulse">
+                  Loading...
+                </div>
+              </div>
             ) : (
               <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => openAuthModal('login')}
-                  className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  title="Login"
-                >
-                  <User className="h-5 w-5" />
-                </button>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => openAuthModal('login')}
+                    className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
+                    title="Login"
+                  >
+                    <User className="h-5 w-5" />
+                  </button>
+                  <span className="text-lg" title={`Current language: ${currentLanguage}`}>
+                    {getLanguageFlag(currentLanguage)}
+                  </span>
+                </div>
                 <button
                   onClick={() => openAuthModal('register')}
                   className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -140,18 +173,30 @@ export function Header() {
               </Link>
               
               {/* Mobile Auth */}
-              {!isAuthenticated ? (
+              {isLoading ? (
                 <div className="space-y-1">
-                  <button
-                    onClick={() => {
-                      setAuthMode('login')
-                      setIsAuthModalOpen(true)
-                      setIsMenuOpen(false)
-                    }}
-                    className="block w-full text-left px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  >
-                    Sign In
-                  </button>
+                  <div className="flex items-center justify-between px-3 py-2 text-gray-400 animate-pulse">
+                    <span>Loading...</span>
+                    <span className="text-lg">{getLanguageFlag(currentLanguage)}</span>
+                  </div>
+                </div>
+              ) : !isAuthenticated ? (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <button
+                      onClick={() => {
+                        setAuthMode('login')
+                        setIsAuthModalOpen(true)
+                        setIsMenuOpen(false)
+                      }}
+                      className="text-gray-700 hover:text-primary-600 transition-colors"
+                    >
+                      Sign In
+                    </button>
+                    <span className="text-lg" title={`Current language: ${currentLanguage}`}>
+                      {getLanguageFlag(currentLanguage)}
+                    </span>
+                  </div>
                   <button
                     onClick={() => {
                       setAuthMode('register')
@@ -165,13 +210,18 @@ export function Header() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <Link
-                    href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="block w-full text-left px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  >
-                    {user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
-                  </Link>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <Link
+                      href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
+                      onClick={() => setIsMenuOpen(false)}
+                      className="text-gray-700 hover:text-primary-600 transition-colors"
+                    >
+                      {user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                    </Link>
+                    <span className="text-lg" title={`Current language: ${currentLanguage}`}>
+                      {getLanguageFlag(currentLanguage)}
+                    </span>
+                  </div>
                   <button
                     onClick={() => {
                       logout()

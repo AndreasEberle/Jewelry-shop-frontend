@@ -19,14 +19,26 @@ interface CurrencyProviderProps {
 }
 
 export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) => {
-  const [currentCurrency, setCurrentCurrency] = useState<string>('CHF')
+  const [currentCurrency, setCurrentCurrency] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
-  const [supportedCurrencies, setSupportedCurrencies] = useState<string[]>(['CHF', 'EUR', 'USD', 'JPY', 'GBP', 'CAD', 'AUD'])
+  const [supportedCurrencies, setSupportedCurrencies] = useState<string[]>(['CHF', 'EUR', 'JPY'])
 
   // Load user's preferred currency on mount
   useEffect(() => {
     loadUserCurrencyPreference()
     loadSupportedCurrencies()
+  }, [])
+
+  // Listen for logout events to reset currency
+  useEffect(() => {
+    const handleLogout = () => {
+      console.log('CurrencyContext: User logged out, resetting currency')
+      setCurrentCurrency('')
+      setIsLoading(true)
+    }
+
+    window.addEventListener('userLoggedOut', handleLogout)
+    return () => window.removeEventListener('userLoggedOut', handleLogout)
   }, [])
 
   const loadUserCurrencyPreference = async () => {
@@ -38,6 +50,8 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
       // Fallback to detected currency or default
       const detectedCurrency = detectUserCurrency()
       setCurrentCurrency(detectedCurrency)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -62,12 +76,16 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
     const country = locale.split('-')[1] || locale.split('_')[1]
     
     const currencyMap: Record<string, string> = {
-      'CH': 'CHF',
+      // Switzerland and Liechtenstein -> CHF
+      'CH': 'CHF', 'LI': 'CHF',
+      
+      // European Union countries -> EUR
       'DE': 'EUR', 'FR': 'EUR', 'IT': 'EUR', 'ES': 'EUR', 'AT': 'EUR', 'BE': 'EUR', 'NL': 'EUR', 'FI': 'EUR',
-      'US': 'USD', 'CA': 'CAD',
-      'JP': 'JPY',
-      'GB': 'GBP',
-      'AU': 'AUD'
+      'PT': 'EUR', 'GR': 'EUR', 'PL': 'EUR', 'CZ': 'EUR', 'HU': 'EUR', 'SK': 'EUR', 'SI': 'EUR',
+      'EE': 'EUR', 'LV': 'EUR', 'LT': 'EUR', 'MT': 'EUR', 'CY': 'EUR', 'BG': 'EUR', 'RO': 'EUR', 'HR': 'EUR',
+      
+      // Japan -> JPY
+      'JP': 'JPY'
     }
 
     const detectedCurrency = currencyMap[country] || 'CHF'
@@ -81,13 +99,21 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
     }
 
     setIsLoading(true)
+    
+    // Fixed 1-second loading delay
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
     try {
-      // Save to backend if user is authenticated
-      await api.post('/api/currency/preference', { currency })
+      // Try to save to backend if user is authenticated
+      try {
+        await api.post('/api/currency/preference', { currency })
+      } catch (error) {
+        // If user is not authenticated, this is expected - just continue
+        console.log('User not authenticated, saving currency locally only')
+      }
       
-      // Save to localStorage as fallback
+      // Always save to localStorage as fallback
       localStorage.setItem('preferredCurrency', currency)
-      
       setCurrentCurrency(currency)
     } catch (error) {
       console.error('Failed to set currency preference:', error)

@@ -4,21 +4,42 @@ import { useAuth } from '@/contexts/AuthContext'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { User, Mail, Calendar, MapPin, Phone, Shield, LogOut } from 'lucide-react'
+import { LanguageSelector } from '@/components/LanguageSelector'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
+import { useLanguageChange } from '@/hooks/useLanguageChange'
 
 export default function AdminDashboardPage() {
-  const { user, isAuthenticated, logout } = useAuth()
+  const { user, isAuthenticated, isLoading, logout } = useAuth()
   const router = useRouter()
+  const { forceUpdate } = useLanguageChange() // This will trigger re-render on language change
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/')
-    } else if (user && !user.roles?.includes('ADMIN')) {
-      // Redirect non-admin users to user account page
-      router.push('/user-account')
+    // Only redirect after loading is complete AND we have a definitive answer
+    if (!isLoading) {
+      if (!user) {
+        // No user data - redirect to homepage
+        router.push('/')
+      } else if (user && !user.roles?.includes('ADMIN')) {
+        // Redirect non-admin users to user account page
+        router.push('/user-account')
+      }
+      // If user exists and is ADMIN, stay on this page
     }
-  }, [isAuthenticated, user, router])
+  }, [user, router, isLoading])
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <User className="h-16 w-16 text-gray-400 mx-auto mb-4 animate-pulse" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Loading...</h2>
+          <p className="text-gray-600">Checking your authentication status.</p>
+        </div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated || !user) {
     return (
@@ -114,6 +135,16 @@ export default function AdminDashboardPage() {
                         </label>
                         <p className="mt-1 text-sm text-gray-900">{user.email}</p>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Settings */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Settings / Einstellungen
+                    </h3>
+                    <div className="space-y-4">
+                      <LanguageSelector />
                     </div>
                   </div>
 

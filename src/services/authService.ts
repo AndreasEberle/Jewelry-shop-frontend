@@ -43,15 +43,25 @@ export interface RegisterData {
 export const authService = {
   // Login with email and password
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post('/api/auth/login', credentials)
-    const data = response.data
-    
-    // Store token in localStorage
-    if (data.accessToken) {
-      localStorage.setItem('jwt_token', data.accessToken)
+    console.log('authService: Attempting login with credentials:', { email: credentials.email })
+    try {
+      const response = await api.post('/api/auth/login', credentials)
+      console.log('authService: Login response received:', response.data)
+      const data = response.data
+      
+      // Store token in localStorage
+      if (data.accessToken) {
+        localStorage.setItem('jwt_token', data.accessToken)
+        console.log('authService: Token stored in localStorage')
+      } else {
+        console.warn('authService: No access token in response')
+      }
+      
+      return data
+    } catch (error) {
+      console.error('authService: Login failed:', error)
+      throw error
     }
-    
-    return data
   },
 
   // Register new user
@@ -92,7 +102,10 @@ export const authService = {
 
   // Get current user info
   async getCurrentUser(): Promise<User> {
+    console.log('authService: getCurrentUser called')
+    console.log('authService: JWT token in localStorage:', localStorage.getItem('jwt_token') ? 'Present' : 'Missing')
     const response = await api.get('/api/auth/me')
+    console.log('authService: getCurrentUser response:', response.data)
     return response.data
   },
 
@@ -104,9 +117,9 @@ export const authService = {
       return true
     }
     
-    // For OAuth users, tokens are stored in HTTP-only cookies
-    // We can't check cookies directly, so we assume authenticated if we have a user in context
-    // The actual authentication check will happen when making API calls
+    // For OAuth users, we can't check HTTP-only cookies directly
+    // But we can check if we have a user in the AuthContext
+    // This will be handled by the AuthContext itself
     return false
   },
 
