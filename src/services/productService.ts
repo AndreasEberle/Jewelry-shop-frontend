@@ -9,28 +9,27 @@ export interface Product {
   material?: string
   gemstone?: string
   weightGrams?: number
+  quantity: number
   baseCurrency: string
   displayCurrency?: string
   displayPrice?: number
-  categories: Array<{
-    id: string
-    name: string
-  }>
-  tags: Array<{
-    id: string
-    name: string
-  }>
+  categories: string[]
+  tags: string[]
   images: Array<{
     id: string
     url: string
     altText?: string
     isPrimary: boolean
+    sortOrder?: number
+    width?: number
+    height?: number
+    mimeType?: string
+    createdAt: string
   }>
-  inventory: {
-    quantity: number
-    lowStockThreshold: number
-  }
-  isActive: boolean
+  active: boolean
+  specialOffer?: boolean
+  specialOfferPrice?: number
+  specialOfferDescription?: string
   createdAt: string
   updatedAt: string
 }
@@ -54,7 +53,30 @@ export interface ProductResponse {
 }
 
 export const productService = {
-  // Get all products with optional filters
+  // Admin: Get all products
+  async getAdminProducts(): Promise<Product[]> {
+    const response = await api.get('/api/admin/products')
+    return response.data
+  },
+
+  // Admin: Create a new product
+  async createProduct(productData: CreateProductRequest): Promise<Product> {
+    const response = await api.post('/api/admin/products', productData)
+    return response.data
+  },
+
+  // Admin: Update a product
+  async updateProduct(id: string, productData: UpdateProductRequest): Promise<Product> {
+    const response = await api.put(`/api/admin/products/${id}`, productData)
+    return response.data
+  },
+
+  // Admin: Delete a product
+  async deleteProduct(id: string): Promise<void> {
+    await api.delete(`/api/admin/products/${id}`)
+  },
+
+  // Public: Get all active products
   async getProducts(filters: ProductFilters = {}): Promise<ProductResponse> {
     const params = new URLSearchParams()
     
@@ -70,27 +92,70 @@ export const productService = {
     return response.data
   },
 
-  // Get a single product by ID
+  // Public: Get a single product by ID
   async getProduct(id: string): Promise<Product> {
     const response = await api.get(`/api/products/${id}`)
     return response.data
   },
 
-  // Get featured products
+  // Public: Get featured products
   async getFeaturedProducts(limit: number = 8, currency?: string): Promise<Product[]> {
     const headers = currency ? { 'X-Currency': currency } : {}
     const response = await api.get(`/api/products/featured?limit=${limit}`, { headers })
     return response.data
   },
 
-  // Get products by category
+  // Public: Get products by category
   async getProductsByCategory(categoryId: string, filters: Omit<ProductFilters, 'category'> = {}): Promise<ProductResponse> {
     return this.getProducts({ ...filters, category: categoryId })
   },
 
-  // Search products
+  // Public: Search products
   async searchProducts(query: string, filters: Omit<ProductFilters, 'search'> = {}): Promise<ProductResponse> {
     return this.getProducts({ ...filters, search: query })
+  },
+
+  // Admin: Generate SKU from product name
+  async generateSku(productName: string): Promise<string> {
+    const response = await api.get(`/api/admin/products/generate-sku?name=${encodeURIComponent(productName)}`)
+    return response.data
   }
+}
+
+// Admin-specific types
+export interface CreateProductRequest {
+  name: string
+  sku: string
+  description?: string
+  price: number
+  baseCurrency?: string
+  material?: string
+  gemstone?: string
+  weightGrams?: number
+  quantity: number
+  active?: boolean
+  specialOffer?: boolean
+  specialOfferPrice?: number
+  specialOfferDescription?: string
+  categories?: string[]
+  tags?: string[]
+}
+
+export interface UpdateProductRequest {
+  name?: string
+  sku?: string
+  description?: string
+  price?: number
+  baseCurrency?: string
+  material?: string
+  gemstone?: string
+  weightGrams?: number
+  quantity?: number
+  active?: boolean
+  specialOffer?: boolean
+  specialOfferPrice?: number
+  specialOfferDescription?: string
+  categories?: string[]
+  tags?: string[]
 }
 

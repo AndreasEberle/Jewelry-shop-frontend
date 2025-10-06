@@ -2,7 +2,10 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { X, Upload, Image as ImageIcon, Plus, Trash2, AlertCircle, Check } from 'lucide-react'
-import { Product } from '@/types'
+import { Product, CreateProductRequest } from '@/types'
+import { productService } from '@/services/productService'
+import { tagService, Tag } from '@/services/tagService'
+import { api } from '@/services/api'
 
 interface AddProductModalProps {
   isOpen: boolean
@@ -17,6 +20,8 @@ interface ProductFormData {
   sku: string
   category: string
   tags: string[]
+  quantity: string
+  weightGrams: string
   specialOffer: boolean
   specialOfferPrice: string
   specialOfferDescription: string
@@ -39,6 +44,8 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     sku: '',
     category: '',
     tags: [],
+    quantity: '1',
+    weightGrams: '',
     specialOffer: false,
     specialOfferPrice: '',
     specialOfferDescription: '',
@@ -51,6 +58,9 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [newTag, setNewTag] = useState('')
+  const [availableTags, setAvailableTags] = useState<Tag[]>([])
+  const [tagSearchQuery, setTagSearchQuery] = useState('')
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
 
@@ -58,6 +68,61 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     'Rings', 'Necklaces', 'Earrings', 'Bracelets', 'Watches', 
     'Pendants', 'Chains', 'Bangles', 'Brooches', 'Cufflinks'
   ]
+
+  // Load available tags on component mount
+  useEffect(() => {
+    const loadTags = async () => {
+      try {
+        const tags = await tagService.getAllTags()
+        setAvailableTags(tags)
+      } catch (error) {
+        console.error('Failed to load tags:', error)
+      }
+    }
+    loadTags()
+  }, [])
+
+  // Auto-generate SKU when name changes
+  useEffect(() => {
+    const generateSku = async () => {
+      if (formData.name.trim().length > 0) {
+        try {
+          const sku = await productService.generateSku(formData.name)
+          setFormData(prev => ({ ...prev, sku }))
+        } catch (error) {
+          console.error('Failed to generate SKU:', error)
+        }
+      }
+    }
+
+    const timeoutId = setTimeout(generateSku, 500) // Debounce SKU generation
+    return () => clearTimeout(timeoutId)
+  }, [formData.name])
+
+  // Search tags when query changes
+  useEffect(() => {
+    const searchTags = async () => {
+      if (tagSearchQuery.trim().length > 0) {
+        try {
+          const tags = await tagService.searchTags(tagSearchQuery)
+          setAvailableTags(tags)
+        } catch (error) {
+          console.error('Failed to search tags:', error)
+        }
+      } else {
+        // Load all tags when query is empty
+        try {
+          const tags = await tagService.getAllTags()
+          setAvailableTags(tags)
+        } catch (error) {
+          console.error('Failed to load tags:', error)
+        }
+      }
+    }
+
+    const timeoutId = setTimeout(searchTags, 300) // Debounce search
+    return () => clearTimeout(timeoutId)
+  }, [tagSearchQuery])
 
   // Handle ESC key and outside click
   useEffect(() => {
@@ -91,11 +156,50 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleAddTag = () => {
+  const handleAddTag = async () => {
     if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
-      setFormData(prev => ({ ...prev, tags: [...prev.tags, newTag.trim()] }))
+      // Check if tag already exists in available tags
+      const existingTag = availableTags.find(tag => tag.name.toLowerCase() === newTag.trim().toLowerCase())
+      
+      if (existingTag) {
+        // Add existing tag
+        setFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, existingTag.name]
+        }))
+      } else {
+        // Create new tag
+        try {
+          const createdTag = await tagService.createTag({ name: newTag.trim() })
+          setFormData(prev => ({
+            ...prev,
+            tags: [...prev.tags, createdTag.name]
+          }))
+          // Add to available tags
+          setAvailableTags(prev => [...prev, createdTag])
+        } catch (error) {
+          console.error('Failed to create tag:', error)
+          // Fallback: add as string without creating in DB
+          setFormData(prev => ({
+            ...prev,
+            tags: [...prev.tags, newTag.trim()]
+          }))
+        }
+      }
       setNewTag('')
+      setShowTagSuggestions(false)
     }
+  }
+
+  const handleSelectTag = (tag: Tag) => {
+    if (!formData.tags.includes(tag.name)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tag.name]
+      }))
+    }
+    setTagSearchQuery('')
+    setShowTagSuggestions(false)
   }
 
   const handleRemoveTag = (tagToRemove: string) => {
@@ -131,7 +235,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
   const handleFiles = (files: File[]) => {
     const validFiles = files.filter(file => {
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
-      const maxSize = 10 * 1024 * 1024 // 10MB
+      const maxSize = 50 * 1024 * 1024 // 50MB
       
       if (!validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only JPG, PNG, WEBP, and GIF are allowed.`)
@@ -139,7 +243,8 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
       }
       
       if (file.size > maxSize) {
-        setError(`File too large: ${file.name}. Maximum size is 10MB.`)
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1)
+        setError(`File too large: ${file.name} (${fileSizeMB}MB). Maximum size is 50MB.`)
         return false
       }
       
@@ -180,37 +285,39 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
     setSuccess(null)
     setUploading(true)
 
+    // Validation
+    if (formData.tags.length === 0) {
+      setError('At least one tag is required')
+      setUploading(false)
+      return
+    }
+
+    if (images.length === 0) {
+      setError('At least one image is required')
+      setUploading(false)
+      return
+    }
+
     try {
       // Create product first
-      const productData = {
+      const productData: CreateProductRequest = {
         name: formData.name,
         description: formData.description,
-        price: parseFloat(formData.price) * 100, // Convert to cents
+        price: parseFloat(formData.price),
         sku: formData.sku,
-        category: formData.category,
+        categories: formData.category ? [formData.category] : [],
         tags: formData.tags,
+        quantity: parseInt(formData.quantity),
+        weightGrams: formData.weightGrams ? parseFloat(formData.weightGrams) : undefined,
         specialOffer: formData.specialOffer,
-        specialOfferPrice: formData.specialOffer ? parseFloat(formData.specialOfferPrice) * 100 : null,
+        specialOfferPrice: formData.specialOffer ? parseFloat(formData.specialOfferPrice) : undefined,
         specialOfferDescription: formData.specialOfferDescription,
         active: formData.active
       }
 
-      // Create product
-      const productResponse = await fetch('/api/admin/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(productData)
-      })
-
-      if (!productResponse.ok) {
-        const errorText = await productResponse.text()
-        throw new Error(`Failed to create product: ${errorText}`)
-      }
-
-      const product = await productResponse.json()
+      // Create product using the service
+      const product = await productService.createProduct(productData)
+      console.log('Product created successfully:', product)
 
       // Upload images if any
       if (images.length > 0) {
@@ -221,14 +328,17 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
           formData.append('altText', image.altText)
           formData.append('isPrimary', image.isPrimary.toString())
 
-          const imageResponse = await fetch(`/api/admin/upload-product-image/${product.id}`, {
-            method: 'POST',
-            body: formData,
-            credentials: 'include'
+          const imageResponse = await api.post(`/api/admin/upload-product-image/${product.id}`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
           })
 
-          if (!imageResponse.ok) {
-            console.warn(`Failed to upload image ${i + 1}`)
+          if (!imageResponse.data.success) {
+            console.error(`Failed to upload image ${i + 1}:`, imageResponse.data.message)
+            setError(`Failed to upload image ${i + 1}: ${imageResponse.data.message}`)
+            setUploading(false)
+            return
           }
         }
       }
@@ -244,6 +354,8 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
         sku: '',
         category: '',
         tags: [],
+        quantity: '1',
+        weightGrams: '',
         specialOffer: false,
         specialOfferPrice: '',
         specialOfferDescription: '',
@@ -257,7 +369,9 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
       }, 1500)
 
     } catch (err) {
-      setError('Failed to create product: ' + (err as Error).message)
+      console.error('Error creating product:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError('Failed to create product: ' + errorMessage)
     } finally {
       setUploading(false)
     }
@@ -308,6 +422,38 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
                   onChange={(e) => handleInputChange('sku', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   placeholder="e.g., RING-GOLD-001"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={formData.quantity}
+                  onChange={(e) => handleInputChange('quantity', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., 10"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Weight (grams)
+                </label>
+                <input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  value={formData.weightGrams}
+                  onChange={(e) => handleInputChange('weightGrams', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., 5.5"
                 />
               </div>
             </div>
@@ -412,7 +558,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
             {/* Tags */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags
+                Tags <span className="text-red-500">*</span>
               </label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formData.tags.map(tag => (
@@ -431,29 +577,57 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
                   </span>
                 ))}
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="Add a tag and press Enter"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddTag}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+              <div className="relative">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => {
+                      setNewTag(e.target.value)
+                      setTagSearchQuery(e.target.value)
+                      setShowTagSuggestions(true)
+                    }}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    onFocus={() => setShowTagSuggestions(true)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Type to search existing tags or create new ones"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                {/* Tag Suggestions Dropdown */}
+                {showTagSuggestions && availableTags.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                    {availableTags
+                      .filter(tag => !formData.tags.includes(tag.name))
+                      .map(tag => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => handleSelectTag(tag)}
+                          className="w-full px-4 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                  </div>
+                )}
               </div>
+              {formData.tags.length === 0 && (
+                <p className="text-sm text-red-500 mt-1">At least one tag is required</p>
+              )}
             </div>
 
             {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Product Images
+                Product Images <span className="text-red-500">*</span>
               </label>
               
               {/* Upload Area */}
@@ -550,6 +724,9 @@ export function AddProductModal({ isOpen, onClose, onProductAdded }: AddProductM
                     ))}
                   </div>
                 </div>
+              )}
+              {images.length === 0 && (
+                <p className="text-sm text-red-500 mt-2">At least one image is required</p>
               )}
             </div>
 

@@ -143,12 +143,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // Make error messages more human-friendly
       let errorMessage = 'An error occurred'
       
+      // Debug logging
+      console.log('Login error:', err)
+      console.log('Error response:', err.response)
+      console.log('Error response data:', err.response?.data)
       
       if (err.response?.data?.message) {
-        errorMessage = err.response.data.message
+        // Handle ErrorResponse format (from global exception handler)
+        const backendMessage = err.response.data.message
+        if (backendMessage.includes('Invalid credentials')) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+        } else if (backendMessage.includes('User not found')) {
+          errorMessage = 'No account found with this email address. Please check your email or create a new account.'
+        } else {
+          errorMessage = backendMessage
+        }
       } else if (err.response?.data?.error) {
         // Handle specific error messages from backend
-        errorMessage = err.response.data.error
+        const backendError = err.response.data.error
+        if (backendError.includes('No account found with this email address')) {
+          errorMessage = 'No account found with this email address. Please check your email or create a new account.'
+        } else if (backendError.includes('Invalid email or password')) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+        } else if (backendError.includes('This account was created with Google')) {
+          errorMessage = 'This account was created with Google. Please use Google to sign in.'
+        } else {
+          errorMessage = backendError
+        }
       } else if (err.response?.data?.errors) {
         // Handle validation errors
         const validationErrors = err.response.data.errors
@@ -183,10 +204,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           // Handle specific error types
           if (err.message.includes('Bad credentials')) {
             errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+          } else if (err.message.includes('No account found with this email address')) {
+            errorMessage = 'No account found with this email address. Please check your email or create a new account.'
+          } else if (err.message.includes('User not found')) {
+            errorMessage = 'No account found with this email address. Please check your email or create a new account.'
           } else if (err.message.includes('Network Error')) {
             errorMessage = 'Unable to connect to the server. Please check your internet connection and try again.'
           } else if (err.message.includes('Request failed with status code 400')) {
-            errorMessage = 'Please check your information and try again.'
+            // For 400 errors, try to get more specific error from response
+            if (err.response?.data?.error) {
+              const backendError = err.response.data.error
+              if (backendError.includes('No account found with this email address')) {
+                errorMessage = 'No account found with this email address. Please check your email or create a new account.'
+              } else if (backendError.includes('Invalid email or password')) {
+                errorMessage = 'Invalid email or password. Please check your credentials and try again.'
+              } else if (backendError.includes('This account was created with Google')) {
+                errorMessage = 'This account was created with Google. Please use Google to sign in.'
+              } else {
+                errorMessage = backendError
+              }
+            } else {
+              errorMessage = 'Please check your information and try again.'
+            }
           } else if (err.message.includes('Request failed with status code 401')) {
             errorMessage = 'Invalid email or password. Please check your credentials and try again.'
           } else if (err.message.includes('Request failed with status code 500')) {
@@ -242,10 +281,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Required Fields Section */}
           <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 border-b pb-2 flex items-center">
-              Required Information 
-              <span className="text-red-500 ml-2">*</span>
-            </h3>
             
             {mode === 'register' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

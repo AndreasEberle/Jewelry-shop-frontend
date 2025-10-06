@@ -78,6 +78,10 @@ export default function AuthCallbackPage() {
           // Mark that we've checked auth to prevent it from being cleared
           window.dispatchEvent(new CustomEvent('authChecked', { detail: { user: userData } }))
           
+          // Trigger preference loading and cart migration
+          window.dispatchEvent(new CustomEvent('userLoggedIn'))
+          console.log('OAuth callback: Dispatched userLoggedIn event for preference loading')
+          
           // Cart migration will happen automatically via AuthContext state change
           console.log('OAuth callback: User state updated, cart migration will happen automatically')
 
@@ -154,6 +158,11 @@ export default function AuthCallbackPage() {
               if (userData && userData.email) {
                 console.log('OAuth callback: Fallback successful, user found:', userData)
                 setUser(userData)
+                
+                // Trigger preference loading and cart migration
+                window.dispatchEvent(new CustomEvent('userLoggedIn'))
+                console.log('OAuth callback: Dispatched userLoggedIn event for preference loading (fallback)')
+                
                 setStatus('success')
                 setMessage(`Welcome back, ${userData.firstName || userData.email}!`)
                 // Redirect after fallback success

@@ -29,16 +29,25 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     loadSupportedLanguages()
   }, [])
 
-  // Listen for logout events to reset language
+  // Listen for login events to load user preferences
   useEffect(() => {
+    const handleLogin = async () => {
+      console.log('LanguageContext: User logged in, loading language preference')
+      await loadUserLanguagePreference()
+    }
+
     const handleLogout = () => {
       console.log('LanguageContext: User logged out, resetting language')
       setCurrentLanguage('de-DE')
       setIsLoading(true)
     }
 
+    window.addEventListener('userLoggedIn', handleLogin)
     window.addEventListener('userLoggedOut', handleLogout)
-    return () => window.removeEventListener('userLoggedOut', handleLogout)
+    return () => {
+      window.removeEventListener('userLoggedIn', handleLogin)
+      window.removeEventListener('userLoggedOut', handleLogout)
+    }
   }, [])
 
   const loadUserLanguagePreference = async () => {

@@ -31,7 +31,7 @@ export function useProductNameValidation(name: string, excludeProductId?: string
         params.append('excludeProductId', productId)
       }
 
-      const response = await fetch(`/api/admin/products/validate-name?${params}`, {
+      const response = await fetch(`http://localhost:8080/api/admin/products/validate-name?${params}`, {
         credentials: 'include'
       })
 

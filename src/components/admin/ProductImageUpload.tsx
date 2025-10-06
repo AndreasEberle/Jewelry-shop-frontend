@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { Upload, X, Image as ImageIcon, Check, AlertCircle, Loader2 } from 'lucide-react'
 import { Product } from '@/types'
+import api from '@/services/api'
 
 interface ProductImageUploadProps {
   product: Product
@@ -90,23 +91,16 @@ export function ProductImageUpload({ product, onImagesUploaded }: ProductImageUp
         formData.append('altText', `${product.name} - Image ${i + 1}`)
         formData.append('isPrimary', i === 0 ? 'true' : 'false')
 
-        const response = await fetch(`/api/admin/upload-product-image/${product.id}`, {
-          method: 'POST',
-          body: formData,
-          credentials: 'include'
+        const response = await api.post(`/api/admin/upload-product-image/${product.id}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
         })
 
-        if (!response.ok) {
-          const errorText = await response.text()
-          throw new Error(`Upload failed: ${response.status} ${errorText}`)
-        }
-
-        const result = await response.json()
-        
-        if (result.success) {
-          uploadedImages.push(result.image)
+        if (response.data.success) {
+          uploadedImages.push(response.data.image)
         } else {
-          throw new Error(result.message || 'Upload failed')
+          throw new Error(response.data.message || 'Upload failed')
         }
       }
 
@@ -131,20 +125,18 @@ export function ProductImageUpload({ product, onImagesUploaded }: ProductImageUp
       formData.append('altText', altText)
       formData.append('isPrimary', isPrimary.toString())
 
-      const response = await fetch(`/api/admin/upload-product-image/${product.id}`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include'
+      const response = await api.post(`/api/admin/upload-product-image/${product.id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       })
 
-      const result = await response.json()
-
-      if (result.success) {
-        setUploadedImages(prev => [...prev, result.image])
+      if (response.data.success) {
+        setUploadedImages(prev => [...prev, response.data.image])
         setSuccess('Image uploaded successfully')
-        onImagesUploaded?.([result.image])
+        onImagesUploaded?.([response.data.image])
       } else {
-        setError(result.message || 'Upload failed')
+        setError(response.data.message || 'Upload failed')
       }
     } catch (err) {
       setError('Upload failed: ' + (err as Error).message)

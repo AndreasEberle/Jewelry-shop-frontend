@@ -29,16 +29,25 @@ export const CurrencyProvider: React.FC<CurrencyProviderProps> = ({ children }) 
     loadSupportedCurrencies()
   }, [])
 
-  // Listen for logout events to reset currency
+  // Listen for login events to load user preferences
   useEffect(() => {
+    const handleLogin = async () => {
+      console.log('CurrencyContext: User logged in, loading currency preference')
+      await loadUserCurrencyPreference()
+    }
+
     const handleLogout = () => {
       console.log('CurrencyContext: User logged out, resetting currency')
       setCurrentCurrency('')
       setIsLoading(true)
     }
 
+    window.addEventListener('userLoggedIn', handleLogin)
     window.addEventListener('userLoggedOut', handleLogout)
-    return () => window.removeEventListener('userLoggedOut', handleLogout)
+    return () => {
+      window.removeEventListener('userLoggedIn', handleLogin)
+      window.removeEventListener('userLoggedOut', handleLogout)
+    }
   }, [])
 
   const loadUserCurrencyPreference = async () => {

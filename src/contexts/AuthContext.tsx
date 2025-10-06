@@ -125,8 +125,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('AuthContext: Login successful, setting user:', response.user)
       console.log('AuthContext: JWT token after login:', localStorage.getItem('jwt_token') ? 'Present' : 'Missing')
       setUser(response.user)
-      // Trigger cart migration after successful login
+      
+      // Trigger cart migration and preference loading after successful login
       window.dispatchEvent(new CustomEvent('userLoggedIn'))
+      
+      // Add a small delay to ensure preferences are loaded before login completes
+      console.log('AuthContext: Waiting for preferences to load...')
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
       console.log('AuthContext: Login process completed successfully')
     } catch (error: any) {
       console.error('AuthContext: Login failed:', error)
