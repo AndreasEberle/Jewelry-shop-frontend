@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { BrandingManager } from '@/components/admin/BrandingManager'
 import api from '@/services/api'
-import { Settings, Database, Cloud, Shield, Globe, DollarSign } from 'lucide-react'
+import { Settings, Database, Cloud, Shield, Globe, DollarSign, Palette } from 'lucide-react'
 
 interface SystemConfig {
   id: string
@@ -27,16 +28,28 @@ export default function AdminSettingsPage() {
   const [editingConfig, setEditingConfig] = useState<ConfigWithOptions | null>(null)
   const [editValue, setEditValue] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<'system' | 'branding'>('system')
 
   useEffect(() => {
     loadSystemConfigs()
   }, [])
 
-  const loadSystemConfigs = async () => {
+  const loadSystemConfigs = async (forceRefresh = false) => {
     try {
       setLoading(true)
-      const response = await api.get('/api/admin/config/all')
-      const allConfigs = response.data.content || response.data
+      // Add cache busting parameter to force refresh
+      const url = forceRefresh ? `/api/admin/config/list?t=${Date.now()}` : '/api/admin/config/list'
+      const response = await api.get(url)
+      const allConfigs = response.data
+      
+      console.log('Loaded configs:', allConfigs)
+      
+      // Debug specific configs
+      const s3RegionConfigs = allConfigs.filter(c => c.configKey === 'S3_REGION')
+      const storageTypeConfigs = allConfigs.filter(c => c.configKey === 'STORAGE_TYPE')
+      console.log('S3_REGION configs:', s3RegionConfigs)
+      console.log('STORAGE_TYPE configs:', storageTypeConfigs)
       
       // Group configs by key and detect dropdowns
       const configMap = new Map<string, SystemConfig[]>()
@@ -47,13 +60,33 @@ export default function AdminSettingsPage() {
         configMap.get(config.configKey)!.push(config)
       })
       
-      // Convert to ConfigWithOptions, using the active config as the main config
+      console.log('Config map:', configMap)
+      
+      // Convert to ConfigWithOptions, using the ACTIVE config as the main config
       // and adding options for dropdowns
       const processedConfigs: ConfigWithOptions[] = []
       configMap.forEach((configs, key) => {
         // Find the active config, or use the first one if none is active
         const activeConfig = configs.find(config => config.isActive) || configs[0]
         const isDropdown = configs.length > 1
+        
+        console.log(`Config ${key}:`, {
+          allConfigs: configs,
+          activeConfig,
+          isDropdown,
+          activeConfigValue: activeConfig?.configValue,
+          activeConfigIsActive: activeConfig?.isActive
+        })
+        
+        // Extra debugging for problematic configs
+        if (key === 'S3_REGION' || key === 'STORAGE_TYPE') {
+          console.log(`=== DEBUGGING ${key} ===`)
+          console.log('All configs for this key:', configs)
+          console.log('Active config found:', activeConfig)
+          console.log('Is active config really active?', activeConfig?.isActive)
+          console.log('Active config value:', activeConfig?.configValue)
+          console.log('========================')
+        }
         
         processedConfigs.push({
           ...activeConfig,
@@ -62,6 +95,7 @@ export default function AdminSettingsPage() {
         })
       })
       
+      console.log('Processed configs:', processedConfigs)
       setConfigs(processedConfigs)
     } catch (err) {
       setError('Failed to load system configurations')
@@ -80,28 +114,37 @@ export default function AdminSettingsPage() {
     if (!editingConfig) return
 
     try {
-      // For dropdown configs, we need to find the correct config entry with the selected value
-      let configToUpdate = editingConfig
+      setIsSaving(true)
       if (editingConfig.isDropdown && editingConfig.options) {
+        // For dropdown configs, activate the selected option
         const selectedOption = editingConfig.options.find(option => option.configValue === editValue)
         if (selectedOption) {
-          configToUpdate = selectedOption
+          console.log('Activating config:', selectedOption)
+          const response = await api.post(`/api/admin/config/${selectedOption.id}/activate`)
+          console.log('Activation response:', response.data)
+          // Small delay to ensure backend has processed the change
+          await new Promise(resolve => setTimeout(resolve, 200))
+          // Force refresh all configs to get the updated state
+          await loadSystemConfigs(true)
         }
+      } else {
+        // For regular configs, update the value
+        console.log('Updating config:', editingConfig.id, 'to value:', editValue)
+        const response = await api.put(`/api/admin/config/${editingConfig.id}`, { configValue: editValue })
+        console.log('Update response:', response.data)
+        // Small delay to ensure backend has processed the change
+        await new Promise(resolve => setTimeout(resolve, 200))
+        // Force refresh all configs to get the updated state
+        await loadSystemConfigs(true)
       }
-
-      await api.put(`/api/admin/config/${configToUpdate.id}`, { configValue: editValue })
-
-      setConfigs(prev => prev.map(config => 
-        config.id === editingConfig.id 
-          ? { ...config, configValue: editValue, updatedAt: new Date().toISOString() }
-          : config
-      ))
 
       setEditingConfig(null)
       setEditValue('')
     } catch (err) {
       setError('Failed to update configuration')
       console.error('Error updating config:', err)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -167,7 +210,41 @@ export default function AdminSettingsPage() {
       <div className="container mx-auto p-6">
         <div className="flex items-center space-x-3 mb-6">
           <Settings className="w-8 h-8 text-primary-600" />
-          <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => setActiveTab('system')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'system'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Settings className="w-4 h-4" />
+                  <span>System Settings</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('branding')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'branding'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Palette className="w-4 h-4" />
+                  <span>Branding</span>
+                </div>
+              </button>
+            </nav>
+          </div>
         </div>
 
         {error && (
@@ -176,27 +253,39 @@ export default function AdminSettingsPage() {
           </div>
         )}
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search configurations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Settings className="h-5 w-5 text-gray-400" />
+        {activeTab === 'system' ? (
+          <>
+            {/* Search Bar and Refresh Button */}
+            <div className="mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                placeholder="Search configurations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Settings className="h-5 w-5 text-gray-400" />
+              </div>
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                >
+                  <span className="text-xl">&times;</span>
+                </button>
+              )}
             </div>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-              >
-                <span className="text-xl">&times;</span>
-              </button>
-            )}
+            <button
+              onClick={() => loadSystemConfigs(true)}
+              disabled={loading}
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              <Settings className="w-4 h-4" />
+              <span>Refresh</span>
+            </button>
           </div>
           {searchQuery && (
             <p className="mt-2 text-sm text-gray-600">
@@ -229,7 +318,7 @@ export default function AdminSettingsPage() {
                 <h2 className="text-lg font-semibold text-gray-900">{category}</h2>
               </div>
               <div className="divide-y divide-gray-200">
-                {configs.map((config) => (
+                {configs.map((config: ConfigWithOptions) => (
                   <div key={config.id} className="px-6 py-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -254,17 +343,26 @@ export default function AdminSettingsPage() {
                         {editingConfig?.id === config.id ? (
                           <div className="flex items-center space-x-2">
                             {config.isDropdown && config.options ? (
-                              <select
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                              >
-                                {config.options.map((option) => (
-                                  <option key={option.id} value={option.configValue}>
-                                    {option.configValue} - {option.description}
-                                  </option>
-                                ))}
-                              </select>
+                              (() => {
+                                const availableOptions = config.options.filter((option: SystemConfig) => !option.isActive);
+                                return availableOptions.length > 0 ? (
+                                  <select
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                  >
+                                    {availableOptions.map((option: SystemConfig) => (
+                                      <option key={option.id} value={option.configValue}>
+                                        {option.configValue} - {option.description}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <div className="text-sm text-gray-500 italic">
+                                    All options are already active
+                                  </div>
+                                );
+                              })()
                             ) : (
                               <input
                                 type="text"
@@ -275,9 +373,17 @@ export default function AdminSettingsPage() {
                             )}
                             <button
                               onClick={handleSave}
-                              className="px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700"
+                              disabled={isSaving}
+                              className="px-3 py-1 bg-primary-600 text-white text-sm rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                             >
-                              Save
+                              {isSaving ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-white"></div>
+                                  <span>Saving...</span>
+                                </>
+                              ) : (
+                                'Save'
+                              )}
                             </button>
                             <button
                               onClick={handleCancel}
@@ -314,7 +420,7 @@ export default function AdminSettingsPage() {
                       <div className="mt-4 pl-8">
                         <h4 className="text-sm font-medium text-gray-700 mb-2">Available Options:</h4>
                         <div className="space-y-2">
-                          {config.options.map((option) => (
+                          {config.options.map((option: SystemConfig) => (
                             <div key={option.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded">
                               <div className="flex items-center space-x-2">
                                 <span className="text-sm text-gray-900 font-mono">
@@ -329,14 +435,12 @@ export default function AdminSettingsPage() {
                                   </span>
                                 )}
                               </div>
-                              {!option.isActive && (
-                                <button
-                                  onClick={() => handleActivate(option)}
-                                  className="px-2 py-1 bg-primary-600 text-white text-xs rounded hover:bg-primary-700"
-                                >
-                                  Activate
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleActivate(option)}
+                                className="px-2 py-1 bg-primary-600 text-white text-xs rounded hover:bg-primary-700"
+                              >
+                                Activate
+                              </button>
                             </div>
                           ))}
                         </div>
@@ -349,6 +453,11 @@ export default function AdminSettingsPage() {
           ))
           )}
         </div>
+          </>
+        ) : (
+          /* Branding Configuration */
+          <BrandingManager />
+        )}
       </div>
     </AdminLayout>
   )

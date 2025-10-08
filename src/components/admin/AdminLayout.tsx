@@ -15,7 +15,8 @@ import {
   User,
   ShoppingCart,
   Globe,
-  CreditCard
+  CreditCard,
+  Palette
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
@@ -32,6 +33,7 @@ const navigation = [
   { name: 'Payments', href: '/admin/payments', icon: CreditCard },
   { name: 'Products', href: '/admin/products', icon: Package },
   { name: 'Users', href: '/admin/users', icon: Users },
+  { name: 'Styling', href: '/admin/styling', icon: Palette },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ]
 
@@ -186,11 +188,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-200">
+        <div className="flex flex-col h-full bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
             <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
           </div>
-          <nav className="flex-1 space-y-1 px-2 py-4">
+          <nav className="space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const Icon = item.icon
               return (
@@ -211,8 +213,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </nav>
           
           {/* Language Switcher - Desktop */}
-          <div className="border-t border-gray-200 p-4">
-            <div className="mb-4">
+          <div className="border-t border-gray-200 p-3">
+            <div className="mb-3">
               <div className="flex items-center space-x-2 mb-2">
                 <span className="text-sm font-medium text-gray-700">Language</span>
               </div>
@@ -236,7 +238,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
             
             {/* Currency Selector - Desktop */}
-            <div className="mb-4">
+            <div className="mb-2">
               <div className="flex items-center space-x-2 mb-2">
                 <span className="text-sm font-medium text-gray-700">Currency</span>
               </div>
@@ -244,8 +246,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
           </div>
           
+          {/* Spacer to push user info to bottom */}
+          <div className="flex-1"></div>
+          
           {/* User info at bottom */}
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-gray-200 p-4 mt-auto">
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <User className="h-8 w-8 text-gray-400" />
@@ -285,6 +290,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </button>
           
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
+            {/* Clickable logo to redirect to main shop */}
+            <div className="flex items-center">
+              <Link 
+                href="/" 
+                className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+                title="Go to main shop"
+              >
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">JS</span>
+                  </div>
+                  <span className="text-lg font-semibold text-gray-900 hidden sm:block">
+                    Jewelry Shop
+                  </span>
+                </div>
+              </Link>
+            </div>
+            
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
               <div className="hidden lg:block lg:h-6 lg:w-px lg:bg-gray-200" />

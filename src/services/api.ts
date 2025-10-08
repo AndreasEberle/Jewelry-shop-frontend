@@ -15,7 +15,10 @@ api.interceptors.request.use(
   (config) => {
     // Add JWT token if available
     const token = localStorage.getItem('jwt_token')
-    console.log('API Interceptor: Request to', config.url, 'Token:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing')
+    // Only log important requests to reduce console noise
+    if (config.url?.includes('/admin/') || config.url?.includes('/auth/')) {
+      console.log('API Interceptor: Request to', config.url, 'Token:', token ? `Present` : 'Missing')
+    }
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -29,7 +32,10 @@ api.interceptors.request.use(
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => {
-    console.log('API Interceptor: Response from', response.config.url, 'Status:', response.status)
+    // Only log important responses to reduce console noise
+    if (response.config.url?.includes('/admin/') || response.config.url?.includes('/auth/')) {
+      console.log('API Interceptor: Response from', response.config.url, 'Status:', response.status)
+    }
     return response
   },
   (error) => {

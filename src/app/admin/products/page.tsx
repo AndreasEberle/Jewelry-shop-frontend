@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Image as ImageIcon, Eye, X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Product, CreateProductRequest } from '@/types'
+import { Plus, Edit, Trash2, Image as ImageIcon, Eye, X, ChevronLeft, ChevronRight, Trash } from 'lucide-react'
+import { Product } from '@/types'
 import { productService } from '@/services/productService'
+import api from '@/services/api'
 import { ProductImageUpload } from '@/components/admin/ProductImageUpload'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { AddProductModal } from '@/components/admin/AddProductModal'
@@ -28,6 +29,8 @@ export default function AdminProductsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
   const [sortBy, setSortBy] = useState<'name' | 'price' | 'createdAt' | 'quantity'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [totalProducts, setTotalProducts] = useState(0)
@@ -71,6 +74,27 @@ export default function AdminProductsPage() {
     // Refresh the products list
     loadProducts()
     setShowAddProduct(false)
+  }
+
+  const handleClearAllImages = async () => {
+    try {
+      setIsClearing(true)
+      const response = await api.delete('/api/admin/storage/clear/products')
+      
+      if (response.data.success) {
+        alert(`Successfully cleared all product images!\n\n${response.data.result.message}`)
+        // Reload products to refresh image states
+        await loadProducts()
+      } else {
+        alert(`Failed to clear images: ${response.data.message}`)
+      }
+    } catch (error) {
+      console.error('Error clearing product images:', error)
+      alert('Failed to clear product images')
+    } finally {
+      setIsClearing(false)
+      setShowClearConfirm(false)
+    }
   }
 
   const handleEditProduct = (product: Product) => {
@@ -208,6 +232,14 @@ export default function AdminProductsPage() {
             <p className="text-gray-600 mt-2">Manage your jewelry products and images</p>
           </div>
           <div className="flex items-center space-x-4">
+            <button 
+              onClick={() => setShowClearConfirm(true)}
+              className="btn btn-danger flex items-center space-x-2"
+              disabled={isClearing}
+            >
+              <Trash className="w-5 h-5" />
+              <span>{isClearing ? 'Clearing...' : 'Clear All Images'}</span>
+            </button>
             
             <button 
               onClick={handleAddProduct}
@@ -540,6 +572,19 @@ export default function AdminProductsPage() {
           cancelText="Cancel"
           type="danger"
           isLoading={isDeleting}
+        />
+
+        {/* Clear All Images Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showClearConfirm}
+          onClose={() => setShowClearConfirm(false)}
+          onConfirm={handleClearAllImages}
+          title="Clear All Product Images"
+          message="Are you sure you want to clear ALL product images from storage? This action cannot be undone and will permanently delete all images from the products folder in your S3 bucket or local storage."
+          confirmText={isClearing ? "Clearing..." : "Clear All Images"}
+          cancelText="Cancel"
+          type="danger"
+          isLoading={isClearing}
         />
 
         {/* Edit Product Modal */}

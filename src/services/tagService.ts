@@ -32,3 +32,5 @@ export const tagService = {
     return response.data
   }
 }
+
+

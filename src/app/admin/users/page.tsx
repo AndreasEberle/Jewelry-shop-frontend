@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { UserDataTable } from '@/components/admin/UserDataTable'
 import api from '@/services/api'
-import { Users, Search, Filter, ChevronLeft, ChevronRight, UserCheck, UserX, Mail, Calendar } from 'lucide-react'
+import { Users, Search, Filter } from 'lucide-react'
 
 interface User {
   id: string
@@ -11,12 +12,38 @@ interface User {
   firstName?: string
   lastName?: string
   phoneNumber?: string
-  countryCode?: string
+  phoneCountryCode?: string
+  dateOfBirth?: string
+  gender?: string
   roles: string[]
   active: boolean
   oauthOnly: boolean
+  ldapEnabled?: boolean
+  totpEnabled?: boolean
   createdAt: string
+  updatedAt?: string
   lastLoginAt?: string
+  // Newsletter and marketing preferences
+  newsletterSubscribed?: boolean
+  marketingEmails?: boolean
+  smsNotifications?: boolean
+  // Additional user information
+  preferredLanguage?: string
+  timezone?: string
+  emailVerified?: boolean
+  phoneVerified?: boolean
+  profileCompleted?: boolean
+  notes?: string
+  // User preferences
+  language?: string
+  currency?: string
+  preferencesCreatedAt?: string
+  preferencesUpdatedAt?: string
+  // Related data counts
+  addressCount?: number
+  orderCount?: number
+  paymentCount?: number
+  totalSpent?: number
 }
 
 export default function AdminUsersPage() {
@@ -24,20 +51,103 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState<'all' | 'ADMIN' | 'USER'>('all')
+  const [roleFilter, setRoleFilter] = useState<'all' | 'ADMIN' | 'CUSTOMER'>('all')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [authFilter, setAuthFilter] = useState<'all' | 'oauth' | 'email'>('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(25)
   const [totalUsers, setTotalUsers] = useState(0)
+  const [initialLoad, setInitialLoad] = useState(false)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [showFilters, setShowFilters] = useState(true)
 
+  // Load users ONLY ONCE on mount - no more constant API calls!
   useEffect(() => {
+    console.log('Users: Loading users ONCE on mount')
     loadUsers()
-  }, [currentPage, itemsPerPage, searchQuery, roleFilter, statusFilter, authFilter])
+  }, []) // Empty dependency array = only run once on mount
+
+  // Handle filter changes with a single useEffect
+  useEffect(() => {
+    if (initialLoad) { // Only run after initial load
+      console.log('Users: Filters changed, reloading users')
+      loadUsers()
+    }
+  }, [currentPage, itemsPerPage, roleFilter, statusFilter, authFilter])
+
+  // Handle search with debouncing
+  useEffect(() => {
+    if (!initialLoad) return // Don't search until initial load is done
+    
+    const timeoutId = setTimeout(() => {
+      console.log('Users: Search query changed, reloading users')
+      loadUsers()
+    }, 500) // 500ms delay
+
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
+
+  // Handle search input changes
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
+    // Keep focus on the search input after state update
+    setTimeout(() => {
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
+    }, 0)
+  }
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchQuery('')
+    setRoleFilter('all')
+    setStatusFilter('all')
+    setAuthFilter('all')
+    setCurrentPage(1)
+  }
+
+  // Get active filters count
+  const getActiveFiltersCount = () => {
+    let count = 0
+    if (searchQuery.trim() !== '') count++
+    if (roleFilter !== 'all') count++
+    if (statusFilter !== 'all') count++
+    if (authFilter !== 'all') count++
+    return count
+  }
+
+  // Remove specific filter
+  const removeFilter = (filterType: 'search' | 'role' | 'status' | 'auth') => {
+    switch (filterType) {
+      case 'search':
+        setSearchQuery('')
+        break
+      case 'role':
+        setRoleFilter('all')
+        break
+      case 'status':
+        setStatusFilter('all')
+        break
+      case 'auth':
+        setAuthFilter('all')
+        break
+    }
+  }
 
   const loadUsers = async () => {
+    // Prevent multiple simultaneous API calls
+    if (isLoadingUsers) {
+      console.log('Users: API call already in progress, skipping...')
+      return
+    }
+    
     try {
+      setIsLoadingUsers(true)
       setLoading(true)
+      console.log('Users: Loading users with filters:', { currentPage, itemsPerPage, roleFilter, statusFilter, authFilter, searchQuery })
+      
       const params = new URLSearchParams({
         page: (currentPage - 1).toString(),
         size: itemsPerPage.toString(),
@@ -51,11 +161,14 @@ export default function AdminUsersPage() {
       
       setUsers(response.data.content || response.data)
       setTotalUsers(response.data.totalElements || response.data.length)
+      setInitialLoad(true) // Mark initial load as complete
+      console.log('Users: Loaded', response.data.content?.length || response.data.length, 'users')
     } catch (err) {
       setError('Failed to load users')
       console.error('Error loading users:', err)
     } finally {
       setLoading(false)
+      setIsLoadingUsers(false)
     }
   }
 
@@ -73,25 +186,6 @@ export default function AdminUsersPage() {
   }
 
   const totalPages = Math.ceil(totalUsers / itemsPerPage)
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         user.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
-    
-    const matchesRole = roleFilter === 'all' || user.roles.some(role => {
-      const roleName = typeof role === 'string' ? role : role.name || role.id
-      return roleName === roleFilter
-    })
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'active' && user.active) ||
-                         (statusFilter === 'inactive' && !user.active)
-    const matchesAuth = authFilter === 'all' ||
-                       (authFilter === 'oauth' && user.oauthOnly) ||
-                       (authFilter === 'email' && !user.oauthOnly)
-
-    return matchesSearch && matchesRole && matchesStatus && matchesAuth
-  })
 
   if (loading) {
     return (
@@ -120,16 +214,100 @@ export default function AdminUsersPage() {
         {/* Filters and Search */}
         <div className="bg-white rounded-lg shadow mb-6">
           <div className="p-6">
+            {/* Filter Management Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-4">
+                <h3 className="text-lg font-medium text-gray-900">Filters</h3>
+                {getActiveFiltersCount() > 0 && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    {getActiveFiltersCount()} active
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  {showFilters ? 'Hide Filters' : 'Show Filters'}
+                </button>
+                {getActiveFiltersCount() > 0 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="inline-flex items-center px-3 py-2 border border-red-300 shadow-sm text-sm leading-4 font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Active Filters Display */}
+            {getActiveFiltersCount() > 0 && (
+              <div className="mb-4">
+                <div className="flex flex-wrap gap-2">
+                  {searchQuery.trim() !== '' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      Search: "{searchQuery}"
+                      <button
+                        onClick={() => removeFilter('search')}
+                        className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-blue-400 hover:bg-blue-200 hover:text-blue-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {roleFilter !== 'all' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      Role: {roleFilter}
+                      <button
+                        onClick={() => removeFilter('role')}
+                        className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-green-400 hover:bg-green-200 hover:text-green-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {statusFilter !== 'all' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">
+                      Status: {statusFilter}
+                      <button
+                        onClick={() => removeFilter('status')}
+                        className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-yellow-400 hover:bg-yellow-200 hover:text-yellow-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {authFilter !== 'all' && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                      Auth: {authFilter}
+                      <button
+                        onClick={() => removeFilter('auth')}
+                        className="ml-2 inline-flex items-center justify-center w-4 h-4 rounded-full text-purple-400 hover:bg-purple-200 hover:text-purple-600"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Filters Grid */}
+            {showFilters && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <input
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Search by name or email..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -144,7 +322,7 @@ export default function AdminUsersPage() {
                 >
                   <option value="all">All Roles</option>
                   <option value="ADMIN">Admin</option>
-                  <option value="USER">User</option>
+                  <option value="CUSTOMER">Customer</option>
                 </select>
               </div>
 
@@ -174,6 +352,7 @@ export default function AdminUsersPage() {
                 </select>
               </div>
             </div>
+            )}
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -194,206 +373,18 @@ export default function AdminUsersPage() {
               </div>
 
               <div className="text-sm text-gray-600">
-                Showing {filteredUsers.length} of {totalUsers} users
+                Showing {users.length} of {totalUsers} users
               </div>
             </div>
           </div>
         </div>
 
-        {/* Users Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Roles
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Auth Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
-                            <Users className="h-5 w-5 text-primary-600" />
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
-                            {user.firstName && user.lastName 
-                              ? `${user.firstName} ${user.lastName}`
-                              : 'No Name'
-                            }
-                          </div>
-                          <div className="text-sm text-gray-500">{user.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {user.phoneNumber ? `+${user.countryCode} ${user.phoneNumber}` : 'No phone'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.map((role) => {
-                          const roleName = typeof role === 'string' ? role : role.name || role.id
-                          return (
-                            <span
-                              key={roleName}
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                roleName === 'ADMIN' 
-                                  ? 'bg-red-100 text-red-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}
-                            >
-                              {roleName}
-                            </span>
-                          )
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          user.active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {user.active ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
-                        {user.oauthOnly ? 'OAuth Only' : 'Email/Password'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleToggleUserStatus(user.id, user.active)}
-                        className={`${
-                          user.active
-                            ? 'text-red-600 hover:text-red-900'
-                            : 'text-green-600 hover:text-green-900'
-                        }`}
-                      >
-                        {user.active ? (
-                          <>
-                            <UserX className="w-4 h-4 inline mr-1" />
-                            Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck className="w-4 h-4 inline mr-1" />
-                            Activate
-                          </>
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
-              <div className="flex-1 flex justify-between sm:hidden">
-                <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing{' '}
-                    <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span>
-                    {' '}to{' '}
-                    <span className="font-medium">
-                      {Math.min(currentPage * itemsPerPage, totalUsers)}
-                    </span>
-                    {' '}of{' '}
-                    <span className="font-medium">{totalUsers}</span>
-                    {' '}results
-                  </p>
-                </div>
-                <div>
-                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const page = i + 1
-                      return (
-                        <button
-                          key={page}
-                          onClick={() => setCurrentPage(page)}
-                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                            currentPage === page
-                              ? 'z-10 bg-primary-50 border-primary-500 text-primary-600'
-                              : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    })}
-                    
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="h-5 w-5" />
-                    </button>
-                  </nav>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Users Data Table */}
+        <UserDataTable 
+          data={users} 
+          onToggleStatus={handleToggleUserStatus}
+          loading={loading}
+        />
       </div>
     </AdminLayout>
   )

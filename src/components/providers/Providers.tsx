@@ -6,6 +6,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { CartProvider } from '@/contexts/CartContext'
 import { CurrencyProvider } from '@/contexts/CurrencyContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
+import { TableConfigProvider } from '@/contexts/TableConfigContext'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -23,7 +24,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <CartProvider>
           <CurrencyProvider>
             <LanguageProvider>
-              {children}
+              <TableConfigProvider>
+                {children}
+              </TableConfigProvider>
             </LanguageProvider>
           </CurrencyProvider>
         </CartProvider>

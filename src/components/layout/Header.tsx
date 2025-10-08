@@ -6,10 +6,16 @@ import { ShoppingCart, User, Search, Menu, X, LogOut } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCart } from '@/contexts/CartContext'
 import { useLanguage } from '@/contexts/LanguageContext'
+import { useBranding } from '@/hooks/useBranding'
+import { useSectionStyles } from '@/hooks/useSectionStyles'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { CurrencySelector } from '@/components/CurrencySelector'
 
-export function Header() {
+interface HeaderProps {
+  backgroundImage?: string | null
+}
+
+export function Header({ backgroundImage }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
@@ -27,6 +33,8 @@ export function Header() {
   const { user, isAuthenticated, isLoading, logout } = useAuth()
   const { itemCount } = useCart()
   const { currentLanguage, getLanguageFlag } = useLanguage()
+  const { brandingConfig, getShopNameStyle, getLogoStyle } = useBranding()
+  const { getBackgroundStyle, getTextStyle, getOverlayStyle } = useSectionStyles()
 
   // Debug logging for Header
   console.log('Header: Auth state:', { 
@@ -35,35 +43,99 @@ export function Header() {
     isLoading 
   })
 
+  // Get section styling for navigation
+  const navBackgroundStyle = getBackgroundStyle('navigation')
+  const navTextStyle = getTextStyle('navigation')
+  const navOverlayStyle = getOverlayStyle('navigation')
+
+  // Combine background image with section styling
+  const combinedBackgroundStyle = {
+    ...navBackgroundStyle,
+    ...(backgroundImage && {
+      backgroundImage: `url(${backgroundImage})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat'
+    })
+  }
+
   return (
-    <header className="bg-white shadow-sm border-b">
+    <header 
+      className="shadow-sm border-b relative"
+      style={combinedBackgroundStyle}
+    >
+      {/* Overlay for better text readability */}
+      {(backgroundImage || navOverlayStyle.backgroundColor) && (
+        <div 
+          className="absolute inset-0"
+          style={navOverlayStyle}
+        ></div>
+      )}
+      
+      {/* Fallback background */}
+      {!backgroundImage && !navBackgroundStyle.backgroundColor && (
+        <div className="absolute inset-0 bg-white"></div>
+      )}
+      
+      <div className="relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link href="/" className="text-2xl font-bold text-primary-600">
-              JewelryShop
+            <Link href="/" className="flex items-center space-x-2">
+              {brandingConfig?.logoUrl ? (
+                <img
+                  src={brandingConfig.logoUrl}
+                  alt={brandingConfig.logoAltText || 'Logo'}
+                  style={getLogoStyle()}
+                  className="object-contain"
+                />
+              ) : (
+                <span style={getShopNameStyle()}>
+                  {brandingConfig?.shopName || 'JewelryShop'}
+                </span>
+              )}
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            <Link href="/" className="text-gray-700 hover:text-primary-600 transition-colors">
-              Home
-            </Link>
-            <Link href="/products" className="text-gray-700 hover:text-primary-600 transition-colors">
-              Products
-            </Link>
-            <Link href="/categories" className="text-gray-700 hover:text-primary-600 transition-colors">
-              Categories
-            </Link>
-            <Link href="/about" className="text-gray-700 hover:text-primary-600 transition-colors">
-              About
-            </Link>
-            <Link href="/contact" className="text-gray-700 hover:text-primary-600 transition-colors">
-              Contact
-            </Link>
-          </nav>
+                 {/* Desktop Navigation */}
+                 <nav className="hidden md:flex space-x-8">
+                   <Link 
+                     href="/" 
+                     className="hover:text-primary-600 transition-colors"
+                     style={navTextStyle}
+                   >
+                     Home
+                   </Link>
+                   <Link 
+                     href="/products" 
+                     className="hover:text-primary-600 transition-colors"
+                     style={navTextStyle}
+                   >
+                     Products
+                   </Link>
+                   <Link 
+                     href="/categories" 
+                     className="hover:text-primary-600 transition-colors"
+                     style={navTextStyle}
+                   >
+                     Categories
+                   </Link>
+                   <Link 
+                     href="/about" 
+                     className="hover:text-primary-600 transition-colors"
+                     style={navTextStyle}
+                   >
+                     About
+                   </Link>
+                   <Link 
+                     href="/contact" 
+                     className="hover:text-primary-600 transition-colors"
+                     style={navTextStyle}
+                   >
+                     Contact
+                   </Link>
+                 </nav>
 
           {/* Right side icons */}
           <div className="flex items-center space-x-4">
@@ -244,6 +316,7 @@ export function Header() {
           onClose={closeAuthModal}
           initialMode={authMode}
         />
+      </div>
     </header>
   )
 }
