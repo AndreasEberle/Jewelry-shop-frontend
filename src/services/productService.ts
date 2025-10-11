@@ -9,6 +9,10 @@ export interface Product {
   material?: string
   gemstone?: string
   weightGrams?: number
+  ringSize?: string
+  chainLength?: string
+  color?: string
+  finish?: string
   quantity: number
   baseCurrency: string
   displayCurrency?: string
@@ -27,11 +31,16 @@ export interface Product {
     createdAt: string
   }>
   active: boolean
+  showInFeatured: boolean
+  sortOrder?: number
   specialOffer?: boolean
   specialOfferPrice?: number
   specialOfferDescription?: string
   createdAt: string
   updatedAt: string
+  // Review statistics
+  averageRating?: number
+  totalReviews?: number
 }
 
 export interface ProductFilters {
@@ -119,6 +128,11 @@ export const productService = {
   async generateSku(productName: string): Promise<string> {
     const response = await api.get(`/api/admin/products/generate-sku?name=${encodeURIComponent(productName)}`)
     return response.data
+  },
+
+  // Admin: Toggle featured status
+  async toggleFeaturedStatus(productId: string): Promise<void> {
+    await api.put(`/api/admin/products/${productId}/toggle-featured`)
   }
 }
 
@@ -132,6 +146,10 @@ export interface CreateProductRequest {
   material?: string
   gemstone?: string
   weightGrams?: number
+  ringSize?: string
+  chainLength?: string
+  color?: string
+  finish?: string
   quantity: number
   active?: boolean
   specialOffer?: boolean

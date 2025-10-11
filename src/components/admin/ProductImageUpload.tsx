@@ -90,6 +90,7 @@ export function ProductImageUpload({ product, onImagesUploaded }: ProductImageUp
         formData.append('file', file)
         formData.append('altText', `${product.name} - Image ${i + 1}`)
         formData.append('isPrimary', i === 0 ? 'true' : 'false')
+        formData.append('sortOrder', (i + 1).toString()) // Set sort order based on image index
 
         const response = await api.post(`/api/admin/upload-product-image/${product.id}`, formData, {
           headers: {
@@ -124,6 +125,7 @@ export function ProductImageUpload({ product, onImagesUploaded }: ProductImageUp
       formData.append('file', file)
       formData.append('altText', altText)
       formData.append('isPrimary', isPrimary.toString())
+      formData.append('sortOrder', (uploadedImages.length + 1).toString()) // Set sort order based on current image count
 
       const response = await api.post(`/api/admin/upload-product-image/${product.id}`, formData, {
         headers: {

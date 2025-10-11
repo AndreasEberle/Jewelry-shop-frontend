@@ -1,713 +1,1026 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Upload, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Product, UpdateProductRequest } from '@/services/productService'
-import api from '@/services/api'
+import React, { useState, useEffect, useRef } from 'react'
+import { X, Check } from 'lucide-react'
+import { Product } from '@/services/productService'
+import { productService } from '@/services/productService'
+import { tagService } from '@/services/tagService'
+import { specialOfferDescriptionService } from '@/services/specialOfferDescriptionService'
+import { handleNumericChange, validateNumericInput } from '@/utils/inputValidation'
 
 interface EditProductModalProps {
   isOpen: boolean
   onClose: () => void
   product: Product | null
-  onSave: (productId: string, data: UpdateProductRequest) => Promise<void>
+  onProductUpdated: (product: Product) => void
 }
 
-export function EditProductModal({ isOpen, onClose, product, onSave }: EditProductModalProps) {
-  const [formData, setFormData] = useState({
+interface ProductFormData {
+  name: string
+  description: string
+  price: string
+  sku: string
+  category: string
+  tags: string[]
+  quantity: string
+  weightGrams: string
+  material: string
+  gemstone: string
+  ringSize: string
+  chainLength: string
+  color: string
+  finish: string
+  specialOffer: boolean
+  specialOfferPrice: string
+  specialOfferDescriptions: string[]
+}
+
+export function EditProductModal({ isOpen, onClose, product, onProductUpdated }: EditProductModalProps) {
+  const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
     price: '',
+    sku: '',
+    category: '',
+    tags: [],
+    quantity: '1',
+    weightGrams: '',
     material: '',
     gemstone: '',
-    weightGrams: '',
-    quantity: '',
-    active: true,
+    ringSize: '',
+    chainLength: '',
+    color: '',
+    finish: '',
     specialOffer: false,
     specialOfferPrice: '',
-    specialOfferStartDate: '',
-    specialOfferEndDate: '',
-    tags: [] as string[],
-    categories: [] as string[]
+    specialOfferDescriptions: []
   })
-  
-  const [images, setImages] = useState<Array<{file: File, altText: string, isPrimary: boolean}>>([])
-  const [existingImages, setExistingImages] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [allTags, setAllTags] = useState<any[]>([])
-  const [allCategories, setAllCategories] = useState<any[]>([])
+
+  const [availableTags, setAvailableTags] = useState<any[]>([])
+  const [availableSpecialOfferDescriptions, setAvailableSpecialOfferDescriptions] = useState<any[]>([])
+  const [newTag, setNewTag] = useState('')
+  const [newSpecialOfferDescription, setNewSpecialOfferDescription] = useState('')
   const [tagSearchQuery, setTagSearchQuery] = useState('')
-  const [filteredTags, setFilteredTags] = useState<any[]>([])
-  const [showTagDropdown, setShowTagDropdown] = useState(false)
-  const [newTagName, setNewTagName] = useState('')
-  const [deletingImages, setDeletingImages] = useState<Set<string>>(new Set())
+  const [specialOfferDescriptionSearchQuery, setSpecialOfferDescriptionSearchQuery] = useState('')
+  const [showTagSuggestions, setShowTagSuggestions] = useState(false)
+  const [showSpecialOfferDescriptionSuggestions, setShowSpecialOfferDescriptionSuggestions] = useState(false)
+  const [priceError, setPriceError] = useState('')
+  const [specialOfferPriceError, setSpecialOfferPriceError] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [updating, setUpdating] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
 
+  // Load available tags
+  const loadTags = async () => {
+    try {
+      const tags = await tagService.getAllTags()
+      setAvailableTags(tags)
+    } catch (error) {
+      console.error('Failed to load tags:', error)
+    }
+  }
+
+  // Load available special offer descriptions
+  const loadSpecialOfferDescriptions = async () => {
+    try {
+      const descriptions = await specialOfferDescriptionService.getAllSpecialOfferDescriptions()
+      setAvailableSpecialOfferDescriptions(descriptions)
+    } catch (error) {
+      console.error('Failed to load special offer descriptions:', error)
+    }
+  }
+
+  // Load data on mount
+  useEffect(() => {
+    loadTags()
+    loadSpecialOfferDescriptions()
+  }, [])
+
+  // Populate form when product changes
   useEffect(() => {
     if (product) {
       setFormData({
         name: product.name || '',
         description: product.description || '',
         price: product.price?.toString() || '',
+        sku: product.sku || '',
+        category: product.categories?.[0] || '',
+        tags: product.tags || [],
+        quantity: product.quantity?.toString() || '1',
+        weightGrams: product.weightGrams?.toString() || '',
         material: product.material || '',
         gemstone: product.gemstone || '',
-        weightGrams: product.weightGrams?.toString() || '',
-        quantity: product.quantity?.toString() || '',
-        active: product.active ?? true,
+        ringSize: product.ringSize || '',
+        chainLength: product.chainLength || '',
+        color: product.color || '',
+        finish: product.finish || '',
         specialOffer: product.specialOffer || false,
         specialOfferPrice: product.specialOfferPrice?.toString() || '',
-        specialOfferStartDate: product.specialOfferStartDate ? new Date(product.specialOfferStartDate).toISOString().split('T')[0] : '',
-        specialOfferEndDate: product.specialOfferEndDate ? new Date(product.specialOfferEndDate).toISOString().split('T')[0] : '',
-        tags: product.tags || [],
-        categories: product.categories || []
+        specialOfferDescriptions: product.specialOfferDescription ? product.specialOfferDescription.split(', ') : []
       })
-      setExistingImages(product.images || [])
     }
   }, [product])
 
-  // Load tags and categories
+  // Search tags when query changes
   useEffect(() => {
-    const loadTagsAndCategories = async () => {
-      try {
-        const [tagsResponse, categoriesResponse] = await Promise.all([
-          fetch('http://localhost:8080/api/tags'),
-          fetch('http://localhost:8080/api/categories')
-        ])
-        
-        if (tagsResponse.ok) {
-          const tags = await tagsResponse.json()
-          setAllTags(tags)
+    const searchTags = async () => {
+      if (tagSearchQuery.trim().length > 0) {
+        try {
+          const tags = await tagService.searchTags(tagSearchQuery)
+          setAvailableTags(tags)
+        } catch (error) {
+          console.error('Failed to search tags:', error)
         }
-        
-        if (categoriesResponse.ok) {
-          const categories = await categoriesResponse.json()
-          setAllCategories(categories)
-        }
-      } catch (err) {
-        console.error('Error loading tags and categories:', err)
+      } else {
+        loadTags()
       }
     }
-    
-    if (isOpen) {
-      loadTagsAndCategories()
-    }
-  }, [isOpen])
 
-  // Filter tags based on search query
+    const timeoutId = setTimeout(searchTags, 300)
+    return () => clearTimeout(timeoutId)
+  }, [tagSearchQuery])
+
+  // Search special offer descriptions when query changes
   useEffect(() => {
-    if (tagSearchQuery.trim()) {
-      const filtered = allTags.filter(tag => 
-        tag.name.toLowerCase().includes(tagSearchQuery.toLowerCase())
-      )
-      setFilteredTags(filtered)
-    } else {
-      setFilteredTags(allTags)
+    const searchSpecialOfferDescriptions = async () => {
+      if (specialOfferDescriptionSearchQuery.trim().length > 0) {
+        try {
+          const descriptions = await specialOfferDescriptionService.searchSpecialOfferDescriptions(specialOfferDescriptionSearchQuery)
+          setAvailableSpecialOfferDescriptions(descriptions)
+        } catch (error) {
+          console.error('Failed to search special offer descriptions:', error)
+        }
+      } else {
+        loadSpecialOfferDescriptions()
+      }
     }
-  }, [tagSearchQuery, allTags])
 
+    const timeoutId = setTimeout(searchSpecialOfferDescriptions, 300)
+    return () => clearTimeout(timeoutId)
+  }, [specialOfferDescriptionSearchQuery])
+
+
+  // Close modal when clicking outside and handle dropdowns
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen && !loading) {
+      if (e.key === 'Escape' && isOpen) {
         onClose()
       }
     }
 
-    const handleClickOutside = (e: MouseEvent) => {
-      if (modalRef.current && !modalRef.current.contains(e.target as Node) && isOpen && !loading) {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node) && isOpen) {
         onClose()
+      }
+    }
+
+    const handleClickOutsideDropdowns = (e: MouseEvent) => {
+      // Check if click is inside dropdown containers or input fields
+      const target = e.target as Element
+      const isInsideTagDropdown = target.closest('[data-tag-dropdown]')
+      const isInsideSpecialOfferDropdown = target.closest('[data-special-offer-dropdown]')
+      const isInsideTagInput = target.closest('input[placeholder*="tags"]')
+      const isInsideSpecialOfferInput = target.closest('input[placeholder*="special offer"]')
+
+      if (!isInsideTagDropdown && !isInsideSpecialOfferDropdown && !isInsideTagInput && !isInsideSpecialOfferInput) {
+        setShowTagSuggestions(false)
+        setShowSpecialOfferDescriptionSuggestions(false)
       }
     }
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape)
-      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('mousedown', handleOutsideClick)
+      document.addEventListener('mousedown', handleClickOutsideDropdowns)
+      // Prevent body scroll when modal is open
       document.body.style.overflow = 'hidden'
-    } else {
-      document.removeEventListener('keydown', handleEscape)
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.body.style.overflow = 'unset'
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape)
-      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('mousedown', handleOutsideClick)
+      document.removeEventListener('mousedown', handleClickOutsideDropdowns)
       document.body.style.overflow = 'unset'
     }
-  }, [isOpen, onClose, loading])
+  }, [isOpen, onClose, showTagSuggestions, showSpecialOfferDescriptionSuggestions])
 
-  // Cleanup effect for pending deletions
-  useEffect(() => {
-    return () => {
-      // Clear any pending deletion timeouts when component unmounts
-      setDeletingImages(new Set())
-    }
-  }, [])
-
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: keyof ProductFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    const newImages = files.map(file => ({
-      file,
-      altText: `${formData.name} - Image`,
-      isPrimary: images.length === 0
-    }))
-    setImages(prev => [...prev, ...newImages])
+  const validatePrice = (price: string): string => {
+    if (!price.trim()) return 'Price is required'
+    const numPrice = parseFloat(price)
+    if (isNaN(numPrice)) return 'Price must be a valid number'
+    if (numPrice <= 0) return 'Price must be positive'
+    if (numPrice > 999999) return 'Price is too high'
+    return ''
   }
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index))
+  const handlePriceChange = (value: string) => {
+    setFormData(prev => ({ ...prev, price: value }))
+    const error = validatePrice(value)
+    setPriceError(error)
+    
+    // Also validate special offer price if it exists
+    if (formData.specialOfferPrice) {
+      const specialOfferError = validatePrice(formData.specialOfferPrice)
+      setSpecialOfferPriceError(specialOfferError)
+      
+      if (!specialOfferError && !error) {
+        const specialPrice = parseFloat(formData.specialOfferPrice)
+        const normalPrice = parseFloat(value)
+        if (specialPrice >= normalPrice) {
+          setSpecialOfferPriceError('Special offer price must be less than normal price')
+        }
+      }
+    }
   }
 
-  const setPrimaryImage = (index: number) => {
-    setImages(prev => prev.map((img, i) => ({ ...img, isPrimary: i === index })))
+  const handleSpecialOfferPriceChange = (value: string) => {
+    setFormData(prev => ({ ...prev, specialOfferPrice: value }))
+    const error = validatePrice(value)
+    setSpecialOfferPriceError(error)
+    
+    // Also check if it's less than normal price
+    if (!error && formData.price) {
+      const specialPrice = parseFloat(value)
+      const normalPrice = parseFloat(formData.price)
+      if (specialPrice >= normalPrice) {
+        setSpecialOfferPriceError('Special offer price must be less than normal price')
+      }
+    }
   }
 
-  // Tag management
-  const addTag = (tag: any) => {
-    if (!formData.tags.includes(tag.name)) {
+  const shouldShowRingSize = () => {
+    return formData.category?.toLowerCase().includes('ring')
+  }
+
+  const shouldShowChainLength = () => {
+    return formData.category?.toLowerCase().includes('chain')
+  }
+
+  const handleAddTag = async () => {
+    const trimmedTag = newTag.trim()
+    if (trimmedTag && !formData.tags.includes(trimmedTag)) {
+      try {
+        const createdTag = await tagService.createTag({ name: trimmedTag })
+        setFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, createdTag.name]
+        }))
+        setAvailableTags(prev => [...prev, createdTag])
+      } catch (error) {
+        console.error('Failed to create tag:', error)
+        setFormData(prev => ({
+          ...prev,
+          tags: [...prev.tags, trimmedTag]
+        }))
+      }
+      setNewTag('')
+    }
+  }
+
+  const handleSelectTag = (tagName: string) => {
+    if (!formData.tags.includes(tagName)) {
       setFormData(prev => ({
         ...prev,
-        tags: [...prev.tags, tag.name]
+        tags: [...prev.tags, tagName]
       }))
     }
     setTagSearchQuery('')
-    setShowTagDropdown(false)
   }
 
-  const removeTag = (tagName: string) => {
+  const handleRemoveTag = (tagToRemove: string) => {
     setFormData(prev => ({
       ...prev,
-      tags: prev.tags.filter(t => t !== tagName)
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
     }))
   }
 
-  const createNewTag = async () => {
-    if (newTagName.trim() && !allTags.find(tag => tag.name.toLowerCase() === newTagName.toLowerCase())) {
+  const handleAddSpecialOfferDescription = async () => {
+    const trimmedDescription = newSpecialOfferDescription.trim()
+    if (trimmedDescription && !formData.specialOfferDescriptions.includes(trimmedDescription)) {
       try {
-        const response = await fetch('http://localhost:8080/api/tags', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
-          },
-          body: JSON.stringify({ name: newTagName.trim() })
+        const createdDescription = await specialOfferDescriptionService.createSpecialOfferDescription({
+          name: trimmedDescription,
+          description: trimmedDescription
         })
-        
-        if (response.ok) {
-          const newTag = await response.json()
-          setAllTags(prev => [...prev, newTag])
-          addTag(newTag)
-          setNewTagName('')
-        }
-      } catch (err) {
-        console.error('Error creating tag:', err)
+        setFormData(prev => ({
+          ...prev,
+          specialOfferDescriptions: [...prev.specialOfferDescriptions, createdDescription.name]
+        }))
+        setAvailableSpecialOfferDescriptions(prev => [...prev, createdDescription])
+      } catch (error) {
+        console.error('Failed to create special offer description:', error)
+        setFormData(prev => ({
+          ...prev,
+          specialOfferDescriptions: [...prev.specialOfferDescriptions, trimmedDescription]
+        }))
       }
+      setNewSpecialOfferDescription('')
     }
   }
 
-  // Category management
-  const toggleCategory = (categoryName: string) => {
+  const handleSelectSpecialOfferDescription = (descriptionName: string) => {
+    if (!formData.specialOfferDescriptions.includes(descriptionName)) {
+      setFormData(prev => ({
+        ...prev,
+        specialOfferDescriptions: [...prev.specialOfferDescriptions, descriptionName]
+      }))
+    }
+    setSpecialOfferDescriptionSearchQuery('')
+  }
+
+  const handleRemoveSpecialOfferDescription = (descriptionToRemove: string) => {
     setFormData(prev => ({
       ...prev,
-      categories: prev.categories.includes(categoryName)
-        ? prev.categories.filter(c => c !== categoryName)
-        : [...prev.categories, categoryName]
+      specialOfferDescriptions: prev.specialOfferDescriptions.filter(desc => desc !== descriptionToRemove)
     }))
   }
-
-  // Image management
-  const deleteExistingImage = useCallback(async (imageId: string) => {
-    // Prevent multiple simultaneous deletions of the same image
-    if (deletingImages.has(imageId)) {
-      console.log('Image deletion already in progress for:', imageId)
-      return
-    }
-
-    try {
-      setDeletingImages(prev => new Set(prev).add(imageId))
-      
-      const response = await api.delete(`/api/admin/product-images/${imageId}`)
-      
-      if (response.data.success) {
-        setExistingImages(prev => prev.filter(img => img.id !== imageId))
-      } else {
-        console.error('Failed to delete image:', response.data.message)
-      }
-    } catch (err) {
-      console.error('Error deleting image:', err)
-    } finally {
-      setDeletingImages(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(imageId)
-        return newSet
-      })
-    }
-  }, [deletingImages])
-
-  // Debounced delete function to prevent rapid clicks
-  const debouncedDeleteImage = useCallback((imageId: string) => {
-    const timeoutId = setTimeout(() => {
-      deleteExistingImage(imageId)
-    }, 100) // 100ms debounce
-
-    return () => clearTimeout(timeoutId)
-  }, [deleteExistingImage])
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
     if (!product) return
 
-    // Check if there are any changes
-    const hasChanges = 
-      formData.name !== product.name ||
-      formData.description !== (product.description || '') ||
-      parseFloat(formData.price) !== product.price ||
-      formData.material !== (product.material || '') ||
-      formData.gemstone !== (product.gemstone || '') ||
-      (formData.weightGrams ? parseFloat(formData.weightGrams) : null) !== product.weightGrams ||
-      parseInt(formData.quantity) !== product.quantity ||
-      formData.active !== product.active ||
-      formData.specialOffer !== (product.specialOffer || false) ||
-      (formData.specialOfferPrice ? parseFloat(formData.specialOfferPrice) : null) !== product.specialOfferPrice ||
-      formData.specialOfferStartDate !== (product.specialOfferStartDate ? new Date(product.specialOfferStartDate).toISOString().split('T')[0] : '') ||
-      formData.specialOfferEndDate !== (product.specialOfferEndDate ? new Date(product.specialOfferEndDate).toISOString().split('T')[0] : '') ||
-      JSON.stringify(formData.tags.sort()) !== JSON.stringify((product.tags || []).sort()) ||
-      JSON.stringify(formData.categories.sort()) !== JSON.stringify((product.categories || []).sort()) ||
-      images.length > 0
-
-    if (!hasChanges) {
-      setError('No changes detected. Please make some changes before saving.')
+    // Validate required fields
+    if (!formData.name.trim() || !formData.sku.trim() || !formData.price.trim() || !formData.quantity.trim()) {
+      setError('Please fill in all required fields')
       return
     }
 
-    setLoading(true)
-    setError('')
+    // Validate prices
+    const priceError = validatePrice(formData.price)
+    if (priceError) {
+      setPriceError(priceError)
+      setError(priceError)
+      return
+    }
+
+    if (formData.specialOffer && formData.specialOfferPrice) {
+      const specialOfferPriceError = validatePrice(formData.specialOfferPrice)
+      if (specialOfferPriceError) {
+        setSpecialOfferPriceError(specialOfferPriceError)
+        setError(specialOfferPriceError)
+        return
+      }
+
+      const specialPrice = parseFloat(formData.specialOfferPrice)
+      const normalPrice = parseFloat(formData.price)
+      if (specialPrice >= normalPrice) {
+        setSpecialOfferPriceError('Special offer price must be less than normal price')
+        setError('Special offer price must be less than normal price')
+        return
+      }
+    }
+
+    setUpdating(true)
+    setError(null)
+    setSuccess(null)
 
     try {
-      const updateData: UpdateProductRequest = {
+      const productData = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
+        sku: formData.sku,
+        categories: formData.category ? [formData.category] : [],
+        tags: formData.tags,
+        quantity: parseInt(formData.quantity),
+        weightGrams: formData.weightGrams ? parseFloat(formData.weightGrams) : undefined,
         material: formData.material || undefined,
         gemstone: formData.gemstone || undefined,
-        weightGrams: formData.weightGrams ? parseFloat(formData.weightGrams) : undefined,
-        quantity: parseInt(formData.quantity),
-        active: formData.active,
+        ringSize: formData.ringSize || undefined,
+        chainLength: formData.chainLength || undefined,
+        color: formData.color || undefined,
+        finish: formData.finish || undefined,
         specialOffer: formData.specialOffer,
-        specialOfferPrice: formData.specialOfferPrice ? parseFloat(formData.specialOfferPrice) : undefined,
-        specialOfferStartDate: formData.specialOfferStartDate ? new Date(formData.specialOfferStartDate).toISOString() : undefined,
-        specialOfferEndDate: formData.specialOfferEndDate ? new Date(formData.specialOfferEndDate).toISOString() : undefined,
-        tags: formData.tags,
-        categories: formData.categories
+        specialOfferPrice: formData.specialOffer ? parseFloat(formData.specialOfferPrice) : undefined,
+        specialOfferDescription: formData.specialOfferDescriptions.join(', ')
       }
 
-      await onSave(product.id, updateData)
+      const updatedProduct = await productService.updateProduct(product.id, productData)
+      setSuccess('Product updated successfully!')
+      onProductUpdated(updatedProduct)
+
+      // Close modal immediately after successful save
       onClose()
-    } catch (err) {
-      setError('Failed to update product')
+
+    } catch (err: any) {
       console.error('Error updating product:', err)
+      
+      let errorMessage = 'Unknown error occurred'
+      
+      if (err.response?.data) {
+        const responseData = err.response.data
+        if (responseData.message) {
+          errorMessage = responseData.message
+        } else if (responseData.error) {
+          errorMessage = responseData.error
+        } else if (typeof responseData === 'string') {
+          errorMessage = responseData
+        }
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      if (errorMessage.includes('Product name already exists')) {
+        errorMessage = 'A product with this name already exists. Please choose a different name.'
+      } else if (errorMessage.includes('Product SKU already exists')) {
+        errorMessage = 'A product with this SKU already exists. Please choose a different SKU.'
+      }
+      
+      setError(`Failed to update product: ${errorMessage}`)
     } finally {
-      setLoading(false)
+      setUpdating(false)
     }
   }
 
   if (!isOpen || !product) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-      <div
-        ref={modalRef}
-        className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto m-4"
-      >
-        <div className="flex justify-between items-center p-6 border-b">
-          <h2 className="text-2xl font-bold text-gray-900">Edit Product</h2>
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Basic Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Product Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Price *
-              </label>
-              <input
-                type="number"
-                required
-                step="0.01"
-                min="0"
-                value={formData.price}
-                onChange={(e) => handleInputChange('price', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6 z-50"
+      data-modal="edit-product"
+    >
+      <div ref={modalRef} className="bg-white rounded-lg max-w-7xl w-full max-h-[95vh] overflow-y-auto">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Edit Product</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Material
-              </label>
-              <input
-                type="text"
-                value={formData.material}
-                onChange={(e) => handleInputChange('material', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-700">{error}</p>
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Gemstone
-              </label>
-              <input
-                type="text"
-                value={formData.gemstone}
-                onChange={(e) => handleInputChange('gemstone', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Weight (grams)
-              </label>
-              <input
-                type="number"
-                step="0.001"
-                min="0"
-                value={formData.weightGrams}
-                onChange={(e) => handleInputChange('weightGrams', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quantity *
-              </label>
-              <input
-                type="number"
-                required
-                min="1"
-                value={formData.quantity}
-                onChange={(e) => handleInputChange('quantity', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="active"
-                checked={formData.active}
-                onChange={(e) => handleInputChange('active', e.target.checked)}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <label htmlFor="active" className="ml-2 block text-sm text-gray-900">
-                Active
-              </label>
-            </div>
-          </div>
-
-          {/* Special Offer Section */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Special Offer</h3>
-            <div className="space-y-4">
+          {/* Success Message */}
+          {success && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-md">
               <div className="flex items-center">
+                <Check className="w-5 h-5 text-green-500" />
+                <span className="text-sm text-green-700 ml-2">{success}</span>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Product Name *
+                </label>
                 <input
-                  type="checkbox"
-                  id="specialOffer"
-                  checked={formData.specialOffer}
-                  onChange={(e) => handleInputChange('specialOffer', e.target.checked)}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  type="text"
+                  required
+                  name="name"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., Classic Gold Ring"
                 />
-                <label htmlFor="specialOffer" className="ml-2 block text-sm text-gray-900">
-                  Enable Special Offer
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  SKU *
+                </label>
+                <input
+                  type="text"
+                  required
+                  name="sku"
+                  value={formData.sku}
+                  onChange={(e) => handleInputChange('sku', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., RING-GOLD-001"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quantity *
+                </label>
+                <input
+                  type="text"
+                  required
+                  name="quantity"
+                  value={formData.quantity}
+                  onChange={(e) => handleNumericChange(e.target.value, (value) => handleInputChange('quantity', value), 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., 10"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Weight (grams) <span className="text-gray-500 font-normal">(e.g., 5.5)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.weightGrams}
+                  onChange={(e) => handleNumericChange(e.target.value, (value) => handleInputChange('weightGrams', value), 3)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., 5.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Finish
+                </label>
+                <select
+                  value={formData.finish}
+                  onChange={(e) => handleInputChange('finish', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select finish</option>
+                  <option value="Polished">Polished</option>
+                  <option value="Matte">Matte</option>
+                  <option value="Brushed">Brushed</option>
+                  <option value="Satin">Satin</option>
+                  <option value="High Polish">High Polish</option>
+                  <option value="Antique">Antique</option>
+                  <option value="Hammered">Hammered</option>
+                  <option value="Textured">Textured</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Jewelry Specific Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Material
+                </label>
+                <select
+                  value={formData.material}
+                  onChange={(e) => handleInputChange('material', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select material</option>
+                  <option value="Gold">Gold</option>
+                  <option value="Silver">Silver</option>
+                  <option value="Platinum">Platinum</option>
+                  <option value="Rose Gold">Rose Gold</option>
+                  <option value="White Gold">White Gold</option>
+                  <option value="Yellow Gold">Yellow Gold</option>
+                  <option value="Sterling Silver">Sterling Silver</option>
+                  <option value="Titanium">Titanium</option>
+                  <option value="Stainless Steel">Stainless Steel</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gemstone
+                </label>
+                <select
+                  value={formData.gemstone}
+                  onChange={(e) => handleInputChange('gemstone', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select gemstone</option>
+                  <option value="Diamond">Diamond</option>
+                  <option value="Ruby">Ruby</option>
+                  <option value="Sapphire">Sapphire</option>
+                  <option value="Emerald">Emerald</option>
+                  <option value="Pearl">Pearl</option>
+                  <option value="Amethyst">Amethyst</option>
+                  <option value="Topaz">Topaz</option>
+                  <option value="Garnet">Garnet</option>
+                  <option value="Opal">Opal</option>
+                  <option value="Aquamarine">Aquamarine</option>
+                  <option value="Citrine">Citrine</option>
+                  <option value="Peridot">Peridot</option>
+                  <option value="Tourmaline">Tourmaline</option>
+                  <option value="Zircon">Zircon</option>
+                  <option value="None">None</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Color
+                </label>
+                <select
+                  value={formData.color}
+                  onChange={(e) => handleInputChange('color', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select color</option>
+                  <option value="Gold">Gold</option>
+                  <option value="Silver">Silver</option>
+                  <option value="Rose Gold">Rose Gold</option>
+                  <option value="White">White</option>
+                  <option value="Black">Black</option>
+                  <option value="Blue">Blue</option>
+                  <option value="Red">Red</option>
+                  <option value="Green">Green</option>
+                  <option value="Purple">Purple</option>
+                  <option value="Pink">Pink</option>
+                  <option value="Yellow">Yellow</option>
+                  <option value="Multi-color">Multi-color</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                required
+                name="description"
+                rows={3}
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder="Describe your product..."
+              />
+            </div>
+
+            {/* Price */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Price (CHF) *
+                  <span className="text-gray-500 font-normal ml-2">(e.g., 90.00 or 90)</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  name="price"
+                  value={formData.price}
+                  onChange={(e) => handleNumericChange(e.target.value, (value) => handlePriceChange(value), 2)}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                    priceError ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g., 99.99"
+                />
+                {priceError && (
+                  <p className="mt-1 text-sm text-red-600">{priceError}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Category *
+                </label>
+                <select
+                  required
+                  name="category"
+                  value={formData.category}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select category</option>
+                  <option value="Rings">Rings</option>
+                  <option value="Necklaces">Necklaces</option>
+                  <option value="Earrings">Earrings</option>
+                  <option value="Bracelets">Bracelets</option>
+                  <option value="Chains">Chains</option>
+                  <option value="Pendants">Pendants</option>
+                  <option value="Watches">Watches</option>
+                  <option value="Brooches">Brooches</option>
+                  <option value="Cufflinks">Cufflinks</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {/* Ring Size - Only show for rings */}
+              {shouldShowRingSize() && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ring Size
+                  </label>
+                  <select
+                    value={formData.ringSize}
+                    onChange={(e) => handleInputChange('ringSize', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Select size</option>
+                    {Array.from({ length: 20 }, (_, i) => {
+                      const size = (i + 1) * 0.5
+                      return (
+                        <option key={size} value={size.toString()}>
+                          {size}
+                        </option>
+                      )
+                    })}
+                    <option value="Adjustable">Adjustable</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Chain Length - Only show for chains */}
+              {shouldShowChainLength() && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Chain Length (cm)
+                  </label>
+                  <select
+                    value={formData.chainLength}
+                    onChange={(e) => handleInputChange('chainLength', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Select length</option>
+                    {Array.from({ length: 20 }, (_, i) => {
+                      const length = (i + 1) * 5
+                      return (
+                        <option key={length} value={length.toString()}>
+                          {length} cm
+                        </option>
+                      )
+                    })}
+                    <option value="Adjustable">Adjustable</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Special Offer */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    id="specialOffer"
+                    checked={formData.specialOffer}
+                    onChange={(e) => handleInputChange('specialOffer', e.target.checked)}
+                    className="sr-only"
+                  />
+                  <label 
+                    htmlFor="specialOffer" 
+                    className={`flex items-center justify-center w-5 h-5 border-2 rounded cursor-pointer transition-all duration-200 ${
+                      formData.specialOffer 
+                        ? 'bg-orange-500 border-orange-500 text-white' 
+                        : 'bg-white border-gray-300 hover:border-orange-400'
+                    }`}
+                  >
+                    {formData.specialOffer && (
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </label>
+                </div>
+                <label htmlFor="specialOffer" className="text-sm font-medium text-gray-700 cursor-pointer">
+                  This product has a special offer
                 </label>
               </div>
 
               {formData.specialOffer && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Special Price
+                      Special Offer Price (CHF)
+                      <span className="text-gray-500 font-normal ml-2">(e.g., 79.99 or 79)</span>
+                      <span className="text-xs text-orange-600 font-normal ml-2">Must be less than normal price</span>
                     </label>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0"
+                      type="text"
+                      required={formData.specialOffer}
+                      name="specialOfferPrice"
                       value={formData.specialOfferPrice}
-                      onChange={(e) => handleInputChange('specialOfferPrice', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      onChange={(e) => handleNumericChange(e.target.value, (value) => handleSpecialOfferPriceChange(value), 2)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                        specialOfferPriceError ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                      placeholder="79.99"
                     />
+                    {specialOfferPriceError && (
+                      <p className="mt-1 text-sm text-red-600">{specialOfferPriceError}</p>
+                    )}
+                    
+                    {/* Percentage Discount Buttons */}
+                    {formData.price && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-600 mb-2">Quick discount options:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {[10, 15, 20, 25, 30, 40, 50].map((percentage) => {
+                            const normalPrice = parseFloat(formData.price)
+                            const discountPrice = normalPrice * (1 - percentage / 100)
+                            return (
+                              <button
+                                key={percentage}
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, specialOfferPrice: discountPrice.toFixed(2) }))
+                                  setSpecialOfferPriceError('')
+                                }}
+                                className="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded-md border border-gray-300"
+                              >
+                                -{percentage}% ({discountPrice.toFixed(2)})
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Start Date
+                      Special Offer Descriptions
+                      {formData.specialOffer && <span className="text-red-500 ml-1">*</span>}
                     </label>
-                    <input
-                      type="date"
-                      value={formData.specialOfferStartDate}
-                      onChange={(e) => handleInputChange('specialOfferStartDate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={formData.specialOfferEndDate}
-                      onChange={(e) => handleInputChange('specialOfferEndDate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
+                    <div className="relative">
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500 min-h-[42px] flex flex-wrap items-center gap-1">
+                        {formData.specialOfferDescriptions.map(description => (
+                          <span
+                            key={description}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-orange-100 text-orange-800"
+                          >
+                            {description}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSpecialOfferDescription(description)}
+                              className="ml-1 text-orange-600 hover:text-orange-800"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          type="text"
+                          value={newSpecialOfferDescription}
+                          onChange={(e) => setNewSpecialOfferDescription(e.target.value)}
+                          onFocus={() => {
+                            setShowSpecialOfferDescriptionSuggestions(true)
+                            setSpecialOfferDescriptionSearchQuery('')
+                          }}
+                          className="flex-1 min-w-[200px] border-none outline-none bg-transparent"
+                          placeholder="Add special offer descriptions..."
+                        />
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={handleAddSpecialOfferDescription}
+                          className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      {showSpecialOfferDescriptionSuggestions && availableSpecialOfferDescriptions.length > 0 && (
+                        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                          <div className="p-2 border-b border-gray-200">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium text-gray-700">Available Descriptions</span>
+                              <button
+                                type="button"
+                                onClick={() => setShowSpecialOfferDescriptionSuggestions(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          <div onClick={(e) => e.stopPropagation()}>
+                            {availableSpecialOfferDescriptions
+                              .filter(desc => !formData.specialOfferDescriptions.includes(desc.name))
+                              .map((desc) => (
+                                <button
+                                  key={desc.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    e.nativeEvent.stopImmediatePropagation()
+                                    handleSelectSpecialOfferDescription(desc.name)
+                                  }}
+                                  className="w-full px-3 py-2 text-left hover:bg-gray-100"
+                                >
+                                  {desc.name}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Tags Section */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Tags</h3>
-            <div className="space-y-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search or create tags..."
-                  value={tagSearchQuery}
-                  onChange={(e) => {
-                    setTagSearchQuery(e.target.value)
-                    setShowTagDropdown(true)
-                  }}
-                  onFocus={() => setShowTagDropdown(true)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                {showTagDropdown && filteredTags.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
-                    {filteredTags.map((tag) => (
+            {/* Tags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tags
+              </label>
+              <div className="relative" data-tag-dropdown>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800"
+                    >
+                      {tag}
                       <button
-                        key={tag.id}
                         type="button"
-                        onClick={() => addTag(tag)}
-                        className="w-full px-3 py-2 text-left hover:bg-gray-100"
+                        onClick={() => handleRemoveTag(tag)}
+                        className="ml-2 text-blue-600 hover:text-blue-800"
                       >
-                        {tag.name}
+                        ×
                       </button>
-                    ))}
+                    </span>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onFocus={() => {
+                      setShowTagSuggestions(true)
+                      setTagSearchQuery('')
+                    }}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Add tags..."
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddTag}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    Add
+                  </button>
+                </div>
+                {showTagSuggestions && availableTags.length > 0 && (
+                  <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                    <div className="p-2 border-b border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">Available Tags</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowTagSuggestions(false)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      {availableTags
+                        .filter(tag => !formData.tags.includes(tag.name))
+                        .map((tag) => (
+                          <button
+                            key={tag.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              e.nativeEvent.stopImmediatePropagation()
+                              handleSelectTag(tag.name)
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-gray-100"
+                          >
+                            {tag.name}
+                          </button>
+                        ))}
+                    </div>
                   </div>
                 )}
               </div>
-
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  placeholder="Create new tag..."
-                  value={newTagName}
-                  onChange={(e) => setNewTagName(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <button
-                  type="button"
-                  onClick={createNewTag}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-                >
-                  Create
-                </button>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800"
-                  >
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(tag)}
-                      className="ml-2 text-primary-600 hover:text-primary-800"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
             </div>
-          </div>
 
-          {/* Categories Section */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Categories</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {allCategories.map((category) => (
-                <label key={category.id} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.categories.includes(category.name)}
-                    onChange={() => toggleCategory(category.name)}
-                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                  />
-                  <span className="ml-2 text-sm text-gray-900">{category.name}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Existing Images Gallery */}
-          {existingImages.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Current Images ({existingImages.length})
-              </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {existingImages.map((image, index) => (
-                  <div key={image.id || index} className="relative group">
-                    <img
-                      src={image.url}
-                      alt={image.altText}
-                      className="w-full h-24 object-cover rounded"
-                    />
-                    {image.isPrimary && (
-                      <div className="absolute top-1 left-1 bg-primary-500 text-white text-xs px-2 py-1 rounded">
-                        Primary
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => debouncedDeleteImage(image.id)}
-                      disabled={deletingImages.has(image.id)}
-                      className={`absolute top-1 right-1 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity ${
-                        deletingImages.has(image.id) 
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-red-500 hover:bg-red-600'
-                      }`}
-                    >
-                      {deletingImages.has(image.id) ? (
-                        <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <X className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* New Images Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Add New Images
-            </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="image-upload"
-              />
-              <label
-                htmlFor="image-upload"
-                className="cursor-pointer flex flex-col items-center"
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-3 pt-6 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
               >
-                <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                <span className="text-sm text-gray-600">
-                  Click to upload images or drag and drop
-                </span>
-              </label>
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={updating}
+                className="px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+              >
+                {updating ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
-
-            {images.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                {images.map((image, index) => (
-                  <div key={index} className="relative">
-                    <img
-                      src={URL.createObjectURL(image.file)}
-                      alt={image.altText}
-                      className="w-full h-24 object-cover rounded"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                    {image.isPrimary && (
-                      <div className="absolute bottom-1 left-1 bg-primary-500 text-white text-xs px-2 py-1 rounded">
-                        Primary
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="text-red-600 text-sm">{error}</div>
-          )}
-
-          <div className="flex justify-end space-x-3 pt-6 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
-            >
-              {loading ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
   )

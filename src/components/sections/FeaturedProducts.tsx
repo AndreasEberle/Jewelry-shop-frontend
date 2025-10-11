@@ -8,6 +8,7 @@ import { productService } from '@/services/productService'
 import { useCart } from '@/contexts/CartContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { EnhancedFeaturedProductsCarousel } from './EnhancedFeaturedProductsCarousel'
 
 export function FeaturedProducts() {
   const [products, setProducts] = useState<Product[]>([])
@@ -45,6 +46,12 @@ export function FeaturedProducts() {
     } finally {
       setAddingToCart(null)
     }
+  }
+
+
+  const handleProductClick = (product: Product) => {
+    // Navigate to product detail page
+    window.location.href = `/products/${product.id}`
   }
 
   if (loading) {
@@ -88,82 +95,12 @@ export function FeaturedProducts() {
             <p className="text-gray-600">Check back later for our latest jewelry collection.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {products.map((product) => (
-            <div key={product.id} className="card group hover:shadow-lg transition-shadow duration-300">
-              <div className="relative">
-                {product.images && product.images.length > 0 ? (
-                  <img
-                    src={product.images[0].url}
-                    alt={product.images[0].altText || product.name}
-                    className="w-full h-48 object-cover rounded-t-lg"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-gray-200 rounded-t-lg flex items-center justify-center">
-                    <div className="text-gray-400 text-center">
-                      <svg className="mx-auto h-12 w-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <p className="text-sm">No image</p>
-                    </div>
-                  </div>
-                )}
-                <button className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <Heart className="h-4 w-4 text-gray-600" />
-                </button>
-              </div>
-              
-              <div className="p-6">
-                <div className="flex items-center mb-2">
-                  <div className="flex text-yellow-400">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < 4 ? 'fill-current' : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600 ml-2">(4.5)</span>
-                </div>
-                
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{product.name}</h3>
-                <div className="text-sm text-gray-600 mb-4 space-y-1">
-                  {product.categories && product.categories.length > 0 && (
-                    <p>{product.categories[0]}</p>
-                  )}
-                  <p className="text-xs text-gray-500">
-                    Quantity: {product.quantity}
-                  </p>
-                  {product.weightGrams && (
-                    <p className="text-xs text-gray-500">
-                      Weight: {product.weightGrams}g
-                    </p>
-                  )}
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-primary-600">
-                    {formatPrice(product.displayPrice || product.price, product.displayCurrency || product.baseCurrency)}
-                  </span>
-                  <button 
-                    onClick={() => handleAddToCart(product)}
-                    disabled={addingToCart === product.id}
-                    className="btn btn-primary flex items-center disabled:opacity-50"
-                  >
-                    {addingToCart === product.id ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                    )}
-                    {addingToCart === product.id ? 'Adding...' : 'Add to Cart'}
-                  </button>
-                </div>
-              </div>
-            </div>
-            ))}
-          </div>
+          <EnhancedFeaturedProductsCarousel
+            products={products}
+            onProductClick={handleProductClick}
+            itemsPerView={4}
+            autoRotateInterval={3000}
+          />
         )}
         
         <div className="text-center mt-12">

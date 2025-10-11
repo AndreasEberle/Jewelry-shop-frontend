@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { NotificationContainer } from '@/components/ui/Notification'
 import { CurrencySelector } from '@/components/CurrencySelector'
 
 interface AdminLayoutProps {
@@ -322,6 +323,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </div>
         </main>
       </div>
+      <NotificationContainer />
     </div>
   )
 }

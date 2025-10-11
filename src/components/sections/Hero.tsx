@@ -19,6 +19,7 @@ export function Hero({ backgroundImages, sliderConfig }: HeroProps) {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isPlaying, setIsPlaying] = useState(sliderConfig?.autoPlay ?? true)
   const { getBackgroundStyle, getTextStyle, getOverlayStyle } = useSectionStyles()
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Debug logging
   console.log('Hero component props:', {
@@ -28,6 +29,25 @@ export function Hero({ backgroundImages, sliderConfig }: HeroProps) {
     isSliderEnabled: sliderConfig?.isEnabled,
     imageUrls: backgroundImages?.map(img => img.s3Url || img.localUrl)
   })
+
+  // Simple modal detection - check if any modal is open
+  useEffect(() => {
+    const checkModalOpen = () => {
+      // Look for any fixed positioned elements that could be modals
+      const modalElements = document.querySelectorAll('[class*="fixed"][class*="inset-0"]')
+      const hasModal = modalElements.length > 0
+      setIsModalOpen(hasModal)
+    }
+
+    // Check initially
+    checkModalOpen()
+
+    // Set up observer to watch for modal changes
+    const observer = new MutationObserver(checkModalOpen)
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => observer.disconnect()
+  }, [])
 
   // Auto-play functionality
   useEffect(() => {
@@ -51,7 +71,7 @@ export function Hero({ backgroundImages, sliderConfig }: HeroProps) {
        backgroundImages[0].storageType === 'hybrid' && backgroundImages[0].s3Url ? backgroundImages[0].s3Url :
        backgroundImages[0].localUrl) : null
     console.log('Using single image mode, backgroundImage:', firstImageUrl)
-    return <HeroSingleImage backgroundImage={firstImageUrl} />
+    return <HeroSingleImage backgroundImage={firstImageUrl} isModalOpen={isModalOpen} />
   }
 
   // Handle slider mode
@@ -75,10 +95,16 @@ export function Hero({ backgroundImages, sliderConfig }: HeroProps) {
   const heroBackgroundStyle = getBackgroundStyle('hero')
   const heroTextStyle = getTextStyle('hero')
   const heroOverlayStyle = getOverlayStyle('hero')
+  
+  console.log('Hero section styles:', {
+    heroBackgroundStyle,
+    heroTextStyle,
+    heroOverlayStyle
+  })
 
   return (
     <section 
-      className="relative py-20 overflow-hidden"
+      className="relative py-20"
       style={heroBackgroundStyle}
     >
       {/* Slider Container */}
@@ -103,10 +129,12 @@ export function Hero({ backgroundImages, sliderConfig }: HeroProps) {
               }}
             >
               {/* Overlay for better text readability */}
-              <div 
-                className="absolute inset-0"
-                style={heroOverlayStyle}
-              ></div>
+              {!isModalOpen && (
+                <div 
+                  className="absolute inset-0 z-10"
+                  style={heroOverlayStyle}
+                ></div>
+              )}
             </div>
           )
         })}
@@ -219,7 +247,7 @@ export function Hero({ backgroundImages, sliderConfig }: HeroProps) {
 }
 
 // Single image component (fallback)
-function HeroSingleImage({ backgroundImage }: { backgroundImage?: string | null }) {
+function HeroSingleImage({ backgroundImage, isModalOpen }: { backgroundImage?: string | null, isModalOpen?: boolean }) {
   console.log('HeroSingleImage received backgroundImage:', backgroundImage)
   const { getBackgroundStyle, getTextStyle, getOverlayStyle } = useSectionStyles()
   
@@ -227,6 +255,13 @@ function HeroSingleImage({ backgroundImage }: { backgroundImage?: string | null 
   const heroBackgroundStyle = getBackgroundStyle('hero')
   const heroTextStyle = getTextStyle('hero')
   const heroOverlayStyle = getOverlayStyle('hero')
+  
+  console.log('HeroSingleImage section styles:', {
+    heroBackgroundStyle,
+    heroTextStyle,
+    heroOverlayStyle,
+    backgroundImage
+  })
   
   // Combine background image with section styling
   const combinedBackgroundStyle = {
@@ -247,9 +282,9 @@ function HeroSingleImage({ backgroundImage }: { backgroundImage?: string | null 
       style={combinedBackgroundStyle}
     >
       {/* Overlay for better text readability */}
-      {(backgroundImage || heroOverlayStyle.backgroundColor) && (
+      {!isModalOpen && (backgroundImage || heroOverlayStyle.backgroundColor) && (
         <div 
-          className="absolute inset-0"
+          className="absolute inset-0 z-10"
           style={heroOverlayStyle}
         ></div>
       )}

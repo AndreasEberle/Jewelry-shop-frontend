@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react'
 import api from '@/services/api'
 
+// Cache for hero slider data to prevent excessive API calls
+let heroSliderCache: { 
+  config: HeroSliderConfig | null, 
+  images: BackgroundImage[], 
+  timestamp: number 
+} | null = null
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
 interface HeroSliderConfig {
   id: string
   isEnabled: boolean
@@ -42,6 +50,16 @@ export const useHeroSlider = () => {
         setLoading(true)
         setError(null)
         
+        // Check cache first
+        const now = Date.now()
+        if (heroSliderCache && (now - heroSliderCache.timestamp) < CACHE_DURATION) {
+          console.log('Using cached hero slider data')
+          setSliderConfig(heroSliderCache.config)
+          setHeroImages(heroSliderCache.images)
+          setLoading(false)
+          return
+        }
+        
         // Fetch slider configuration
         const configResponse = await api.get('/api/public/hero-slider/config')
         console.log('Slider config response:', configResponse.data)
@@ -57,16 +75,27 @@ export const useHeroSlider = () => {
         const images = imagesResponse.data
         
         // Handle both single object and array responses
+        let processedImages: BackgroundImage[] = []
         if (Array.isArray(images)) {
+          processedImages = images
           setHeroImages(images)
           console.log('Loaded hero images (array):', images.length, 'images')
         } else if (images && typeof images === 'object') {
           // Single image object - wrap it in an array
+          processedImages = [images]
           setHeroImages([images])
           console.log('Loaded hero images (single object):', images)
         } else {
           console.warn('Hero images response is neither array nor object:', images)
+          processedImages = []
           setHeroImages([])
+        }
+        
+        // Update cache
+        heroSliderCache = { 
+          config: configResponse.data, 
+          images: processedImages, 
+          timestamp: now 
         }
         
       } catch (err) {

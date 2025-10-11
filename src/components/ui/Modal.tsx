@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ModalProps {
   isOpen: boolean
@@ -25,30 +26,32 @@ export const Modal: React.FC<ModalProps> = ({
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscKey)
-      // Prevent body scroll when modal is open
-      document.body.style.overflow = 'hidden'
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscKey)
-      document.body.style.overflow = 'unset'
     }
   }, [isOpen, onClose])
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex justify-center items-center"
+      className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-[999999] flex justify-center items-center backdrop-blur-sm"
+      style={{ zIndex: 999999 }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
         }
       }}
     >
-      <div className={`relative p-8 border w-full max-w-md md:max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto ${className}`}>
+      <div 
+        className={`relative p-8 border w-full max-w-md md:max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto z-[1000000] ${className}`}
+        style={{ zIndex: 1000000 }}
+      >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

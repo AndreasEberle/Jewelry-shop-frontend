@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { BrandingManager } from '@/components/admin/BrandingManager'
+import { SpecialOfferDescriptionManager } from '@/components/admin/SpecialOfferDescriptionManager'
+import WebsiteStatusManager from '@/components/admin/WebsiteStatusManager'
 import api from '@/services/api'
-import { Settings, Database, Cloud, Shield, Globe, DollarSign, Palette } from 'lucide-react'
+import { Settings, Database, Cloud, Shield, Globe, DollarSign, Palette, Tag, Wrench } from 'lucide-react'
 
 interface SystemConfig {
   id: string
@@ -29,7 +31,7 @@ export default function AdminSettingsPage() {
   const [editValue, setEditValue] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'system' | 'branding'>('system')
+  const [activeTab, setActiveTab] = useState<'system' | 'branding' | 'special-offers' | 'website-status'>('system')
 
   useEffect(() => {
     loadSystemConfigs()
@@ -243,6 +245,32 @@ export default function AdminSettingsPage() {
                   <span>Branding</span>
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('special-offers')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'special-offers'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Tag className="w-4 h-4" />
+                  <span>Special Offers</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('website-status')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'website-status'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Wrench className="w-4 h-4" />
+                  <span>Website Status</span>
+                </div>
+              </button>
             </nav>
           </div>
         </div>
@@ -454,9 +482,15 @@ export default function AdminSettingsPage() {
           )}
         </div>
           </>
-        ) : (
+        ) : activeTab === 'branding' ? (
           /* Branding Configuration */
           <BrandingManager />
+        ) : activeTab === 'website-status' ? (
+          /* Website Status Configuration */
+          <WebsiteStatusManager />
+        ) : (
+          /* Special Offer Descriptions Configuration */
+          <SpecialOfferDescriptionManager />
         )}
       </div>
     </AdminLayout>
