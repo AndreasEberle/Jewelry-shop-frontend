@@ -5,6 +5,7 @@ import { Cart, CartItem, Product } from '@/types'
 import { cartService } from '@/services/cartService'
 import { authService } from '@/services/authService'
 import { useAuth } from './AuthContext'
+import api from '@/services/api'
 
 interface CartContextType {
   cart: Cart | null
@@ -170,23 +171,43 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       console.log('CartContext: Cart itemCount:', cartData.itemCount)
       
       // Convert backend response to frontend Cart format
+      // Fetch full product details for each item
+      const itemsWithProducts = await Promise.all(
+        cartData.items.map(async (item) => {
+          try {
+            // Fetch full product details
+            const productResponse = await api.get(`/api/products/${item.productId}`)
+            const fullProduct = productResponse.data
+            
+            return {
+              id: item.id,
+              product: fullProduct,
+              quantity: item.quantity
+            }
+          } catch (error) {
+            console.error(`Failed to fetch product ${item.productId}:`, error)
+            // Fallback to basic product info
+            return {
+              id: item.id,
+              product: {
+                id: item.productId,
+                name: item.productName,
+                price: item.productPrice,
+                description: '',
+                category: '',
+                images: [],
+                active: true,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              },
+              quantity: item.quantity
+            }
+          }
+        })
+      )
+      
       const frontendCart = {
-        items: cartData.items.map(item => ({
-          id: item.id,
-          product: {
-            id: item.productId,
-            name: item.productName,
-            price: item.productPrice,
-            // Add other required Product fields with defaults
-            description: '',
-            category: '',
-            images: [],
-            active: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          },
-          quantity: item.quantity
-        })),
+        items: itemsWithProducts,
         total: cartData.total,
         itemCount: cartData.itemCount
       }
@@ -194,6 +215,9 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       console.log('CartContext: Setting frontend cart state:', frontendCart)
       setCart(frontendCart)
       console.log('CartContext: Cart state updated successfully')
+      
+      // Dispatch event to notify other components that cart was updated
+      window.dispatchEvent(new Event('cartUpdated'))
     } catch (err: any) {
       console.error('CartContext: Failed to refresh cart:', err)
       console.error('CartContext: Error details:', {
@@ -217,16 +241,26 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     try {
       if (isAuthenticated && user) {
         // User is logged in - use backend cart
+        // The backend will handle checking for duplicates and updating quantity
+        console.log('CartContext: Adding to cart - Product ID:', product.id, 'Quantity:', quantity)
         await cartService.addToCart({
           productId: product.id,
           quantity
         })
+        // Refresh cart to get updated state
         await refreshCart()
+        console.log('CartContext: Cart refreshed after adding item')
+        
+        // Only dispatch event to open cart drawer if not on checkout page
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/checkout')) {
+          window.dispatchEvent(new Event('openCartDrawer'))
+        }
       } else {
         // Guest user - use local storage cart
         addToGuestCart(product, quantity)
       }
     } catch (err: any) {
+      console.error('CartContext: Error adding to cart:', err)
       setError(err.message || 'Failed to add item to cart')
       throw err
     } finally {
@@ -261,6 +295,11 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     
     // Update state
     setCart(existingCart)
+    
+    // Only dispatch event to open cart drawer if not on checkout page
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/checkout')) {
+      window.dispatchEvent(new Event('openCartDrawer'))
+    }
   }
 
   const updateQuantity = async (itemId: string, quantity: number) => {

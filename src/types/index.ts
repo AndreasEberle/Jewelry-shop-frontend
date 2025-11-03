@@ -22,6 +22,7 @@ export interface SelectOption {
 
 // Cart types
 export interface CartItem {
+  id?: string // Cart item ID (for authenticated users)
   product: Product
   quantity: number
 }
@@ -80,6 +81,9 @@ export interface Tag {
   createdAt: string
   updatedAt: string
 }
+
+
+
 
 
 

@@ -6,7 +6,7 @@ import { BrandingManager } from '@/components/admin/BrandingManager'
 import { SpecialOfferDescriptionManager } from '@/components/admin/SpecialOfferDescriptionManager'
 import WebsiteStatusManager from '@/components/admin/WebsiteStatusManager'
 import api from '@/services/api'
-import { Settings, Database, Cloud, Shield, Globe, DollarSign, Palette, Tag, Wrench } from 'lucide-react'
+import { Settings, Database, Cloud, Shield, Globe, DollarSign, Palette, Tag, Wrench, Search, Edit, Check, X, RefreshCw } from 'lucide-react'
 
 interface SystemConfig {
   id: string
@@ -31,7 +31,7 @@ export default function AdminSettingsPage() {
   const [editValue, setEditValue] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'system' | 'branding' | 'special-offers' | 'website-status'>('system')
+  const [activeTab, setActiveTab] = useState<'system' | 'branding' | 'special-offers' | 'website-status' | 'footer'>('system')
 
   useEffect(() => {
     loadSystemConfigs()
@@ -48,8 +48,8 @@ export default function AdminSettingsPage() {
       console.log('Loaded configs:', allConfigs)
       
       // Debug specific configs
-      const s3RegionConfigs = allConfigs.filter(c => c.configKey === 'S3_REGION')
-      const storageTypeConfigs = allConfigs.filter(c => c.configKey === 'STORAGE_TYPE')
+      const s3RegionConfigs = allConfigs.filter((c: SystemConfig) => c.configKey === 'S3_REGION')
+      const storageTypeConfigs = allConfigs.filter((c: SystemConfig) => c.configKey === 'STORAGE_TYPE')
       console.log('S3_REGION configs:', s3RegionConfigs)
       console.log('STORAGE_TYPE configs:', storageTypeConfigs)
       
@@ -171,7 +171,7 @@ export default function AdminSettingsPage() {
   const filteredConfigs = configs.filter(config => 
     config.configKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
     config.configValue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    config.description.toLowerCase().includes(searchQuery.toLowerCase())
+    (config.description && config.description.toLowerCase().includes(searchQuery.toLowerCase()))
   )
 
   const getConfigIcon = (key: string) => {
@@ -269,6 +269,19 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center space-x-2">
                   <Wrench className="w-4 h-4" />
                   <span>Website Status</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('footer')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'footer'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Tag className="w-4 h-4" />
+                  <span>Footer</span>
                 </div>
               </button>
             </nav>
@@ -392,12 +405,35 @@ export default function AdminSettingsPage() {
                                 );
                               })()
                             ) : (
-                              <input
-                                type="text"
+                              (() => {
+                                // Check if this is a boolean config
+                                const isBooleanConfig = config.configKey.includes('.enabled') || 
+                                                       config.configKey.includes('is_active') ||
+                                                       config.configValue === 'true' || 
+                                                       config.configValue === 'false'
+                                
+                                if (isBooleanConfig) {
+                                  return (
+                                    <select
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      className="w-full px-4 py-3 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[200px]"
+                                    >
+                                      <option value="true">Yes / Enabled</option>
+                                      <option value="false">No / Disabled</option>
+                                    </select>
+                                  )
+                                }
+                                
+                                return (
+                                  <textarea
                                 value={editValue}
                                 onChange={(e) => setEditValue(e.target.value)}
-                                className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                    rows={editValue.length > 100 ? 4 : 2}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[300px] resize-y"
                               />
+                                )
+                              })()
                             )}
                             <button
                               onClick={handleSave}
@@ -423,9 +459,31 @@ export default function AdminSettingsPage() {
                         ) : (
                           <div className="flex items-center space-x-2">
                             <div className="flex items-center space-x-2">
+                              {((): React.ReactNode => {
+                                // Display human-readable boolean values
+                                const isBooleanValue = config.configValue === 'true' || config.configValue === 'false'
+                                const isBooleanConfig = config.configKey.includes('.enabled') || 
+                                                       config.configKey.includes('is_active') ||
+                                                       config.configKey.includes('.enabled')
+                                
+                                if (isBooleanValue && isBooleanConfig) {
+                                  return (
+                                    <span className={`text-sm font-semibold px-2 py-1 rounded ${
+                                      config.configValue === 'true' 
+                                        ? 'text-green-700 bg-green-100' 
+                                        : 'text-red-700 bg-red-100'
+                                    }`}>
+                                      {config.configValue === 'true' ? '✓ Yes / Enabled' : '✗ No / Disabled'}
+                                    </span>
+                                  )
+                                }
+                                
+                                return (
                               <span className="text-sm text-gray-900 font-mono bg-gray-100 px-2 py-1 rounded">
                                 {config.configValue}
                               </span>
+                                )
+                              })()}
                               {config.isActive && (
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                   Active
@@ -488,6 +546,174 @@ export default function AdminSettingsPage() {
         ) : activeTab === 'website-status' ? (
           /* Website Status Configuration */
           <WebsiteStatusManager />
+        ) : activeTab === 'footer' ? (
+          /* Footer Configuration */
+          <>
+            {/* Search Bar and Refresh Button */}
+            <div className="mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search footer configurations..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-gray-400" />
+                  </div>
+                </div>
+                <button
+                  onClick={() => loadSystemConfigs(true)}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Footer Configs - Filter by footer.* prefix */}
+            {configs
+              .filter(config => config.configKey.startsWith('footer.'))
+              .filter(config => 
+                config.configKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                config.configValue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (config.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+              )
+              .length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No footer configurations found. They will be created when you run the database migration.</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {configs
+                        .filter(config => config.configKey.startsWith('footer.'))
+                        .filter(config => 
+                          config.configKey.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          config.configValue.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (config.description || '').toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+                        .map((config) => (
+                          <tr key={config.id}>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {config.configKey}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {editingConfig?.id === config.id ? (
+                                (() => {
+                                  // Check if this is a boolean config
+                                  const isBooleanConfig = config.configKey.includes('.enabled') || 
+                                                         config.configKey.includes('is_active') ||
+                                                         config.configValue === 'true' || 
+                                                         config.configValue === 'false'
+                                  
+                                  if (isBooleanConfig) {
+                                    return (
+                                      <select
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[200px]"
+                                        autoFocus
+                                      >
+                                        <option value="true">Yes / Enabled</option>
+                                        <option value="false">No / Disabled</option>
+                                      </select>
+                                    )
+                                  }
+                                  
+                                  return (
+                                    <textarea
+                                      value={editValue}
+                                      onChange={(e) => setEditValue(e.target.value)}
+                                      rows={editValue.length > 100 ? 4 : 2}
+                                      className="w-full px-4 py-3 border border-gray-300 rounded-md text-base focus:outline-none focus:ring-2 focus:ring-primary-500 min-w-[400px] resize-y"
+                                      autoFocus
+                                    />
+                                  )
+                                })()
+                              ) : (
+                                (() => {
+                                  // Display human-readable boolean values
+                                  const isBooleanValue = config.configValue === 'true' || config.configValue === 'false'
+                                  const isBooleanConfig = config.configKey.includes('.enabled') || 
+                                                         config.configKey.includes('is_active')
+                                  
+                                  if (isBooleanValue && isBooleanConfig) {
+                                    return (
+                                      <span className="break-all text-base">
+                                        {config.configValue === 'true' 
+                                          ? <span className="text-green-600 font-semibold">✓ Yes / Enabled</span>
+                                          : <span className="text-red-600 font-semibold">✗ No / Disabled</span>
+                                        }
+                                      </span>
+                                    )
+                                  }
+                                  
+                                  return <span className="break-all text-base">{config.configValue || '(empty)'}</span>
+                                })()
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-500">
+                              {config.description || '-'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {config.isActive ? (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                  Active
+                                </span>
+                              ) : (
+                                <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                  Inactive
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              {editingConfig?.id === config.id ? (
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={handleSave}
+                                    className="text-green-600 hover:text-green-900"
+                                  >
+                                    <Check className="w-5 h-5" />
+                                  </button>
+                                  <button
+                                    onClick={handleCancel}
+                                    className="text-red-600 hover:text-red-900"
+                                  >
+                                    <X className="w-5 h-5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setEditingConfig(config)
+                                    setEditValue(config.configValue || '')
+                                  }}
+                                  className="text-primary-600 hover:text-primary-900"
+                                >
+                                  <Edit className="w-5 h-5" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+          </>
         ) : (
           /* Special Offer Descriptions Configuration */
           <SpecialOfferDescriptionManager />

@@ -49,10 +49,20 @@ module.exports = {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         serif: ['Playfair Display', 'serif'],
       },
+      zIndex: {
+        'megaMenu': '50',
+        'headerUtility': '40',
+      },
+      width: {
+        '100': '100%',
+      },
     },
   },
   plugins: [],
 }
+
+
+
 
 
 

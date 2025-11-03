@@ -1,15 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { ShoppingCart, User, Search, Menu, X, LogOut } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { ShoppingBag, User, Search, Menu, X, Heart } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCart } from '@/contexts/CartContext'
-import { useLanguage } from '@/contexts/LanguageContext'
 import { useBranding } from '@/hooks/useBranding'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { useSectionStyles } from '@/hooks/useSectionStyles'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { CurrencySelector } from '@/components/CurrencySelector'
+import { LanguageSelectorCompact } from '@/components/LanguageSelectorCompact'
+import { SearchModal } from '@/components/SearchModal'
+import { TopBanner } from './TopBanner'
+import { favoriteService } from '@/services/favoriteService'
+import { AccountDropdown } from '@/components/AccountDropdown'
+import { CartDrawer } from '@/components/CartDrawer'
+import { useCurrencyConfig } from '@/hooks/useCurrencyConfig'
 
 interface HeaderProps {
   backgroundImage?: string | null
@@ -18,6 +26,9 @@ interface HeaderProps {
 export function Header({ backgroundImage }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false)
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
 
   const openAuthModal = (mode: 'login' | 'register' = 'login') => {
@@ -27,28 +38,74 @@ export function Header({ backgroundImage }: HeaderProps) {
 
   const closeAuthModal = () => {
     setIsAuthModalOpen(false)
-    // Reset to login mode when closing
     setAuthMode('login')
   }
+
   const { user, isAuthenticated, isLoading, logout } = useAuth()
   const { itemCount } = useCart()
-  const { currentLanguage, getLanguageFlag } = useLanguage()
   const { brandingConfig, getShopNameStyle, getLogoStyle } = useBranding()
+  const { navbarName } = usePageTitle()
   const { getBackgroundStyle, getTextStyle, getOverlayStyle } = useSectionStyles()
+  const { config: currencyConfig } = useCurrencyConfig()
+  const [favoriteCount, setFavoriteCount] = useState(0)
+  const pathname = usePathname()
+  const isHomepage = pathname === '/'
 
-  // Debug logging for Header
-  console.log('Header: Auth state:', { 
-    user: user ? `${user.email} (${user.roles?.join(', ')})` : 'null', 
-    isAuthenticated, 
-    isLoading 
-  })
+  // Load favorite count on mount and when authentication changes
+  useEffect(() => {
+    const loadFavoriteCount = () => {
+      if (isAuthenticated) {
+        favoriteService.getFavorites()
+          .then(favorites => setFavoriteCount(favorites.length))
+          .catch((err) => {
+            console.error('Failed to get favorites:', err)
+            setFavoriteCount(0)
+          })
+      } else {
+        setFavoriteCount(0)
+      }
+    }
+    
+    loadFavoriteCount()
+    
+    // Listen for favorite changes from anywhere in the app
+    const handleFavoriteChange = () => {
+      loadFavoriteCount()
+    }
+    
+    window.addEventListener('favoriteChanged', handleFavoriteChange)
+    
+    return () => {
+      window.removeEventListener('favoriteChanged', handleFavoriteChange)
+    }
+  }, [isAuthenticated])
+  
+  // Listen for cart drawer open event
+  useEffect(() => {
+    const handleOpenCartDrawer = () => {
+      setIsCartDrawerOpen(true)
+    }
+    
+    window.addEventListener('openCartDrawer', handleOpenCartDrawer)
+    return () => {
+      window.removeEventListener('openCartDrawer', handleOpenCartDrawer)
+    }
+  }, [])
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('Header Debug Info:', {
+      brandingConfig: brandingConfig ? { shopName: brandingConfig.shopName, logoUrl: brandingConfig.logoUrl } : 'NULL',
+      navbarName: navbarName || 'NULL',
+      isAuthenticated,
+      itemCount
+    })
+  }, [brandingConfig, navbarName, isAuthenticated, itemCount])
 
-  // Get section styling for navigation
   const navBackgroundStyle = getBackgroundStyle('navigation')
-  const navTextStyle = getTextStyle('navigation')
+  const navTextStyle = { ...getTextStyle('navigation'), color: '#000000' }
   const navOverlayStyle = getOverlayStyle('navigation')
 
-  // Combine background image with section styling
   const combinedBackgroundStyle = {
     ...navBackgroundStyle,
     ...(backgroundImage && {
@@ -60,264 +117,386 @@ export function Header({ backgroundImage }: HeaderProps) {
   }
 
   return (
-    <header 
-      className="shadow-sm border-b relative"
-      style={combinedBackgroundStyle}
-    >
-      {/* Overlay for better text readability */}
-      {(backgroundImage || navOverlayStyle.backgroundColor) && (
-        <div 
-          className="absolute inset-0"
-          style={navOverlayStyle}
-        ></div>
-      )}
-      
-      {/* Fallback background */}
-      {!backgroundImage && !navBackgroundStyle.backgroundColor && (
-        <div className="absolute inset-0 bg-white"></div>
-      )}
-      
-      <div className="relative z-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center space-x-2">
-              {brandingConfig?.logoUrl ? (
-                <img
-                  src={brandingConfig.logoUrl}
-                  alt={brandingConfig.logoAltText || 'Logo'}
-                  style={getLogoStyle()}
-                  className="object-contain"
-                />
-              ) : (
-                <span style={getShopNameStyle()}>
-                  {brandingConfig?.shopName || 'JewelryShop'}
-                </span>
-              )}
-            </Link>
-          </div>
-
-                 {/* Desktop Navigation */}
-                 <nav className="hidden md:flex space-x-8">
-                   <Link 
-                     href="/" 
-                     className="hover:text-primary-600 transition-colors"
-                     style={navTextStyle}
-                   >
-                     Home
-                   </Link>
-                   <Link 
-                     href="/products" 
-                     className="hover:text-primary-600 transition-colors"
-                     style={navTextStyle}
-                   >
-                     Products
-                   </Link>
-                   <Link 
-                     href="/categories" 
-                     className="hover:text-primary-600 transition-colors"
-                     style={navTextStyle}
-                   >
-                     Categories
-                   </Link>
-                   <Link 
-                     href="/about" 
-                     className="hover:text-primary-600 transition-colors"
-                     style={navTextStyle}
-                   >
-                     About
-                   </Link>
-                   <Link 
-                     href="/contact" 
-                     className="hover:text-primary-600 transition-colors"
-                     style={navTextStyle}
-                   >
-                     Contact
-                   </Link>
-                 </nav>
-
-          {/* Right side icons */}
-          <div className="flex items-center space-x-4">
-            <CurrencySelector />
-            <button className="p-2 text-gray-700 hover:text-primary-600 transition-colors">
-              <Search className="h-5 w-5" />
-            </button>
-            
-            {/* User Authentication */}
-            {isAuthenticated ? (
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
+    <>
+      <TopBanner />
+      <header
+        className="sticky top-0 z-50 w-full bg-white border-b text-gray-900 min-h-[60px]"
+        style={{ position: 'sticky', top: 0, zIndex: 50, minHeight: '60px', display: 'block' }}
+        role="banner"
+        data-testid="header"
+      >
+            <div className="relative flex flex-col lg:flex-row items-center lg:items-center lg:justify-between lg:!mr-0 w-full p-md lg:px-xl lg:py-lg min-h-[60px] gap-2 lg:gap-0">
+              {/* Desktop Logo + Navigation */}
+              <div className="flex items-center lg:gap-8" style={{ paddingLeft: '50px' }}>
+                {/* Desktop Logo */}
+                <div className="hidden lg:block lg:mr-xl flex-shrink-0">
                   <Link
-                    href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
-                    className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
-                    title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                    aria-label={`${navbarName || brandingConfig?.shopName || 'Jewelry Shop'} logo - Click to return to the homepage`}
+                    href="/"
+                    className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 tracking-normal block"
+                    data-testid="nav-link"
                   >
-                    <User className="h-5 w-5" />
+                    {brandingConfig?.logoUrl ? (
+                      <img
+                        src={brandingConfig.logoUrl}
+                        alt={brandingConfig.logoAltText || 'Logo'}
+                        style={getLogoStyle()}
+                        className="overflow-visible"
+                      />
+                    ) : (
+                      <span style={{ ...getShopNameStyle(), color: '#000000' }}>
+                        {navbarName || brandingConfig?.shopName || 'JewelryShop'}
+                      </span>
+                    )}
                   </Link>
-                  <span className="text-lg" title={`Current language: ${currentLanguage}`}>
-                    {getLanguageFlag(currentLanguage)}
-                  </span>
                 </div>
-                <button
-                  onClick={logout}
-                  className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  title="Logout"
-                >
-                  <LogOut className="h-5 w-5" />
-                </button>
-              </div>
-            ) : isLoading ? (
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <div className="p-2 text-gray-400">
-                    <User className="h-5 w-5 animate-pulse" />
-                  </div>
-                  <span className="text-lg animate-pulse">
-                    {getLanguageFlag(currentLanguage)}
-                  </span>
-                </div>
-                <div className="text-sm text-gray-400 animate-pulse">
-                  Loading...
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={() => openAuthModal('login')}
-                    className="p-2 text-gray-700 hover:text-primary-600 transition-colors"
-                    title="Login"
-                  >
-                    <User className="h-5 w-5" />
-                  </button>
-                  <span className="text-lg" title={`Current language: ${currentLanguage}`}>
-                    {getLanguageFlag(currentLanguage)}
-                  </span>
-                </div>
-                <button
-                  onClick={() => openAuthModal('register')}
-                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                >
-                  Sign Up
-                </button>
-              </div>
-            )}
-            
-            {/* Cart */}
-            <Link href="/cart" className="p-2 text-gray-700 hover:text-primary-600 transition-colors relative">
-              <ShoppingCart className="h-5 w-5" />
-              {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {itemCount}
-                </span>
-              )}
-            </Link>
-            
-            {/* Mobile menu button */}
-            <button
-              className="md:hidden p-2 text-gray-700 hover:text-primary-600 transition-colors"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-            >
-              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t">
-              <Link href="/" className="block px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors">
-                Home
-              </Link>
-              <Link href="/products" className="block px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors">
-                Products
-              </Link>
-              <Link href="/categories" className="block px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors">
-                Categories
-              </Link>
-              <Link href="/about" className="block px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors">
-                About
-              </Link>
-              <Link href="/contact" className="block px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors">
-                Contact
-              </Link>
-              
-              {/* Mobile Auth */}
-              {isLoading ? (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between px-3 py-2 text-gray-400 animate-pulse">
-                    <span>Loading...</span>
-                    <span className="text-lg">{getLanguageFlag(currentLanguage)}</span>
-                  </div>
-                </div>
-              ) : !isAuthenticated ? (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <button
-                      onClick={() => {
-                        setAuthMode('login')
-                        setIsAuthModalOpen(true)
-                        setIsMenuOpen(false)
-                      }}
-                      className="text-gray-700 hover:text-primary-600 transition-colors"
+                {/* Desktop Navigation Links */}
+                <nav aria-label="primary menu" data-orientation="horizontal" dir="ltr" data-testid="header-nav-root" className="hidden lg:block">
+                  <div tabIndex={-1} aria-hidden="true" className="hh-overlay hidden top-full z-below" data-testid="mega-menu-overlay"></div>
+                  <div style={{ position: 'relative' }}>
+                    <ul
+                      data-orientation="horizontal"
+                      data-testid="header-main-menu"
+                      className="flex items-center gap-6"
+                      dir="ltr"
                     >
-                      Sign In
-                    </button>
-                    <span className="text-lg" title={`Current language: ${currentLanguage}`}>
-                      {getLanguageFlag(currentLanguage)}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setAuthMode('register')
-                      setIsAuthModalOpen(true)
-                      setIsMenuOpen(false)
-                    }}
-                    className="block w-full text-left px-3 py-2 text-primary-600 hover:text-primary-700 transition-colors"
-                  >
-                    Sign Up
-                  </button>
+                    <li className="whitespace-nowrap">
+                      <button 
+                        type="button"
+                        className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
+                        data-title="Mega Menu" 
+                        accessibility-role="menuitem" 
+                        accessibility-label="Menu"
+                      >
+                        <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
+                          <Link
+                            href="/products"
+                            aria-label="All Jewelry "
+                            aria-expanded="false"
+                            aria-haspopup="menu"
+                            data-testid="nav-link"
+                            className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
+                            style={{ ...navTextStyle, fontSize: '0.75em' }}
+                          >
+                            All Jewelry 
+                          </Link>
+                        </span>
+                      </button>
+                    </li>
+                    <li className="whitespace-nowrap">
+                      <button 
+                        type="button"
+                        className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
+                        data-title="Mega Menu" 
+                        accessibility-role="menuitem" 
+                        accessibility-label="Menu"
+                      >
+                        <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
+                          <Link
+                            href="/products?new=true"
+                            aria-label="New In"
+                            aria-expanded="false"
+                            aria-haspopup="menu"
+                            data-testid="nav-link"
+                            className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
+                            style={{ ...navTextStyle, fontSize: '0.75em' }}
+                          >
+                            New In
+                          </Link>
+                        </span>
+                      </button>
+                    </li>
+                    <li className="whitespace-nowrap">
+                      <button 
+                        type="button"
+                        className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
+                        data-title="Mega Menu" 
+                        accessibility-role="menuitem" 
+                        accessibility-label="Menu"
+                      >
+                        <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
+                          <Link
+                            href="/products?featured=true"
+                            aria-label="Best Sellers"
+                            aria-expanded="false"
+                            aria-haspopup="menu"
+                            data-testid="nav-link"
+                            className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
+                            style={{ ...navTextStyle, fontSize: '0.75em' }}
+                          >
+                            Best Sellers
+                          </Link>
+                        </span>
+                      </button>
+                    </li>
+                  </ul>
                 </div>
-              ) : (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between px-3 py-2">
-                    <Link
-                      href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
-                      onClick={() => setIsMenuOpen(false)}
-                      className="text-gray-700 hover:text-primary-600 transition-colors"
-                    >
-                      {user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
-                    </Link>
-                    <span className="text-lg" title={`Current language: ${currentLanguage}`}>
-                      {getLanguageFlag(currentLanguage)}
-                    </span>
+                </nav>
+              </div>
+
+              {/* Desktop Utility Menu */}
+              <div className="w-full lg:w-auto" data-testid="header-utility-menu" style={{ paddingRight: '50px' }}>
+                  {/* Mobile Layout */}
+                  <div className="lg:hidden flex flex-col w-full">
+                    <div className="relative flex items-center justify-between w-full">
+                      {/* Mobile Menu Button */}
+                      <div className="shrink-0 pt-2 relative">
+                        <button
+                          className="relative pointer-events-auto inline-block text-center outline-none border-none capitalize p-0 mr-4 transition-colors duration-300 ease-in-out bg-transparent"
+                          onClick={() => setIsMenuOpen(!isMenuOpen)}
+                          aria-label="Open Menu"
+                          type="button"
+                          aria-haspopup="dialog"
+                          aria-expanded={isMenuOpen}
+                        >
+                          <span className="flex justify-center items-center gap-1">
+                            {isMenuOpen ? (
+                              <X className="w-6 h-6" style={navTextStyle} />
+                            ) : (
+                              <Menu className="w-6 h-6" style={navTextStyle} />
+                            )}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Mobile Logo - Centered */}
+                      <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[69px]">
+                        <Link
+                          aria-label={`${navbarName || brandingConfig?.shopName || 'Jewelry Shop'} logo - Click to return to the homepage`}
+                          href="/"
+                          className="pointer-events-auto transition-colors ease-in-out duration-300 focus-visible:ring-1 focus-visible:ring-offset-4 outline-none tracking-normal block"
+                        >
+                          {brandingConfig?.logoUrl ? (
+                            <img
+                              src={brandingConfig.logoUrl}
+                              alt={brandingConfig.logoAltText || 'Logo'}
+                              style={getLogoStyle()}
+                              className="object-contain max-h-6"
+                            />
+                          ) : (
+                            <span style={{ ...getShopNameStyle(), color: '#000000' }} className="text-base font-semibold">
+                              {navbarName || brandingConfig?.shopName || 'JS'}
+                            </span>
+                          )}
+                        </Link>
+                      </div>
+
+                      {/* Mobile Search/Account */}
+                      <div className="shrink-0 flex items-center gap-3">
+                        <button
+                          onClick={() => setIsSearchOpen(true)}
+                          className="p-1"
+                          aria-label="Search"
+                        >
+                          <Search className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                        </button>
+                        {isAuthenticated ? (
+                          <Link
+                            href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
+                            className="p-1"
+                            aria-label="My Account"
+                          >
+                              <User className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                          </Link>
+                        ) : (
+                          <button
+                            onClick={() => openAuthModal('login')}
+                            className="p-1"
+                            aria-label="Login"
+                          >
+                              <User className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Mobile Navigation Menu */}
+                    {isMenuOpen && (
+                      <div className="flex items-center justify-between w-full mt-2 pt-2 border-t border-gray-300 border-opacity-30">
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => setIsSearchOpen(true)}
+                            className="flex items-center justify-start w-full min-w-[120px] border-b border-current pb-1"
+                          >
+                            <Search className="w-5 h-5 mr-2" style={navTextStyle} />
+                            <p className="text-sm" style={navTextStyle}>Search</p>
+                          </button>
+                        </div>
+                        <div className="flex items-start gap-4">
+                          <nav aria-label="Main">
+                            <ul className="flex gap-4 items-center">
+                              <li>
+                                <Link
+                                  href="/favorites"
+                                  className="pointer-events-auto transition-colors ease-in-out duration-300 focus-visible:ring-1 focus-visible:ring-offset-4 outline-none"
+                                  aria-label="Go to your wishlist"
+                                >
+                                  <Heart className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                                  <span className="sr-only">Go to your wishlist</span>
+                                </Link>
+                              </li>
+                            </ul>
+                          </nav>
+                          <div>
+                            <button
+                              onClick={() => setIsCartDrawerOpen(true)}
+                              className="relative pointer-events-auto inline-block text-center outline-none border-none capitalize p-0 transition-colors duration-300 ease-in-out bg-transparent"
+                              aria-label="Open Bag"
+                            >
+                              <span className="flex justify-center items-center gap-1">
+                                <div className="relative">
+                                  <ShoppingBag className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                                  {itemCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                                      {itemCount > 9 ? '9+' : itemCount}
+                                    </span>
+                                  )}
+                                  <span className="sr-only">Open Bag</span>
+                                </div>
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={() => {
-                      logout()
-                      setIsMenuOpen(false)
-                    }}
-                    className="block w-full text-left px-3 py-2 text-gray-700 hover:text-primary-600 transition-colors"
-                  >
-                    Logout
-                  </button>
+
+                  {/* Desktop Utility Menu */}
+                  <div style={{ position: 'relative' }}>
+                    <ul className="hidden lg:flex items-center gap-4" dir="ltr">
+                      {/* Search */}
+                      <li className="flex items-center" data-testid="search-modal-desktop">
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          aria-expanded={isSearchOpen}
+                          data-state={isSearchOpen ? 'open' : 'closed'}
+                          data-testid="search-modal-trigger"
+                          onClick={() => setIsSearchOpen(true)}
+                          className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
+                        >
+                          <div className="flex items-center justify-start lg:justify-between w-[120px] lg:w-[223px] min-[1280px]:w-[160px] min-[1360px]:w-[223px] border-b border-current">
+                            <Search className="w-lg h-lg" aria-label="open search" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                            <p className="text-content-inherit ml-xs" style={{ ...navTextStyle, fontSize: '0.75em' }}>Search</p>
+                          </div>
+                        </button>
+                      </li>
+
+                      {/* Language */}
+                      <li className="flex items-center">
+                        <LanguageSelectorCompact />
+                      </li>
+
+                      {/* Currency - Only show if enabled */}
+                      {currencyConfig.enabled && (
+                        <li className="flex items-center">
+                          <CurrencySelector />
+                        </li>
+                      )}
+
+                      {/* Account */}
+                      <li className="flex" data-testid="account-dropdown">
+                        {isAuthenticated ? (
+                          <button
+                            onClick={() => setIsAccountDropdownOpen(true)}
+                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
+                            title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                          >
+                            <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                              <User className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="My Account" />
+                              <span className="sr-only">My Account</span>
+                            </span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openAuthModal('login')}
+                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
+                            title="Login"
+                          >
+                            <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                              <User className="w-lg h-lg" style={navTextStyle} aria-label="log in" />
+                              <span className="sr-only">My Account</span>
+                            </span>
+                          </button>
+                        )}
+                      </li>
+
+                      {/* Favorites/Wishlist */}
+                      <li className="flex">
+                        {isAuthenticated && (
+                          <Link
+                            className="relative pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 uppercase tracking-normal"
+                            data-testid="link-to-wishlist"
+                            aria-label="Go to your wishlist"
+                            href="/favorites"
+                          >
+                            <Heart className={`w-lg h-lg ${favoriteCount > 0 ? 'fill-current' : ''}`} style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="Go to your wishlist" />
+                            {favoriteCount > 0 && (
+                              <span className="absolute top-0 right-[-8px] rounded-full flex items-center justify-center h-[13px] w-[13px] text-xxxs font-display bg-backgroundTheme-dark text-contentTheme-inv">
+                                {favoriteCount > 9 ? '9+' : favoriteCount}
+                                <span className="sr-only">Items in wishlist</span>
+                              </span>
+                            )}
+                            <span className="sr-only">Go to your wishlist</span>
+                          </Link>
+                        )}
+                      </li>
+
+                      {/* Cart */}
+                      <li className="flex" data-testid="cart-modal-desktop">
+                        <button
+                          onClick={() => setIsCartDrawerOpen(true)}
+                          className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
+                          aria-label="Open Bag"
+                        >
+                          <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                            <div className="relative">
+                              <ShoppingBag className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} data-testid="icon-bag-2" viewBox="0 0 24 24" role="graphics-symbol" />
+                              {itemCount > 0 && (
+                                <span className="absolute top-0 right-[-8px] rounded-full flex items-center justify-center h-[13px] w-[13px] text-xxxs font-display bg-backgroundTheme-dark text-contentTheme-inv">
+                                  {itemCount > 9 ? '9+' : itemCount}
+                                  <span className="sr-only">Item in Bag</span>
+                                </span>
+                              )}
+                              <span className="sr-only">Open Bag</span>
+                            </div>
+                          </span>
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
-              )}
             </div>
-          </div>
-        )}
-      </div>
-      
+          </header>
+
       {/* Auth Modal */}
-        <AuthModal
-          isOpen={isAuthModalOpen}
-          onClose={closeAuthModal}
-          initialMode={authMode}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={closeAuthModal}
+        initialMode={authMode}
+      />
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+
+      {/* Cart Drawer */}
+      <CartDrawer
+        isOpen={isCartDrawerOpen}
+        onClose={() => setIsCartDrawerOpen(false)}
+      />
+
+      {/* Account Dropdown */}
+      {isAuthenticated && (
+        <AccountDropdown
+          isOpen={isAccountDropdownOpen}
+          onClose={() => setIsAccountDropdownOpen(false)}
         />
-      </div>
-    </header>
+      )}
+    </>
   )
 }
-

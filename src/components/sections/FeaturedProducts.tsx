@@ -9,14 +9,34 @@ import { useCart } from '@/contexts/CartContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { EnhancedFeaturedProductsCarousel } from './EnhancedFeaturedProductsCarousel'
+import api from '@/services/api'
 
 export function FeaturedProducts() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [addingToCart, setAddingToCart] = useState<string | null>(null)
+  const [leftBackgroundImage, setLeftBackgroundImage] = useState<string | null>(null)
+  const [rightBackgroundImage, setRightBackgroundImage] = useState<string | null>(null)
   const { addToCart } = useCart()
   const { isAuthenticated } = useAuth()
   const { currentCurrency, formatPrice } = useCurrency()
+
+  // Fetch background images from config
+  useEffect(() => {
+    const fetchBackgroundImages = async () => {
+      try {
+        const [leftRes, rightRes] = await Promise.all([
+          api.get('/api/public/system-config/featured_products.left_background_image').catch(() => ({ data: { value: null } })),
+          api.get('/api/public/system-config/featured_products.right_background_image').catch(() => ({ data: { value: null } }))
+        ])
+        setLeftBackgroundImage(leftRes.data?.value || null)
+        setRightBackgroundImage(rightRes.data?.value || null)
+      } catch (error) {
+        console.error('Failed to fetch background images:', error)
+      }
+    }
+    fetchBackgroundImages()
+  }, [])
 
   // Fetch featured products from API
   useEffect(() => {
@@ -50,8 +70,8 @@ export function FeaturedProducts() {
 
 
   const handleProductClick = (product: Product) => {
-    // Navigate to product detail page
-    window.location.href = `/products/${product.id}`
+    // Navigate to product detail page using slug (fallback to SKU)
+    window.location.href = `/products/${product.slug || product.sku}`
   }
 
   if (loading) {
@@ -77,8 +97,24 @@ export function FeaturedProducts() {
   }
 
   return (
-    <section className="py-16 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-16 bg-white relative">
+      {/* Left Background Image */}
+      {leftBackgroundImage && (
+        <div 
+          className="absolute left-0 top-0 bottom-0 w-1/4 bg-cover bg-center bg-no-repeat z-0"
+          style={{ backgroundImage: `url(${leftBackgroundImage})` }}
+        />
+      )}
+      
+      {/* Right Background Image */}
+      {rightBackgroundImage && (
+        <div 
+          className="absolute right-0 top-0 bottom-0 w-1/4 bg-cover bg-center bg-no-repeat z-0"
+          style={{ backgroundImage: `url(${rightBackgroundImage})` }}
+        />
+      )}
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
           <p className="text-gray-600 mt-4">Discover our most popular jewelry pieces</p>

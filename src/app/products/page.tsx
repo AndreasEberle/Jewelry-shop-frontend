@@ -1,218 +1,537 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { useBackgroundImages } from '@/hooks/useBackgroundImages'
+import { useCurrency } from '@/contexts/CurrencyContext'
+import { useCart } from '@/contexts/CartContext'
 import { Search, Filter, Grid, List, Star, Heart, ShoppingCart, Eye } from 'lucide-react'
 import Link from 'next/link'
-
-interface Product {
-  id: string
-  name: string
-  description: string
-  price: number
-  originalPrice?: number
-  currency: string
-  category: string
-  images: string[]
-  inStock: boolean
-  rating: number
-  reviewCount: number
-  tags: string[]
-}
+import { Product } from '@/types'
+import { productService } from '@/services/productService'
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('name')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 })
   const [showFilters, setShowFilters] = useState(false)
+  const [addingToCart, setAddingToCart] = useState<string | null>(null)
+  const [stockUpdates, setStockUpdates] = useState<Record<string, number>>({})
 
   const { getBackgroundUrlForSection } = useBackgroundImages()
+  const { formatPrice } = useCurrency()
+  const { addToCart } = useCart()
   const navigationBackground = getBackgroundUrlForSection('navigation')
   const footerBackground = getBackgroundUrlForSection('footer')
 
-  // Mock data - replace with actual API call
+  // Poll for stock updates every 5 seconds
   useEffect(() => {
-    const mockProducts: Product[] = [
-      {
-        id: '1',
-        name: 'Diamond Engagement Ring',
-        description: 'Exquisite diamond engagement ring with brilliant cut center stone',
-        price: 2999,
-        originalPrice: 3499,
-        currency: 'USD',
-        category: 'Rings',
-        images: ['/api/placeholder/400/400'],
-        inStock: true,
-        rating: 4.8,
-        reviewCount: 127,
-        tags: ['diamond', 'engagement', 'gold']
-      },
-      {
-        id: '2',
-        name: 'Pearl Necklace',
-        description: 'Classic pearl necklace with lustrous freshwater pearls',
-        price: 899,
-        currency: 'USD',
-        category: 'Necklaces',
-        images: ['/api/placeholder/400/400'],
-        inStock: true,
-        rating: 4.6,
-        reviewCount: 89,
-        tags: ['pearl', 'necklace', 'classic']
-      },
-      {
-        id: '3',
-        name: 'Gold Earrings',
-        description: 'Elegant gold earrings with intricate filigree design',
-        price: 599,
-        currency: 'USD',
-        category: 'Earrings',
-        images: ['/api/placeholder/400/400'],
-        inStock: true,
-        rating: 4.7,
-        reviewCount: 156,
-        tags: ['gold', 'earrings', 'filigree']
-      },
-      {
-        id: '4',
-        name: 'Sapphire Bracelet',
-        description: 'Stunning sapphire bracelet with blue gemstones',
-        price: 1299,
-        currency: 'USD',
-        category: 'Bracelets',
-        images: ['/api/placeholder/400/400'],
-        inStock: false,
-        rating: 4.9,
-        reviewCount: 43,
-        tags: ['sapphire', 'bracelet', 'blue']
-      },
-      {
-        id: '5',
-        name: 'Emerald Pendant',
-        description: 'Beautiful emerald pendant with vintage setting',
-        price: 799,
-        currency: 'USD',
-        category: 'Pendants',
-        images: ['/api/placeholder/400/400'],
-        inStock: true,
-        rating: 4.5,
-        reviewCount: 72,
-        tags: ['emerald', 'pendant', 'vintage']
-      },
-      {
-        id: '6',
-        name: 'Ruby Ring',
-        description: 'Striking ruby ring with diamond accents',
-        price: 1899,
-        currency: 'USD',
-        category: 'Rings',
-        images: ['/api/placeholder/400/400'],
-        inStock: true,
-        rating: 4.8,
-        reviewCount: 91,
-        tags: ['ruby', 'ring', 'diamond']
+    if (products.length === 0) return
+    
+    const updateStock = async () => {
+      try {
+        const productIds = products.map(p => p.id)
+        const availability = await productService.getMultipleProductAvailability(productIds)
+        console.log('Stock updates from API:', availability)
+        console.log('Products with quantities:', products.map(p => ({ id: p.id, name: p.name, quantity: p.quantity, availableQuantity: p.availableQuantity })))
+        setStockUpdates(availability)
+      } catch (err) {
+        console.error('Failed to update stock:', err)
       }
-    ]
+    }
+    
+    updateStock() // Initial update
+    const interval = setInterval(updateStock, 5000) // Poll every 5 seconds
+    
+    return () => clearInterval(interval)
+  }, [products])
 
-    setTimeout(() => {
-      setProducts(mockProducts)
-      setLoading(false)
-    }, 1000)
+  // Fetch real products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        // Get products - handle the response correctly
+        const response: any = await productService.getProducts()
+        // Handle both array (direct backend response) and ProductResponse (paginated response)
+        let productsList: Product[] = []
+        if (Array.isArray(response)) {
+          productsList = response
+        } else if (response?.content && Array.isArray(response.content)) {
+          productsList = response.content
+        } else if (response?.data && Array.isArray(response.data)) {
+          productsList = response.data
+        }
+        setProducts(productsList)
+        
+        // Debug: Log product images
+        productsList.forEach((p: Product) => {
+          if (p.images && p.images.length > 0) {
+            console.log(`Product ${p.name} (${p.sku}): ${p.images.length} images`, p.images.map(img => ({ url: img.url, isPrimary: img.isPrimary })))
+          } else {
+            console.warn(`Product ${p.name} (${p.sku}): No images`)
+          }
+        })
+      } catch (err) {
+        console.error('Error fetching products:', err)
+        setError('Failed to load products. Please try again later.')
+        setProducts([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchProducts()
   }, [])
 
-  const categories = ['all', 'Rings', 'Necklaces', 'Earrings', 'Bracelets', 'Pendants']
+  // Read category and featured from URL params on mount
+  useEffect(() => {
+    const categoryParam = searchParams.get('category')
+    const featuredParam = searchParams.get('featured')
+    
+    if (categoryParam) {
+      setSelectedCategory(categoryParam)
+    } else {
+      setSelectedCategory('all')
+    }
+    
+    // If featured=true, filter to show only featured products
+    if (featuredParam === 'true') {
+      setSelectedCategory('all') // Reset category filter
+      // Filter will be applied in filteredProducts
+    }
+  }, [searchParams])
+
+  // Extract unique categories from products
+  const categories = ['all', ...Array.from(new Set(products.flatMap(p => p.categories || [])))]
+  
+  const featuredParam = searchParams.get('featured')
   
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         product.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory
-    const matchesPrice = product.price >= priceRange.min && product.price <= priceRange.max
-    return matchesSearch && matchesCategory && matchesPrice
+                         product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (product.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         product.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = selectedCategory === 'all' || 
+                          (product.categories || []).includes(selectedCategory)
+    const matchesFeatured = featuredParam !== 'true' || product.showInFeatured === true
+    const productPrice = product.displayPrice || product.price
+    const matchesPrice = productPrice >= priceRange.min && productPrice <= priceRange.max
+    return matchesSearch && matchesCategory && matchesFeatured && matchesPrice
   })
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
       case 'price-low':
-        return a.price - b.price
+        return (a.displayPrice || a.price) - (b.displayPrice || b.price)
       case 'price-high':
-        return b.price - a.price
+        return (b.displayPrice || b.price) - (a.displayPrice || a.price)
       case 'rating':
-        return b.rating - a.rating
+        return (b.averageRating || 0) - (a.averageRating || 0)
       case 'newest':
-        return b.id.localeCompare(a.id)
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       default:
         return a.name.localeCompare(b.name)
     }
   })
 
-  const ProductCard = ({ product }: { product: Product }) => (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 group">
-      <div className="relative overflow-hidden rounded-t-lg">
-        <img
-          src={product.images[0]}
-          alt={product.name}
-          className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        {product.originalPrice && (
-          <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 rounded text-sm font-medium">
-            Sale
-          </div>
-        )}
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button className="p-2 bg-white rounded-full shadow-md hover:bg-gray-50">
-            <Heart className="w-4 h-4 text-gray-600" />
-          </button>
-        </div>
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center">
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex space-x-2">
-            <button className="p-2 bg-white rounded-full shadow-md hover:bg-gray-50">
-              <Eye className="w-4 h-4 text-gray-600" />
-            </button>
-            <button className="p-2 bg-white rounded-full shadow-md hover:bg-gray-50">
-              <ShoppingCart className="w-4 h-4 text-gray-600" />
-            </button>
-          </div>
-        </div>
-      </div>
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-gray-500">{product.category}</span>
-          <div className="flex items-center">
-            <Star className="w-4 h-4 text-yellow-400 fill-current" />
-            <span className="text-sm text-gray-600 ml-1">{product.rating}</span>
-            <span className="text-sm text-gray-400 ml-1">({product.reviewCount})</span>
-          </div>
-        </div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{product.name}</h3>
-        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className="text-xl font-bold text-gray-900">${product.price}</span>
-            {product.originalPrice && (
-              <span className="text-sm text-gray-500 line-through">${product.originalPrice}</span>
-            )}
-          </div>
-          <button 
-            className={`px-4 py-2 rounded-md text-sm font-medium ${
-              product.inStock 
-                ? 'bg-primary-600 text-white hover:bg-primary-700' 
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-            disabled={!product.inStock}
+  const handleAddToCart = async (product: Product) => {
+    // Use the same logic as ProductCard component
+    const stockUpdateValue = stockUpdates[product.id]
+    const hasValidStockUpdate = stockUpdateValue !== undefined && stockUpdateValue !== null && stockUpdateValue > 0
+    
+    const availableQty = hasValidStockUpdate
+      ? stockUpdateValue
+      : (product.availableQuantity !== undefined && product.availableQuantity !== null && product.availableQuantity > 0
+          ? product.availableQuantity 
+          : (product.quantity !== undefined && product.quantity !== null ? product.quantity : 0))
+    
+    console.log('handleAddToCart - Product:', product.name, 'availableQty:', availableQty, 'stockUpdates:', stockUpdates[product.id], 'product.quantity:', product.quantity, 'hasValidStockUpdate:', hasValidStockUpdate)
+    
+    if (availableQty <= 0) {
+      alert('This item is no longer available. Please remove it from your cart if already added.')
+      // Refresh stock
+      try {
+        const availability = await productService.getMultipleProductAvailability([product.id])
+        setStockUpdates(prev => ({ ...prev, ...availability }))
+      } catch (err) {
+        console.error('Failed to refresh stock:', err)
+      }
+      return
+    }
+    
+    setAddingToCart(product.id)
+    try {
+      await addToCart(product, 1)
+      // Update stock after adding to cart
+      try {
+        const availability = await productService.getMultipleProductAvailability([product.id])
+        setStockUpdates(prev => ({ ...prev, ...availability }))
+      } catch (err) {
+        console.error('Failed to update stock:', err)
+      }
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to add item to cart'
+      if (errorMsg.includes('stock') || errorMsg.includes('available')) {
+        alert('Sorry, this item is no longer available in the requested quantity. Please adjust your cart.')
+        // Refresh stock
+        try {
+          const availability = await productService.getMultipleProductAvailability([product.id])
+          setStockUpdates(prev => ({ ...prev, ...availability }))
+        } catch (refreshErr) {
+          console.error('Failed to refresh stock:', refreshErr)
+        }
+      } else {
+        alert(errorMsg)
+      }
+    } finally {
+      setAddingToCart(null)
+    }
+  }
+
+  const ProductCard = ({ product, index }: { product: Product; index: number }) => {
+    // Calculate available quantity with proper fallback logic:
+    // 1. Use stockUpdates if it exists AND is a positive number (real-time availability)
+    // 2. Otherwise, fall back to product.availableQuantity or product.quantity
+    // This ensures we don't show out of stock if stockUpdates returns 0 but product.quantity > 0
+    const stockUpdateValue = stockUpdates[product.id]
+    const hasValidStockUpdate = stockUpdateValue !== undefined && stockUpdateValue !== null && stockUpdateValue > 0
+    
+    const availableQty = hasValidStockUpdate
+      ? stockUpdateValue
+      : (product.availableQuantity !== undefined && product.availableQuantity !== null && product.availableQuantity > 0
+          ? product.availableQuantity 
+          : (product.quantity !== undefined && product.quantity !== null ? product.quantity : 0))
+    
+    // Debug: Log stock information for products with quantity
+    console.log(`Product ${product.name}: quantity=${product.quantity}, availableQuantity=${product.availableQuantity}, stockUpdates[${product.id}]=${stockUpdates[product.id]}, calculated availableQty=${availableQty}, active=${product.active}`)
+    
+    // Fix: Check quantity first, then active status - if quantity > 0, it should be in stock regardless of active status
+    // (active status might be a separate concern)
+    const inStock = availableQty > 0
+    const wasOutOfStock = availableQty === 0
+    
+    // Get primary image or first image with a valid URL
+    const primaryImage = product.images?.find(img => img.isPrimary && img.url) 
+      || product.images?.find(img => img.url) 
+      || null
+    
+    // Get secondary/hover image (first non-primary image, or second image if available)
+    const secondaryImage = product.images?.filter(img => !img.isPrimary && img.url)?.[0]
+      || (product.images?.length > 1 && product.images[1]?.url ? product.images[1] : null)
+    
+    const productPrice = product.displayPrice || product.price
+    const hasSpecialOffer = !!(product.specialOffer && product.specialOfferPrice && product.specialOfferPrice < productPrice)
+    const displayPrice = hasSpecialOffer && product.specialOfferPrice ? product.specialOfferPrice : productPrice
+    
+    const productSlug = product.slug || product.sku
+    const productUrl = `/products/${productSlug}${product.material ? `?Material=${encodeURIComponent(product.material)}` : ''}`
+    
+    // Get material color for variant selector
+    const getMaterialColor = (material: string) => {
+      if (material?.toLowerCase().includes('yellow gold') || material?.toLowerCase().includes('14k yellow')) {
+        return '#E9D590'
+      } else if (material?.toLowerCase().includes('white gold') || material?.toLowerCase().includes('14k white')) {
+        return '#d1d1d1'
+      }
+      return '#C0C0C0'
+    }
+    
+    return (
+      <li data-testid={`page-0-product-card-in-grid-${index}`}>
+        <div className="h-full">
+          <div 
+            className="relative flex flex-col h-full bg-white text-black" 
+            data-testid="product-card" 
+            data-handle={productSlug}
+            data-object-id={product.id}
+            data-featured-variant={product.material || ''}
           >
-            {product.inStock ? 'Add to Cart' : 'Out of Stock'}
-          </button>
+            <div data-testid="product-card-hover-quick-add" className="relative group/product-card">
+              <Link 
+                className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none capitalize hover:text-content block" 
+                data-testid="internal-link" 
+                aria-label={product.name} 
+                href={productUrl}
+              >
+                {/* Product Images Container */}
+                <div 
+                  className="group/product-card-images bg-utility-loading md:grid flex flex-nowrap overflow-hidden overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar relative w-full pb-[118.9%] z-base h-full" 
+                  data-testid="product-card-images"
+                >
+                  <div className="absolute top-0 left-0 w-full h-full flex md:grid">
+                    {/* Primary Image */}
+                    {primaryImage && (
+                      <div 
+                        className="relative overflow-hidden z-base flex-shrink-0 snap-start mx-px md:mx-0 md:col-start-1 md:row-start-1 w-full h-full object-cover" 
+                        data-testid="product-card-primary-image"
+                        style={{ backgroundColor: '#f8f8f8' }}
+                      >
+                        <img 
+                          alt={primaryImage.altText || product.name} 
+                          decoding="async" 
+                          loading="eager" 
+                          sizes="(min-width: 1024px) 25vw, 50vw" 
+                          src={primaryImage.url}
+                          className="relative object-cover z-[1] h-full w-full" 
+                          fetchPriority="high"
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Secondary/Hover Image */}
+                    {secondaryImage && (
+                      <div 
+                        className="relative overflow-hidden z-base flex-shrink-0 snap-start mx-px md:mx-0 md:col-start-1 md:row-start-1 w-full h-full object-cover md:opacity-0 md:blur-[2px] md:transition-[opacity,filter] md:duration-300 md:ease-ease md:group-hover/product-card-images:opacity-100 md:group-hover/product-card-images:blur-0" 
+                        data-testid="product-card-secondary-image"
+                      >
+                        <img 
+                          alt={secondaryImage.altText || `${product.name} - Hover`} 
+                          decoding="async" 
+                          loading="lazy" 
+                          sizes="(min-width: 1024px) 25vw, 50vw" 
+                          src={secondaryImage.url}
+                          className="relative object-cover z-[1] h-full w-full"
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Stock Status Badge - Top Right */}
+                {inStock && wasOutOfStock && (
+                  <div className="absolute flex justify-start flex-wrap gap-1 max-w-[calc(100%-2rem)] right-0 top-0 bg-background-xlight px-xs py-xxs">
+                    <div 
+                      style={{ backgroundColor: 'transparent', color: '#79786C' }} 
+                      className="bg-content-inv text-content p-xxs md:px-xs md:py-xxs type-caption flex justify-between items-center !p-0 text-nowrap type-utility-2 uppercase font-normal !text-xxs md:!text-xs"
+                    >
+                      Back in Stock
+                    </div>
+                  </div>
+                )}
+                {!inStock && (
+                  <div className="absolute flex justify-start flex-wrap gap-1 max-w-[calc(100%-2rem)] right-0 top-0 bg-background-xlight px-xs py-xxs">
+                    <div 
+                      style={{ backgroundColor: 'transparent', color: '#79786C' }} 
+                      className="bg-content-inv text-content p-xxs md:px-xs md:py-xxs type-caption flex justify-between items-center !p-0 text-nowrap type-utility-2 uppercase font-normal !text-xxs md:!text-xs"
+                    >
+                      Out of Stock
+                    </div>
+                  </div>
+                )}
+                
+                {/* Mobile indicator dots */}
+                {product.images && product.images.length > 1 && (
+                  <div className="absolute left-0 top-0 md:hidden z-base p-2">
+                    <div className="flex gap-1">
+                      {product.images.slice(0, 2).map((_, idx) => (
+                        <span 
+                          key={idx}
+                          className="block rounded-full" 
+                          style={{ width: '2px', height: '2px', backgroundColor: idx === 0 ? '#000000' : '#B2B0A1' }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Link>
+              
+              {/* Quick Add/Request Button - Outside Link to prevent click interference */}
+              {inStock ? (
+                <button 
+                  className="pointer-events-auto text-center outline-none hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 ease-ease border-none capitalize p-0 tracking-utility absolute bottom-sm right-1/2 translate-x-1/2 md:bottom-sm md:group-hover/product-card:opacity-100 transition-[opacity,colors] duration-300 ease-in-out border border-content-xlight text-content hover:text-content-mid focus:text-content-mid focus:opacity-100 z-[20] mt-0 flex justify-center items-center gap-xxs bg-background-xlight px-xs py-[2px]" 
+                  data-title="Quick Add Product Card" 
+                  data-testid="product-card-quick-add-button" 
+                  role="button" 
+                  aria-label="add to bag" 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (inStock) {
+                      handleAddToCart(product)
+                    }
+                  }}
+                  disabled={addingToCart === product.id}
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                    <p className="type-utility-2 !text-xxs md:!text-xs font-normal uppercase text-content-mid" aria-label={`${product.name} Add`}>
+                      Add
+                    </p>
+                    <svg className="w-xs h-xs" xmlns="http://www.w3.org/2000/svg" role="graphics-symbol" viewBox="0 0 10 11" fill="none" strokeLinecap="round" stroke="#79786C" strokeWidth="1">
+                      <title>Plus</title>
+                      <path d="M5 0.399902V10.3999" />
+                      <path d="M0 5.3999L10 5.3999" />
+                    </svg>
+                  </span>
+                </button>
+              ) : (
+                <button 
+                  className="pointer-events-auto text-center outline-none hover:border-utility-hover focus-visible:ring-2 ring-utility-focus ring-offset-2 ease-ease border-none capitalize p-0 tracking-utility absolute bottom-sm right-1/2 translate-x-1/2 md:bottom-sm md:group-hover/product-card:opacity-100 transition-[opacity,colors] duration-300 ease-in-out border border-content-xlight text-content hover:text-content-mid focus:text-content-mid focus:opacity-100 z-[20] mt-0 flex justify-center items-center gap-xxs bg-gray-600 px-xs py-[2px]" 
+                  data-title="Request Product" 
+                  data-testid="product-card-request-button" 
+                  role="button" 
+                  aria-label="request when available" 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    alert('This item is currently out of stock. We can notify you when it\'s back in stock. Please contact us or check back later.')
+                  }}
+                  style={{ pointerEvents: 'auto' }}
+                >
+                  <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                    <p className="type-utility-2 !text-xxs md:!text-xs font-normal uppercase text-white" aria-label={`${product.name} Request`}>
+                      Request
+                    </p>
+                  </span>
+                </button>
+              )}
+            </div>
+            
+            {/* Product Info Under Images - Special Offers & Quantity */}
+            <div className="px-xs py-sm bg-white border-b border-gray-200">
+              {/* Special Offer Display */}
+              {hasSpecialOffer && product.specialOfferPrice && (
+                <div className="flex items-center gap-xxs mb-1">
+                  <span className="text-sm font-semibold text-red-600">
+                    {formatPrice(product.specialOfferPrice, product.baseCurrency)}
+                  </span>
+                  <span className="text-xs line-through text-gray-400">
+                    {formatPrice(productPrice, product.baseCurrency)}
+                  </span>
+                  {product.specialOfferDescription && (
+                    <span className="text-xs text-red-600 font-medium ml-1">
+                      {product.specialOfferDescription}
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {/* Available Quantity */}
+              {inStock && (
+                <div className="text-xs text-gray-600">
+                  {availableQty > 0 && (
+                    <span>
+                      {availableQty} {availableQty === 1 ? 'item' : 'items'} available
+                    </span>
+                  )}
+                </div>
+              )}
+              {!inStock && (
+                <div className="text-xs text-red-600 font-medium">
+                  Out of Stock
+                </div>
+              )}
+            </div>
+            
+            {/* Product Card Content */}
+            <div className="flex flex-col px-xs py-sm gap-xxs h-full bg-[#F8F8F8]" data-testid="product-card-content">
+              {/* Product Name */}
+              <div className="flex gap-sm items-center text-nowrap overflow-hidden">
+                <p className="type-utility-2 leading-normal flex-1 min-w-0 text-content-mid !text-xxs md:!text-xs">
+                  <Link
+                    className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none hover:text-utility-hover leading-normal block truncate uppercase font-normal" 
+                    data-testid="internal-link" 
+                    href={productUrl}
+                    aria-label={product.name}
+                  >
+                    {product.name}
+                  </Link>
+                </p>
+              </div>
+              
+              {/* Price */}
+              <div className="flex items-center gap-xxs md:gap-xs">
+                <div className="flex flex-shrink-0 type-utility-2 !text-xxs md:!text-xs !font-normal type-body-2 font-bold items-end">
+                  <div className="flex flex-wrap gap-x-xs">
+                    <div className="flex gap-xxs md:gap-xs">
+                      {hasSpecialOffer && product.specialOfferPrice ? (
+                        <>
+                          <span className="text-red-600">{formatPrice(product.specialOfferPrice, product.baseCurrency)}</span>
+                          <span className="line-through text-gray-400">{formatPrice(productPrice, product.baseCurrency)}</span>
+                        </>
+                      ) : (
+                        <span>{formatPrice(displayPrice, product.baseCurrency)}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Variant Selector */}
+              {product.material && (
+                <div data-testid="product-card-variant-selector">
+                  <div className="flex flex-row items-center gap-4" data-testid="variant-selector">
+                    <div className="flex items-center">
+                      <div 
+                        role="radiogroup" 
+                        aria-required="false" 
+                        dir="ltr" 
+                        className="flex gap-xs items-center flex-shrink-0" 
+                        aria-label={`${product.name} Options`}
+                        aria-labelledby={`variant-selector-label-${productSlug}`}
+                        tabIndex={0}
+                        style={{ outline: 'none' }}
+                      >
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked="true"
+                          data-state="checked"
+                          value={product.material}
+                          className="relative flex items-center justify-center border p-0 rounded-none overflow-visible w-3 h-3 data-[state=checked]:border-transparent border-content"
+                          aria-label={product.material}
+                          tabIndex={-1}
+                        >
+                          <div 
+                            className="size-full relative flex items-center justify-center before:absolute before:top-full before:mt-1 before:left-0 before:w-full before:h-[1px] before:bg-content before:z-10 before:content-['']" 
+                            style={{ backgroundColor: getMaterialColor(product.material) }}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="type-caption flex-1 min-w-0 type-body-2 !text-xxs md:!text-xs mt-[2px]">
+                      <span 
+                        id={`variant-selector-label-${productSlug}`}
+                        data-testid="variant-selector-label" 
+                        className="!text-xxs md:!text-xs block truncate text-content-mid"
+                      >
+                        {product.material}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Hidden form for cart (if needed) */}
+            <div className="hidden">
+              <form action="/cart" method="post">
+                <input type="hidden" name="cartFormInput" value={JSON.stringify({ action: 'LinesAdd', inputs: { lines: [{ merchandiseId: product.id, quantity: 1 }] } })} />
+                <span className="hidden"></span>
+                <button className="relative pointer-events-auto uppercase px-lg text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease type-utility-1 tracking-px leading-5 bg-content text-content-inv hover:bg-utility-hover disabled:bg-utility-disabled-background disabled:border-utility-disabled-background py-sm hidden">
+                  <span className="flex justify-center items-center gap-xxs preserve-line-height">hidden</span>
+                </button>
+              </form>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  )
+      </li>
+    )
+  }
 
   if (loading) {
     return (
@@ -245,13 +564,7 @@ export default function ProductsPage() {
       
       <main className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Our Jewelry Collection</h1>
-            <p className="text-xl text-gray-600">Discover exquisite pieces crafted with the finest materials</p>
-          </div>
-
-          {/* Search and Filters */}
+          {/* Search and Filters - Simplified */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
               {/* Search */}
@@ -358,24 +671,35 @@ export default function ProductsPage() {
           </div>
 
           {/* Products Grid */}
-          <div className={`grid gap-6 ${
-            viewMode === 'grid' 
-              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-              : 'grid-cols-1'
-          }`}>
-            {sortedProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
+          <ul className="grid grid-cols-2 lg:grid-cols-2 list-none border-t border-gray-300 grid-flow-row-dense *:border-b *:border-r *:border-gray-300">
+            {sortedProducts.map((product, index) => (
+              <ProductCard key={product.id} product={product} index={index} />
             ))}
-          </div>
+          </ul>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-red-700">{error}</p>
+            </div>
+          )}
 
           {/* No Results */}
-          {sortedProducts.length === 0 && (
+          {!loading && sortedProducts.length === 0 && (
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
                 <Search className="w-16 h-16 mx-auto" />
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
-              <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {error ? 'Failed to load products' : 'No products found'}
+              </h3>
+              <p className="text-gray-600">
+                {error 
+                  ? 'Please try refreshing the page or contact support if the issue persists.'
+                  : products.length === 0
+                    ? 'No products are available at the moment. Please check back later.'
+                    : 'Try adjusting your search or filter criteria'}
+              </p>
             </div>
           )}
         </div>

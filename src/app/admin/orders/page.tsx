@@ -36,6 +36,8 @@ interface Order {
   payment?: Payment
   trackingNumber?: string
   carrier?: string
+  trackingLink?: string
+  estimatedDeliveryDays?: number
 }
 
 interface OrderItem {
@@ -82,6 +84,8 @@ export default function AdminOrdersPage() {
   const [newStatus, setNewStatus] = useState('')
   const [trackingNumber, setTrackingNumber] = useState('')
   const [carrier, setCarrier] = useState('')
+  const [trackingLink, setTrackingLink] = useState('')
+  const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState<number>(4)
   const [notes, setNotes] = useState('')
 
   useEffect(() => {
@@ -132,6 +136,8 @@ export default function AdminOrdersPage() {
     setNewStatus(order.status)
     setTrackingNumber(order.trackingNumber || '')
     setCarrier(order.carrier || '')
+    setTrackingLink(order.trackingLink || '')
+    setEstimatedDeliveryDays(order.estimatedDeliveryDays || 4)
     setNotes(order.notes || '')
     setShowStatusModal(true)
   }
@@ -140,12 +146,25 @@ export default function AdminOrdersPage() {
     if (!selectedOrder) return
 
     try {
-      await api.put(`/api/admin/orders/${selectedOrder.id}/status`, {
-        status: newStatus,
-        trackingNumber: trackingNumber || null,
-        carrier: carrier || null,
-        notes: notes || null
-      })
+      // Update status separately
+      await api.put(`/api/admin/orders/${selectedOrder.id}/status?status=${newStatus}`)
+
+      // Update tracking information separately
+      const trackingParams = new URLSearchParams()
+      if (trackingNumber && trackingNumber.trim()) {
+        trackingParams.append('trackingNumber', trackingNumber.trim())
+      }
+      if (carrier && carrier.trim()) {
+        trackingParams.append('carrier', carrier.trim())
+      }
+      if (trackingLink && trackingLink.trim()) {
+        trackingParams.append('trackingLink', trackingLink.trim())
+      }
+      if (estimatedDeliveryDays != null) {
+        trackingParams.append('estimatedDeliveryDays', estimatedDeliveryDays.toString())
+      }
+      
+      await api.put(`/api/admin/orders/${selectedOrder.id}/tracking?${trackingParams.toString()}`)
 
       setShowStatusModal(false)
       loadOrders()
@@ -577,6 +596,47 @@ export default function AdminOrdersPage() {
                   </div>
 
                   <div>
+                    <label className="block text-sm font-medium text-gray-700">Tracking Link</label>
+                    <input
+                      type="url"
+                      value={trackingLink}
+                      onChange={(e) => setTrackingLink(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="https://tracking.example.com/..."
+                    />
+                    <p className="mt-1 text-xs text-gray-500">Customer will see this link when tracking their order</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Estimated Delivery Days</label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEstimatedDeliveryDays(Math.max(1, (estimatedDeliveryDays || 4) - 1))}
+                        className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min="1"
+                        value={estimatedDeliveryDays}
+                        onChange={(e) => setEstimatedDeliveryDays(parseInt(e.target.value) || 4)}
+                        className="block w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-center"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setEstimatedDeliveryDays((estimatedDeliveryDays || 4) + 1)}
+                        className="px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-50"
+                      >
+                        +
+                      </button>
+                      <span className="text-sm text-gray-600">days</span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Default: 3-5 days (currently {estimatedDeliveryDays} day{estimatedDeliveryDays !== 1 ? 's' : ''})</p>
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-medium text-gray-700">Notes</label>
                     <textarea
                       value={notes}
@@ -610,5 +670,8 @@ export default function AdminOrdersPage() {
     </AdminLayout>
   )
 }
+
+
+
 
 

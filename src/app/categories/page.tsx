@@ -6,16 +6,8 @@ import { Footer } from '@/components/layout/Footer'
 import { useBackgroundImages } from '@/hooks/useBackgroundImages'
 import { ArrowRight, Star, ShoppingCart, Heart, Eye } from 'lucide-react'
 import Link from 'next/link'
-
-interface Category {
-  id: string
-  name: string
-  description: string
-  image: string
-  productCount: number
-  featured: boolean
-  slug: string
-}
+import { categoryService, Category } from '@/services/categoryService'
+import { productService } from '@/services/productService'
 
 interface FeaturedProduct {
   id: string
@@ -39,103 +31,44 @@ export default function CategoriesPage() {
   const footerBackground = getBackgroundUrlForSection('footer')
 
   useEffect(() => {
-    // Mock data - replace with actual API calls
-    const mockCategories: Category[] = [
-      {
-        id: '1',
-        name: 'Rings',
-        description: 'Exquisite rings for every occasion, from engagement rings to statement pieces',
-        image: '/api/placeholder/600/400',
-        productCount: 45,
-        featured: true,
-        slug: 'rings'
-      },
-      {
-        id: '2',
-        name: 'Necklaces',
-        description: 'Elegant necklaces and pendants to complement your style',
-        image: '/api/placeholder/600/400',
-        productCount: 32,
-        featured: true,
-        slug: 'necklaces'
-      },
-      {
-        id: '3',
-        name: 'Earrings',
-        description: 'Beautiful earrings from studs to chandeliers',
-        image: '/api/placeholder/600/400',
-        productCount: 28,
-        featured: true,
-        slug: 'earrings'
-      },
-      {
-        id: '4',
-        name: 'Bracelets',
-        description: 'Charming bracelets and bangles for your wrist',
-        image: '/api/placeholder/600/400',
-        productCount: 19,
-        featured: false,
-        slug: 'bracelets'
-      },
-      {
-        id: '5',
-        name: 'Pendants',
-        description: 'Stunning pendants and charms to personalize your jewelry',
-        image: '/api/placeholder/600/400',
-        productCount: 24,
-        featured: false,
-        slug: 'pendants'
-      },
-      {
-        id: '6',
-        name: 'Watches',
-        description: 'Luxury timepieces that combine style and functionality',
-        image: '/api/placeholder/600/400',
-        productCount: 15,
-        featured: false,
-        slug: 'watches'
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        // Fetch categories from API
+        const categoriesData = await categoryService.getAllCategories()
+        setCategories(categoriesData)
+        
+        // Fetch featured products
+        const productsResponse: any = await productService.getProducts()
+        const products = Array.isArray(productsResponse) ? productsResponse : productsResponse?.content || []
+        const featuredProductsList = products
+          .filter((p: any) => p.showInFeatured && p.active)
+          .slice(0, 3)
+          .map((p: any) => {
+            const primaryImage = p.images?.find((img: any) => img.isPrimary && img.url) || p.images?.[0]
+            return {
+              id: p.id,
+              name: p.name,
+              price: p.displayPrice || p.price,
+              originalPrice: p.specialOffer ? p.price : undefined,
+              currency: p.baseCurrency,
+              image: primaryImage?.url || '/api/placeholder/300/300',
+              rating: p.averageRating || 0,
+              reviewCount: p.totalReviews || 0,
+              category: p.categories?.[0] || 'Uncategorized'
+            }
+          })
+        setFeaturedProducts(featuredProductsList)
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        setCategories([])
+        setFeaturedProducts([])
+      } finally {
+        setLoading(false)
       }
-    ]
+    }
 
-    const mockFeaturedProducts: FeaturedProduct[] = [
-      {
-        id: '1',
-        name: 'Diamond Solitaire Ring',
-        price: 2999,
-        originalPrice: 3499,
-        currency: 'USD',
-        image: '/api/placeholder/300/300',
-        rating: 4.8,
-        reviewCount: 127,
-        category: 'Rings'
-      },
-      {
-        id: '2',
-        name: 'Pearl Drop Earrings',
-        price: 599,
-        currency: 'USD',
-        image: '/api/placeholder/300/300',
-        rating: 4.6,
-        reviewCount: 89,
-        category: 'Earrings'
-      },
-      {
-        id: '3',
-        name: 'Gold Chain Necklace',
-        price: 899,
-        currency: 'USD',
-        image: '/api/placeholder/300/300',
-        rating: 4.7,
-        reviewCount: 156,
-        category: 'Necklaces'
-      }
-    ]
-
-    setTimeout(() => {
-      setCategories(mockCategories)
-      setFeaturedProducts(mockFeaturedProducts)
-      setLoading(false)
-    }, 1000)
+    fetchData()
   }, [])
 
   if (loading) {
@@ -184,12 +117,10 @@ export default function CategoriesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {categories.filter(cat => cat.featured).map(category => (
                 <div key={category.id} className="group relative bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={category.image}
-                      alt={category.name}
-                      className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                    <div className="relative overflow-hidden bg-gradient-to-br from-amber-100 to-orange-100">
+                    <div className="w-full h-64 flex items-center justify-center">
+                      <span className="text-6xl font-bold text-amber-300 opacity-50">{category.name.charAt(0)}</span>
+                    </div>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
                     <div className="absolute bottom-4 left-4 right-4 text-white">
                       <h3 className="text-2xl font-bold mb-2">{category.name}</h3>
@@ -217,12 +148,10 @@ export default function CategoriesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {categories.map(category => (
                 <div key={category.id} className="group bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300">
-                  <div className="relative overflow-hidden rounded-t-lg">
-                    <img
-                      src={category.image}
-                      alt={category.name}
-                      className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                  <div className="relative overflow-hidden rounded-t-lg bg-gradient-to-br from-amber-100 to-orange-100">
+                    <div className="w-full h-48 flex items-center justify-center">
+                      <span className="text-5xl font-bold text-amber-300 opacity-50">{category.name.charAt(0)}</span>
+                    </div>
                     <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
                       <span className="text-xs font-medium text-gray-700">{category.productCount} items</span>
                     </div>

@@ -16,11 +16,15 @@ import {
   ShoppingCart,
   Globe,
   CreditCard,
-  Palette
+  Palette,
+  TestTube2,
+  Tag,
+  Bell
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { usePageTitle } from '@/hooks/usePageTitle'
 import { NotificationContainer } from '@/components/ui/Notification'
 import { CurrencySelector } from '@/components/CurrencySelector'
 
@@ -34,8 +38,11 @@ const navigation = [
   { name: 'Payments', href: '/admin/payments', icon: CreditCard },
   { name: 'Products', href: '/admin/products', icon: Package },
   { name: 'Users', href: '/admin/users', icon: Users },
+  { name: 'Discount Codes', href: '/admin/discount-codes', icon: Tag },
+  { name: 'Stock Notifications', href: '/admin/stock-notifications', icon: Bell },
   { name: 'Styling', href: '/admin/styling', icon: Palette },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
+  { name: 'Test', href: '/admin/test', icon: TestTube2 },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {
@@ -46,6 +53,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, logout, isAuthenticated, isLoading } = useAuth()
   const { currentLanguage, setLanguage, getLanguageFlag, getLanguageName, supportedLanguages } = useLanguage()
   const { currentCurrency } = useCurrency()
+  const { navbarName } = usePageTitle()
 
   const isActive = (href: string) => pathname === href
 
@@ -136,15 +144,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                       setLanguage(langCode)
                       setSidebarOpen(false)
                     }}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center ${
                       currentLanguage === langCode
                         ? 'bg-primary-100 text-primary-700'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                     title={getLanguageName(langCode)}
                   >
-                    <span className="mr-1">{getLanguageFlag(langCode)}</span>
-                    {langCode.split('-')[0].toUpperCase()}
+                    <span className={`fi fi-${getLanguageFlag(langCode)}`} style={{ fontSize: '1rem', width: '1rem', height: '1rem', display: 'inline-block', marginRight: '0.25rem' }} role="img" aria-label={getLanguageName(langCode)}></span>
+                    <span>{langCode.split('-')[0].toUpperCase()}</span>
                   </button>
                 ))}
               </div>
@@ -224,15 +232,15 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <button
                     key={langCode}
                     onClick={() => setLanguage(langCode)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center ${
                       currentLanguage === langCode
                         ? 'bg-primary-100 text-primary-700'
                         : 'text-gray-600 hover:bg-gray-100'
                     }`}
                     title={getLanguageName(langCode)}
                   >
-                    <span className="mr-1">{getLanguageFlag(langCode)}</span>
-                    {langCode.split('-')[0].toUpperCase()}
+                    <span className={`fi fi-${getLanguageFlag(langCode)}`} style={{ fontSize: '1rem', width: '1rem', height: '1rem', display: 'inline-block', marginRight: '0.25rem' }} role="img" aria-label={getLanguageName(langCode)}></span>
+                    <span>{langCode.split('-')[0].toUpperCase()}</span>
                   </button>
                 ))}
               </div>
@@ -298,14 +306,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
                 title="Go to main shop"
               >
-                <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">JS</span>
-                  </div>
-                  <span className="text-lg font-semibold text-gray-900 hidden sm:block">
-                    Jewelry Shop
-                  </span>
-                </div>
+                <span className="text-lg font-semibold text-gray-900 hidden sm:block">
+                  {navbarName || 'Jewelry Shop'}
+                </span>
               </Link>
             </div>
             

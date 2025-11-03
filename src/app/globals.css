@@ -3,15 +3,27 @@
 @tailwind utilities;
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+@import 'flag-icons/css/flag-icons.min.css';
+
+:root {
+  /* Font families */
+  --font-body: "SimonMono", "Courier New", Courier, monospace;
+  --font-display: "SyndicatGrotesk", Arial, Helvetica, sans-serif;
+  
+  /* Font sizes */
+  --font-size-xxs: 0.625rem;
+}
 
 @layer base {
+  /* Global font family - will be overridden by FontFamilyProvider via useFontFamily hook */
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-display, "SyndicatGrotesk", Arial, Helvetica, sans-serif);
   }
   
-  h1, h2, h3, h4, h5, h6 {
+  /* Let useFontFamily hook apply the font dynamically */
+  /* h1, h2, h3, h4, h5, h6 {
     font-family: 'Playfair Display', serif;
-  }
+  } */
 }
 
 @layer components {
@@ -38,7 +50,55 @@
   .input {
     @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
   }
+
+  /* Theme classes for sections */
+  .bg-backgroundTheme-default2 {
+    @apply bg-white;
+  }
+
+  .bg-backgroundTheme-inv {
+    @apply bg-black;
+  }
+
+  .bg-backgroundTheme-dark {
+    @apply bg-black;
+  }
+
+  .text-contentTheme-default2 {
+    @apply text-black;
+  }
+
+  .text-contentTheme-inv {
+    @apply text-white;
+  }
+
+  .border-contentTheme-inv {
+    @apply border-gray-800;
+  }
+
+  /* Link underline effect - creates animated underline on hover */
+  /* Works with bg-link-underline class and Tailwind's bg-[size:...] utilities */
+  .bg-link-underline {
+    background-image: linear-gradient(to right, currentColor 0%, currentColor 100%) !important;
+    background-repeat: no-repeat !important;
+    background-position: right bottom !important;
+    padding-bottom: 2px; /* Space for underline */
+  }
 }
+
+/* Flag Icons styling */
+.fi {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+
+
 
 
 

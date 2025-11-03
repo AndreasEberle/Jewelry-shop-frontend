@@ -1,13 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: true,
-  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
   },
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'jewelry-shop-images.s3.eu-north-1.amazonaws.com'],
     remotePatterns: [
       {
         protocol: 'http',
@@ -15,11 +12,19 @@ const nextConfig = {
         port: '8080',
         pathname: '/api/products/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'jewelry-shop-images.s3.eu-north-1.amazonaws.com',
+        pathname: '/**',
+      },
     ],
   },
 }
 
 module.exports = nextConfig
+
+
+
 
 
 

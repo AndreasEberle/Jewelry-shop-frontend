@@ -6,6 +6,7 @@ export interface Product {
   description: string
   price: number
   sku: string
+  slug?: string
   material?: string
   gemstone?: string
   weightGrams?: number
@@ -14,6 +15,7 @@ export interface Product {
   color?: string
   finish?: string
   quantity: number
+  availableQuantity?: number // Available after considering cart reservations
   baseCurrency: string
   displayCurrency?: string
   displayPrice?: number
@@ -107,6 +109,19 @@ export const productService = {
     return response.data
   },
 
+  // Public: Get a single product by SKU
+  async getProductBySku(sku: string): Promise<Product> {
+    const response = await api.get(`/api/products/sku/${sku}`)
+    return response.data
+  },
+
+  // Public: Get a single product by slug
+  async getProductBySlug(slug: string): Promise<Product> {
+    // Use the catch-all endpoint that handles both slugs and IDs
+    const response = await api.get(`/api/products/${slug}`)
+    return response.data
+  },
+
   // Public: Get featured products
   async getFeaturedProducts(limit: number = 8, currency?: string): Promise<Product[]> {
     const headers = currency ? { 'X-Currency': currency } : {}
@@ -133,6 +148,20 @@ export const productService = {
   // Admin: Toggle featured status
   async toggleFeaturedStatus(productId: string): Promise<void> {
     await api.put(`/api/admin/products/${productId}/toggle-featured`)
+  },
+
+  // Get real-time availability for a product
+  async getProductAvailability(productId: string): Promise<number> {
+    const response = await api.get(`/api/products/${productId}/availability`)
+    return response.data.availableQuantity
+  },
+
+  // Get real-time availability for multiple products
+  async getMultipleProductAvailability(productIds: string[]): Promise<Record<string, number>> {
+    const params = new URLSearchParams()
+    productIds.forEach(id => params.append('productIds', id))
+    const response = await api.get(`/api/products/availability?${params.toString()}`)
+    return response.data
   }
 }
 

@@ -146,14 +146,20 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
   }
 
   const getLanguageFlag = (languageCode: string): string => {
+    // Return flag-icons CSS class instead of emoji
     const languageFlags: Record<string, string> = {
-      'de-DE': '🇩🇪',
-      'en-US': '🇺🇸',
-      'ja-JP': '🇯🇵',
-      'fr-FR': '🇫🇷',
-      'it-IT': '🇮🇹'
+      'de-DE': 'de',
+      'en-US': 'us',
+      'ja-JP': 'jp',
+      'fr-FR': 'fr',
+      'it-IT': 'it'
     }
-    return languageFlags[languageCode] || '🇩🇪'
+    return languageFlags[languageCode] || 'de'
+  }
+
+  const getLanguageFlagComponent = (languageCode: string): JSX.Element => {
+    const flagCode = getLanguageFlag(languageCode)
+    return <span className={`fi fi-${flagCode}`} style={{ fontSize: '1.25rem', width: '1.25rem', height: '1.25rem', display: 'inline-block' }}></span>
   }
 
   const value: LanguageContextType = {

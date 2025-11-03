@@ -7,6 +7,7 @@ import { CartProvider } from '@/contexts/CartContext'
 import { CurrencyProvider } from '@/contexts/CurrencyContext'
 import { LanguageProvider } from '@/contexts/LanguageContext'
 import { TableConfigProvider } from '@/contexts/TableConfigContext'
+import { FontFamilyProvider } from '@/components/FontFamilyProvider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -20,17 +21,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <CartProvider>
-          <CurrencyProvider>
-            <LanguageProvider>
-              <TableConfigProvider>
-                {children}
-              </TableConfigProvider>
-            </LanguageProvider>
-          </CurrencyProvider>
-        </CartProvider>
-      </AuthProvider>
+      <FontFamilyProvider>
+        <AuthProvider>
+          <CartProvider>
+            <CurrencyProvider>
+              <LanguageProvider>
+                <TableConfigProvider>
+                  {children}
+                </TableConfigProvider>
+              </LanguageProvider>
+            </CurrencyProvider>
+          </CartProvider>
+        </AuthProvider>
+      </FontFamilyProvider>
     </QueryClientProvider>
   )
 }

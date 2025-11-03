@@ -128,13 +128,6 @@ export function Hero({ backgroundImages, sliderConfig }: HeroProps) {
                 animationPlayState: 'running'
               }}
             >
-              {/* Overlay for better text readability */}
-              {!isModalOpen && (
-                <div 
-                  className="absolute inset-0 z-10"
-                  style={heroOverlayStyle}
-                ></div>
-              )}
             </div>
           )
         })}
@@ -281,19 +274,6 @@ function HeroSingleImage({ backgroundImage, isModalOpen }: { backgroundImage?: s
       className="relative py-20"
       style={combinedBackgroundStyle}
     >
-      {/* Overlay for better text readability */}
-      {!isModalOpen && (backgroundImage || heroOverlayStyle.backgroundColor) && (
-        <div 
-          className="absolute inset-0 z-10"
-          style={heroOverlayStyle}
-        ></div>
-      )}
-      
-      {/* Fallback gradient background */}
-      {!backgroundImage && (
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-50 to-secondary-50"></div>
-      )}
-      
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center">
           <div className="flex justify-center mb-6">

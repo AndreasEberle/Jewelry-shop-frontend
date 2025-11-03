@@ -24,9 +24,11 @@ export function EnhancedFeaturedProductsCarousel({
   onToggleFavorite,
   favoriteProductIds = [],
   itemsPerView = 4,
-  autoRotateInterval = 3000
+  autoRotateInterval = 5000
 }: EnhancedFeaturedProductsCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [isTransitioning, setIsTransitioning] = useState(true)
+  const [isInitialized, setIsInitialized] = useState(false)
   const [favoriteIds, setFavoriteIds] = useState<string[]>(favoriteProductIds)
   const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
   const [isAutoRotating, setIsAutoRotating] = useState(true)
@@ -42,23 +44,47 @@ export function EnhancedFeaturedProductsCarousel({
     }
   }, [isAuthenticated])
 
-  // Auto-rotation effect - only for 5+ products
+  // Only allow scrolling if we have more than itemsPerView products
+  const canScroll = products.length > itemsPerView
+  const totalProducts = products.length
+  
+  // Initialize starting position to middle set for seamless infinite scroll
   useEffect(() => {
-    if (!isAutoRotating || products.length < 5) return
+    if (products.length > 0) {
+      if (canScroll) {
+        // Start at the beginning of the middle set (second copy)
+        // This allows us to scroll left or right seamlessly
+        setCurrentIndex(totalProducts)
+      }
+      setIsInitialized(true) // Always set initialized if we have products
+    }
+  }, [products.length, canScroll, totalProducts])
+  
+  // Auto-rotation effect - smooth infinite loop left to right (only if > itemsPerView products)
+  useEffect(() => {
+    if (!isAutoRotating || !canScroll || !isInitialized) return
 
     const interval = setInterval(() => {
       setCurrentIndex(prev => {
-        const nextIndex = prev + 1
-        // Loop back to the beginning when reaching the end
-        if (nextIndex >= products.length) {
-          return 0
+        // We're working with the middle set (indices totalProducts to totalProducts*2-1)
+        // When we finish the middle set (reach totalProducts * 2), jump back to start of middle set (totalProducts)
+        let nextIndex = prev + 1
+        if (nextIndex >= totalProducts * 2) {
+          // Disable transition, reset to start of middle set instantly, then re-enable
+          setIsTransitioning(false)
+          // Use requestAnimationFrame for smooth reset
+          requestAnimationFrame(() => {
+            setCurrentIndex(totalProducts)
+            setTimeout(() => setIsTransitioning(true), 10)
+          })
+          return totalProducts
         }
         return nextIndex
       })
     }, autoRotateInterval)
 
     return () => clearInterval(interval)
-  }, [isAutoRotating, products.length, autoRotateInterval])
+  }, [isAutoRotating, products.length, autoRotateInterval, canScroll, totalProducts, isInitialized])
 
   // Pause auto-rotation on hover
   const handleMouseEnter = useCallback(() => {
@@ -84,6 +110,9 @@ export function EnhancedFeaturedProductsCarousel({
         setFavoriteIds(prev => [...prev, productId])
       }
       
+      // Dispatch event to update header favorite count
+      window.dispatchEvent(new Event('favoriteChanged'))
+      
       onToggleFavorite?.(productId)
     } catch (error) {
       console.error('Failed to toggle favorite:', error)
@@ -92,21 +121,85 @@ export function EnhancedFeaturedProductsCarousel({
     }
   }
 
-  const scrollToPrevious = useCallback(() => {
-    setCurrentIndex(prev => prev === 0 ? products.length - 1 : prev - 1)
-  }, [products.length])
 
   const scrollToNext = useCallback(() => {
+    if (!canScroll || !isInitialized) return
     setCurrentIndex(prev => {
       const nextIndex = prev + 1
-      // If we reach the end, loop back to the beginning
-      if (nextIndex >= products.length) {
-        return 0
+      // If we reach the end of middle set (totalProducts * 2), reset to start of middle set seamlessly
+      if (nextIndex >= totalProducts * 2) {
+        setIsTransitioning(false)
+        requestAnimationFrame(() => {
+          setCurrentIndex(totalProducts)
+          setTimeout(() => setIsTransitioning(true), 10)
+        })
+        return totalProducts
       }
       return nextIndex
     })
-  }, [products.length])
+  }, [totalProducts, canScroll, isInitialized])
+  
+  const scrollToPrevious = useCallback(() => {
+    if (!canScroll || !isInitialized) return
+    setCurrentIndex(prev => {
+      const prevIndex = prev - 1
+      // If we go before the start of middle set (totalProducts), reset to end of middle set seamlessly
+      if (prevIndex < totalProducts) {
+        setIsTransitioning(false)
+        requestAnimationFrame(() => {
+          setCurrentIndex(totalProducts * 2 - 1)
+          setTimeout(() => setIsTransitioning(true), 10)
+        })
+        return totalProducts * 2 - 1
+      }
+      return prevIndex
+    })
+  }, [totalProducts, canScroll, isInitialized])
 
+  // Handle seamless reset when reaching boundaries
+  useEffect(() => {
+    if (!canScroll || !isInitialized) return
+    
+    // If we've scrolled past the end of second set, reset to start of middle set without transition
+    if (currentIndex >= totalProducts * 2) {
+      setIsTransitioning(false)
+      requestAnimationFrame(() => {
+        setCurrentIndex(totalProducts)
+        setTimeout(() => setIsTransitioning(true), 10)
+      })
+    }
+    
+    // If we've scrolled before the start of middle set, reset to end of middle set seamlessly
+    if (currentIndex < totalProducts && currentIndex !== totalProducts) {
+      setIsTransitioning(false)
+      requestAnimationFrame(() => {
+        setCurrentIndex(totalProducts * 2 - 1)
+        setTimeout(() => setIsTransitioning(true), 10)
+      })
+    }
+  }, [currentIndex, totalProducts, canScroll, isInitialized])
+
+  // For infinite scroll: duplicate products to create seamless loop
+  // If we have <= itemsPerView products, don't duplicate (no scrolling needed)
+  const getInfiniteProducts = () => {
+    if (products.length === 0) return []
+    if (!canScroll) {
+      // If <= itemsPerView, just return products once
+      return products
+    }
+    // Duplicate products 3 times for seamless infinite scroll
+    return [...products, ...products, ...products]
+  }
+
+  const infiniteProducts = getInfiniteProducts()
+  
+  // Calculate item width - always use itemsPerView for consistent sizing
+  const itemWidth = 100 / itemsPerView
+  
+  // Calculate translateX position - for seamless infinite loop
+  // currentIndex is already positioned at the middle set (totalProducts + offset)
+  // So we just multiply by itemWidth to get the translate position
+  const translateX = currentIndex * itemWidth
 
   if (products.length === 0) {
     return (
@@ -116,26 +209,14 @@ export function EnhancedFeaturedProductsCarousel({
     )
   }
 
-  // Create infinite loop by duplicating products - only for 5+ products
-  const getInfiniteProducts = () => {
-    // Only duplicate if we have 5+ products for carousel functionality
-    if (products.length < 5) {
-      return products
-    }
-    
-    // Duplicate products to create seamless loop for carousel
-    const duplicatedProducts = [...products, ...products, ...products]
-    return duplicatedProducts
+  // Don't render until initialized (prevents white screen)
+  if (!isInitialized && canScroll) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    )
   }
-
-  const infiniteProducts = getInfiniteProducts()
-  const totalProducts = products.length
-  
-  // Calculate item width - always use itemsPerView for consistent sizing
-  const itemWidth = 100 / itemsPerView
-  
-  // Calculate offset to center products when there are fewer than itemsPerView
-  const centeringOffset = totalProducts < itemsPerView ? (itemsPerView - totalProducts) / 2 : 0
 
   return (
     <div 
@@ -143,8 +224,8 @@ export function EnhancedFeaturedProductsCarousel({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Navigation Arrows - only for 5+ products */}
-      {products.length >= 5 && (
+      {/* Navigation Arrows - only show if we can scroll (more than itemsPerView products) */}
+      {canScroll && (
         <>
           <button
             onClick={scrollToPrevious}
@@ -167,11 +248,11 @@ export function EnhancedFeaturedProductsCarousel({
       {/* Carousel Container */}
       <div className="overflow-hidden">
         <div 
-          className={`flex ${products.length >= 5 ? 'transition-transform duration-[2000ms] ease-in-out' : ''}`}
+          className="flex"
           style={{
-            transform: products.length >= 5 
-              ? `translateX(-${(currentIndex * itemWidth) + (centeringOffset * itemWidth)}%)`
-              : `translateX(${centeringOffset * itemWidth}%)`  // Center the products
+            transform: `translateX(-${translateX}%)`,
+            willChange: 'transform',
+            transition: isTransitioning ? 'transform 800ms ease-in-out' : 'none'
           }}
         >
           {infiniteProducts.map((product, index) => (
@@ -233,6 +314,19 @@ export function EnhancedFeaturedProductsCarousel({
                     {product.description}
                   </p>
 
+                  {/* Stock Status - Subtle indicator */}
+                  {(product.quantity || 0) <= 0 ? (
+                    <div className="mb-2">
+                      <span className="text-xs text-red-600 font-medium">Out of Stock</span>
+                    </div>
+                  ) : (product.quantity || 0) < 5 ? (
+                    <div className="mb-2">
+                      <span className="text-xs text-orange-600 font-medium">
+                        Only {product.quantity} left
+                      </span>
+                    </div>
+                  ) : null}
+
                   {/* Price */}
                   <div className="mt-auto">
                     {product.specialOffer && product.specialOfferPrice ? (
@@ -250,23 +344,25 @@ export function EnhancedFeaturedProductsCarousel({
                   </div>
                   
                   {/* Rating */}
-                  <div className="flex items-center space-x-1 mt-2">
-                    <div className="flex text-yellow-400">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          className={`w-4 h-4 ${
-                            i < (product.averageRating || 0) 
-                              ? 'fill-current' 
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
+                  {product.averageRating && product.totalReviews ? (
+                    <div className="flex items-center space-x-1 mt-2">
+                      <div className="flex text-yellow-400">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${
+                              i < Math.round(product.averageRating || 0)
+                                ? 'fill-current' 
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="text-sm text-gray-500 ml-1">
+                        ({product.totalReviews})
+                      </span>
                     </div>
-                    <span className="text-sm text-gray-500 ml-1">
-                      (0)
-                    </span>
-                  </div>
+                  ) : null}
                 </div>
               </div>
             </div>

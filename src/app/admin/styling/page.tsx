@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
 import { BackgroundImageManager } from '@/components/admin/BackgroundImageManager'
 import { HeroSliderManager } from '@/components/admin/HeroSliderManager'
-import { Palette, Image, Upload, Eye, Trash2, Check, Trash, Settings, Paintbrush } from 'lucide-react'
+import { PackagingImageUploader } from '@/components/admin/PackagingImageUploader'
+import { Palette, Image, Upload, Eye, Trash2, Check, Trash, Settings, Paintbrush, Package } from 'lucide-react'
 import api from '@/services/api'
 
 interface BackgroundImage {
@@ -115,11 +116,24 @@ export default function AdminStylingPage() {
   const [error, setError] = useState<string | null>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'images' | 'slider' | 'styles'>('images')
+  const [activeTab, setActiveTab] = useState<'images' | 'slider' | 'styles' | 'packaging'>('images')
+  const [fontFamily, setFontFamily] = useState<string>('')
 
   useEffect(() => {
     loadBackgroundImages()
+    loadFontFamily()
   }, [])
+  
+  const loadFontFamily = async () => {
+    try {
+      const response = await api.get('/api/public/system-config/app.typography.fontFamily')
+      if (response.data?.value) {
+        setFontFamily(response.data.value)
+      }
+    } catch (error) {
+      console.error('Failed to load font family:', error)
+    }
+  }
 
   const loadBackgroundImages = async () => {
     try {
@@ -242,6 +256,19 @@ export default function AdminStylingPage() {
                   <span>Section Styles</span>
                 </div>
               </button>
+              <button
+                onClick={() => setActiveTab('packaging')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'packaging'
+                    ? 'border-primary-500 text-primary-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Package className="w-4 h-4" />
+                  <span>Packaging</span>
+                </div>
+              </button>
             </nav>
           </div>
         </div>
@@ -325,15 +352,87 @@ export default function AdminStylingPage() {
         ) : activeTab === 'slider' ? (
           /* Hero Slider Configuration */
           <HeroSliderManager />
-        ) : (
-          /* Section Styles Configuration */
+        ) : activeTab === 'packaging' ? (
+          /* Packaging Images Configuration */
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Section Styles</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Packaging Images</h3>
             <p className="text-gray-600 mb-6">
-              Configure colors, opacity, and styling for different sections of your shop.
+              Upload images for Standard and Premium packaging options displayed in checkout.
             </p>
             
-            <div className="space-y-6">
+            <div className="space-y-8">
+              {/* Standard Packaging */}
+              <div className="border border-gray-200 rounded-lg p-6">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Standard Packaging</h4>
+                <PackagingImageUploader 
+                  configKey="packaging.standard.image" 
+                  label="Standard Packaging Image"
+                  recommendedSize="200x200px"
+                />
+              </div>
+              
+              {/* Premium Packaging */}
+              <div className="border border-gray-200 rounded-lg p-6">
+                <h4 className="text-md font-medium text-gray-900 mb-4">Premium Packaging</h4>
+                <PackagingImageUploader 
+                  configKey="packaging.premium.image" 
+                  label="Premium Packaging Image"
+                  recommendedSize="200x200px"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Section Styles Configuration */
+          <div className="space-y-6">
+            {/* Global Typography Settings */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Global Typography</h3>
+              <p className="text-gray-600 mb-6">
+                Configure global font family settings that apply across the entire shop.
+              </p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Font Family
+                  </label>
+                  <input
+                    type="text"
+                    id="fontFamily"
+                    value={fontFamily}
+                    onChange={(e) => setFontFamily(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onBlur={async (e) => {
+                      try {
+                        await api.post('/api/admin/config', {
+                          configKey: 'app.typography.fontFamily',
+                          configValue: e.target.value,
+                          description: 'Global font family for the entire shop',
+                          isActive: true
+                        })
+                        alert('Font family updated successfully!')
+                      } catch (error) {
+                        console.error('Error saving font family:', error)
+                        alert('Failed to save font family')
+                      }
+                    }}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Enter CSS font-family values (e.g., "SyndicatGrotesk", Arial, Helvetica, sans-serif)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Section Styles Configuration */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Section Styles</h3>
+              <p className="text-gray-600 mb-6">
+                Configure colors, opacity, and styling for different sections of your shop.
+              </p>
+            
+              <div className="space-y-6">
               {SECTIONS.map((section) => (
                 <div key={section.name} className="border border-gray-200 rounded-lg p-4">
                   <h4 className="text-md font-medium text-gray-900 mb-3">{section.displayName}</h4>
@@ -426,6 +525,7 @@ export default function AdminStylingPage() {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           </div>
         )}

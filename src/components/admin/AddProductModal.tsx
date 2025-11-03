@@ -49,9 +49,31 @@ interface UploadedImage {
 }
 
 export function AddProductModal({ isOpen, onClose, onProductAdded, product, isEditing = false }: AddProductModalProps) {
+  // Product description template
+  const DEFAULT_DESCRIPTION_TEMPLATE = `Experience the timeless elegance of our [MATERIAL] [PRODUCT_TYPE]. 
+
+Crafted with meticulous attention to detail, this exquisite piece features:
+• Premium [MATERIAL] construction for lasting beauty
+• [FEATURE_DETAIL_1]
+• [FEATURE_DETAIL_2]
+
+Perfect for [OCCASION] or as a meaningful gift, this piece showcases exceptional craftsmanship and design.
+
+Specifications:
+• Material: [MATERIAL]
+• Color: [COLOR]
+• Weight: [WEIGHT] grams
+
+Care Instructions:
+• Clean gently with a soft cloth
+• Store in a jewelry box to prevent tarnishing
+• Avoid contact with harsh chemicals
+
+Elevate your jewelry collection with this stunning piece that combines classic design with modern sophistication.`
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
-    description: '',
+    description: DEFAULT_DESCRIPTION_TEMPLATE,
     price: '',
     sku: '',
     category: '',
@@ -286,7 +308,7 @@ export function AddProductModal({ isOpen, onClose, onProductAdded, product, isEd
         // Reset form for new product
         setFormData({
           name: '',
-          description: '',
+          description: DEFAULT_DESCRIPTION_TEMPLATE,
           price: '',
           sku: '',
           category: '',
@@ -873,6 +895,12 @@ export function AddProductModal({ isOpen, onClose, onProductAdded, product, isEd
     })
   }
 
+  const updateImageAltText = (imageId: string, altText: string) => {
+    setImages(prev => prev.map(img => 
+      img.id === imageId ? { ...img, altText } : img
+    ))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -1142,8 +1170,8 @@ export function AddProductModal({ isOpen, onClose, onProductAdded, product, isEd
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information Page */}
-            {currentPage === 'basic' && (
+            {/* Basic Information Page - Shows for 'basic' page OR when editing */}
+            {(currentPage === 'basic' || isEditing) && (
               <>
             {/* Basic Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1312,21 +1340,6 @@ export function AddProductModal({ isOpen, onClose, onProductAdded, product, isEd
 
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description *
-              </label>
-              <textarea
-                required
-                name="description"
-                rows={3}
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Describe your product..."
-              />
-            </div>
-
             {/* Price and Special Offer */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
@@ -1358,7 +1371,25 @@ export function AddProductModal({ isOpen, onClose, onProductAdded, product, isEd
                   required
                   name="category"
                   value={formData.category}
-                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  onChange={async (e) => {
+                    const selectedCategory = e.target.value
+                    handleInputChange('category', selectedCategory)
+                    
+                    // Auto-fill description with category template if available
+                    if (selectedCategory && !isEditing) {
+                      try {
+                        const response = await api.get(`/api/public/category-description-template/${selectedCategory}`)
+                        if (response.data?.template) {
+                          setFormData(prev => ({
+                            ...prev,
+                            description: response.data.template
+                          }))
+                        }
+                      } catch (error) {
+                        console.error('Failed to load category description template:', error)
+                      }
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select a category</option>
@@ -1736,11 +1767,31 @@ export function AddProductModal({ isOpen, onClose, onProductAdded, product, isEd
                 <p className="text-sm text-red-500 mt-1">At least one tag is required</p>
               )}
             </div>
+
+            {/* Description - Moved to the end */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+                <span className="text-gray-500 font-normal ml-2">(Template pre-filled with placeholders like [MATERIAL], [PRODUCT_TYPE], etc.)</span>
+              </label>
+              <textarea
+                required
+                name="description"
+                rows={8}
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+                placeholder="Product description template..."
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                💡 Tip: Replace placeholders like [MATERIAL], [PRODUCT_TYPE], [COLOR], [WEIGHT], [FEATURE_DETAIL_1], [FEATURE_DETAIL_2], [OCCASION] with actual product details. {!isEditing && "Description auto-fills when you select a category."}
+              </p>
+            </div>
               </>
             )}
 
-            {/* Images Page */}
-            {currentPage === 'images' && (
+            {/* Images Page - Only for add mode, not edit mode (edit mode shows images below description) */}
+            {currentPage === 'images' && !isEditing && (
               <>
             {/* Image Upload */}
             <div>

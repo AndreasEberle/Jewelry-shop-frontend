@@ -40,3 +40,6 @@ export const favoriteService = {
     return response.data
   }
 }
+
+
+

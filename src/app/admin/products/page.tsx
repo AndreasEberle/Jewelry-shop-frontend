@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Image as ImageIcon, Eye, X, ChevronLeft, ChevronRight, Trash, Power, PowerOff, AlertCircle, CheckCircle, GripVertical, Star } from 'lucide-react'
+import { Plus, Minus, Edit, Trash2, Image as ImageIcon, Eye, X, ChevronLeft, ChevronRight, Trash, Power, PowerOff, AlertCircle, CheckCircle, GripVertical, Star } from 'lucide-react'
 import { Product } from '@/types'
 import { productService } from '@/services/productService'
 import api from '@/services/api'
@@ -323,6 +323,34 @@ export default function AdminProductsPage() {
     } catch (err) {
       setError('Failed to update product')
       console.error('Error updating product:', err)
+    }
+  }
+
+  const handleAdjustQuantity = async (product: Product, adjustment: number) => {
+    try {
+      const newQuantity = Math.max(0, (product.quantity || 0) + adjustment)
+      await productService.updateProduct(product.id, { quantity: newQuantity })
+      // Refresh products to show updated quantity
+      await loadProducts()
+      
+      if ((window as any).addNotification) {
+        (window as any).addNotification({
+          type: 'success',
+          title: 'Quantity Updated',
+          message: `Quantity for "${product.name}" updated to ${newQuantity}`,
+          duration: 3000
+        })
+      }
+    } catch (err) {
+      console.error('Error adjusting quantity:', err)
+      if ((window as any).addNotification) {
+        (window as any).addNotification({
+          type: 'error',
+          title: 'Update Failed',
+          message: 'Failed to update product quantity. Please try again.',
+          duration: 3000
+        })
+      }
     }
   }
 
@@ -689,7 +717,27 @@ export default function AdminProductsPage() {
                 {/* Product Details */}
                 <div className="text-sm text-gray-500 mb-2 space-y-1">
                   <p>SKU: {product.sku}</p>
-                  <p>Quantity: {product.quantity}</p>
+                  <div className="flex items-center justify-between">
+                    <span>Quantity: <span className="font-semibold">{product.quantity}</span></span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleAdjustQuantity(product, -1)}
+                        disabled={loading}
+                        className="p-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Decrease quantity by 1"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => handleAdjustQuantity(product, 1)}
+                        disabled={loading}
+                        className="p-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Increase quantity by 1"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
                   {product.weightGrams && (
                     <p>Weight: {product.weightGrams}g</p>
                   )}

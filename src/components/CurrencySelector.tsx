@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { ChevronDown, Globe } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useCurrency } from '@/contexts/CurrencyContext'
 
 interface CurrencySelectorProps {
@@ -81,13 +81,28 @@ export const CurrencySelector: React.FC<CurrencySelectorProps> = ({ className = 
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading || !currentCurrency}
         className="flex items-center space-x-2 px-2 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
+        style={{ fontSize: '0.75em' }}
       >
-        <Globe className="h-3 w-3" />
-        <span>
+        <span className="flex items-center space-x-1">
           {isLoading ? (
             <span className="animate-pulse">Loading...</span>
           ) : currentCurrency ? (
-            `${currencyFlags[currentCurrency]} ${currentCurrency}`
+            <>
+              <span 
+                className="text-lg inline-block leading-none" 
+                style={{ 
+                  fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "EmojiOne Color", "Android Emoji", sans-serif',
+                  fontSize: '20px',
+                  lineHeight: '1',
+                  display: 'inline-block',
+                  fontFeatureSettings: '"liga" off',
+                  WebkitFontFeatureSettings: '"liga" off'
+                }}
+              >
+                {currencyFlags[currentCurrency] || '🌍'}
+              </span>
+              <span>{currentCurrency}</span>
+            </>
           ) : (
             <span className="animate-pulse">Loading...</span>
           )}
@@ -112,7 +127,20 @@ export const CurrencySelector: React.FC<CurrencySelectorProps> = ({ className = 
                   currentCurrency === currency ? 'bg-primary-50 text-primary-700' : 'text-gray-700'
                 }`}
               >
-                <span className="text-lg">{currencyFlags[currency] || '🌍'}</span>
+                <span 
+                  className="text-lg inline-block leading-none" 
+                  style={{ 
+                    fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "EmojiOne Color", "Android Emoji", sans-serif',
+                    fontSize: '20px',
+                    lineHeight: '1',
+                    display: 'inline-block',
+                    fontFeatureSettings: '"liga" off',
+                    WebkitFontFeatureSettings: '"liga" off',
+                    fontVariantEmoji: 'emoji'
+                  }}
+                >
+                  {currencyFlags[currency] || '🌍'}
+                </span>
                 <div>
                   <div className="font-medium">{currency}</div>
                   <div className="text-xs text-gray-500">{currencyNames[currency] || 'Currency'}</div>

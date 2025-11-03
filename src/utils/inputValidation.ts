@@ -68,3 +68,6 @@ export const formatNumber = (value: string | number, decimals: number = 2): stri
   if (isNaN(num)) return '0'
   return num.toFixed(decimals)
 }
+
+
+

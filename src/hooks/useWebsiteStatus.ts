@@ -35,3 +35,6 @@ export const useWebsiteStatus = () => {
     isVacation: websiteStatus.status === 'vacation'
   }
 }
+
+
+
