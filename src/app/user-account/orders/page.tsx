@@ -14,15 +14,21 @@ interface Order {
   status: string
   totalAmount: number
   currency: string
-  createdAt: string
+  createdAt?: string | OffsetDateTime
+  orderDate?: string
   items: OrderItem[]
 }
 
 interface OrderItem {
   id: string
+  productId: string
   productName: string
+  productSlug?: string
+  productImageUrl?: string
   quantity: number
   price: number
+  unitPrice?: number
+  totalPrice?: number
 }
 
 export default function OrdersPage() {
@@ -56,15 +62,29 @@ export default function OrdersPage() {
     }
   }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined | any) => {
+    if (!dateString) return 'N/A'
     try {
-      return new Date(dateString).toLocaleDateString('en-US', {
+      // Handle LocalDateTime format from backend (e.g., "2024-01-15T10:30:00")
+      let date: Date
+      if (typeof dateString === 'string') {
+        // If it's a string, try parsing it
+        date = new Date(dateString)
+      } else if (dateString instanceof Date) {
+        date = dateString
+      } else {
+        // If it's an object with date components, construct Date
+        return 'N/A'
+      }
+      
+      if (isNaN(date.getTime()) || date.getTime() === 0) return 'N/A'
+      return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       })
     } catch {
-      return dateString
+      return 'N/A'
     }
   }
 
@@ -93,7 +113,7 @@ export default function OrdersPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <h1 className="type-heading-3 text-content mb-lg">ORDERS</h1>
+          <h1 className="type-heading-3 text-content mb-lg mt-6">ORDERS</h1>
           
           {loading && (
             <div className="flex items-center justify-center py-12">
@@ -132,7 +152,7 @@ export default function OrdersPage() {
                       <div className="flex items-center gap-4 text-sm text-content">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          <span>{formatDate(order.createdAt)}</span>
+                          <span>{formatDate(order.createdAt || order.orderDate)}</span>
                         </div>
                         <span className={`font-semibold ${getStatusColor(order.status)}`}>
                           {order.status}
@@ -148,20 +168,37 @@ export default function OrdersPage() {
                   </div>
 
                   {order.items && order.items.length > 0 && (
-                    <div className="space-y-2">
-                      {order.items.slice(0, 3).map((item) => (
-                        <div key={item.id} className="flex justify-between text-sm text-content">
-                          <span>
-                            {item.productName} x{item.quantity}
-                          </span>
-                          <span>{formatCurrency(item.price * item.quantity, order.currency)}</span>
+                    <div className="space-y-4 mt-4">
+                      {order.items.map((item) => (
+                        <div key={item.id} className="flex gap-4 items-start">
+                          {item.productImageUrl ? (
+                            <Link href={item.productSlug ? `/products/${item.productSlug}` : '#'} className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden hover:opacity-80 transition-opacity">
+                              <img
+                                src={item.productImageUrl}
+                                alt={item.productName}
+                                className="w-full h-full object-cover"
+                              />
+                            </Link>
+                          ) : (
+                            <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                              <Package className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            {item.productSlug ? (
+                              <Link href={`/products/${item.productSlug}`} className="font-medium text-content hover:text-gray-600 transition-colors block">
+                                {item.productName}
+                              </Link>
+                            ) : (
+                              <p className="font-medium text-content">{item.productName}</p>
+                            )}
+                            <p className="text-sm text-content opacity-75">Quantity: {item.quantity}</p>
+                            <p className="text-sm font-medium text-content mt-1">
+                              {formatCurrency((item.totalPrice || item.unitPrice || item.price) * item.quantity, order.currency)}
+                            </p>
+                          </div>
                         </div>
                       ))}
-                      {order.items.length > 3 && (
-                        <p className="text-sm text-content opacity-75">
-                          +{order.items.length - 3} more item(s)
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>

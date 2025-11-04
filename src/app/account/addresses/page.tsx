@@ -98,7 +98,7 @@ export default function AdminAddressesPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-6">
             <h1 className="type-heading-3 text-content" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>ADDRESSES</h1>
             {!showAddAddress && (
               <button

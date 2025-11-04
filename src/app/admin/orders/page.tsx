@@ -24,7 +24,7 @@ interface Order {
   customerId: string
   customerEmail: string
   customerName: string
-  status: 'CREATED' | 'PAID' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+  status: 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED'
   totalAmount: number
   currency: string
   shippingAddress: string
@@ -176,23 +176,27 @@ export default function AdminOrdersPage() {
   }
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'CREATED': return <Clock className="h-4 w-4 text-yellow-500" />
-      case 'PAID': return <CheckCircle className="h-4 w-4 text-green-500" />
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return <Clock className="h-4 w-4 text-yellow-500" />
+      case 'CONFIRMED': return <CheckCircle className="h-4 w-4 text-green-500" />
+      case 'PROCESSING': return <Clock className="h-4 w-4 text-blue-500" />
       case 'SHIPPED': return <Truck className="h-4 w-4 text-blue-500" />
       case 'DELIVERED': return <CheckCircle className="h-4 w-4 text-green-600" />
       case 'CANCELLED': return <XCircle className="h-4 w-4 text-red-500" />
+      case 'REFUNDED': return <XCircle className="h-4 w-4 text-red-500" />
       default: return <Clock className="h-4 w-4 text-gray-500" />
     }
   }
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'CREATED': return 'bg-yellow-100 text-yellow-800'
-      case 'PAID': return 'bg-green-100 text-green-800'
+    switch (status?.toUpperCase()) {
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800'
+      case 'CONFIRMED': return 'bg-green-100 text-green-800'
+      case 'PROCESSING': return 'bg-blue-100 text-blue-800'
       case 'SHIPPED': return 'bg-blue-100 text-blue-800'
       case 'DELIVERED': return 'bg-green-100 text-green-800'
       case 'CANCELLED': return 'bg-red-100 text-red-800'
+      case 'REFUNDED': return 'bg-red-100 text-red-800'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -273,7 +277,7 @@ export default function AdminOrdersPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Delivered</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {stats.ordersByStatus.DELIVERED || 0}
+                    {(stats.ordersByStatus && stats.ordersByStatus.DELIVERED) || 0}
                   </p>
                 </div>
               </div>
@@ -303,11 +307,13 @@ export default function AdminOrdersPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">All Statuses</option>
-                <option value="CREATED">Created</option>
-                <option value="PAID">Paid</option>
+                <option value="PENDING">Pending</option>
+                <option value="CONFIRMED">Confirmed</option>
+                <option value="PROCESSING">Processing</option>
                 <option value="SHIPPED">Shipped</option>
                 <option value="DELIVERED">Delivered</option>
                 <option value="CANCELLED">Cancelled</option>
+                <option value="REFUNDED">Refunded</option>
               </select>
             </div>
           </div>
@@ -565,11 +571,13 @@ export default function AdminOrdersPage() {
                       onChange={(e) => setNewStatus(e.target.value)}
                       className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
-                      <option value="CREATED">Created</option>
-                      <option value="PAID">Paid</option>
+                      <option value="PENDING">Pending</option>
+                      <option value="CONFIRMED">Confirmed</option>
+                      <option value="PROCESSING">Processing</option>
                       <option value="SHIPPED">Shipped</option>
                       <option value="DELIVERED">Delivered</option>
                       <option value="CANCELLED">Cancelled</option>
+                      <option value="REFUNDED">Refunded</option>
                     </select>
                   </div>
 

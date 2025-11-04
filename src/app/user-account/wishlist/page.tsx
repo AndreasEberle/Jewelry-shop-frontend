@@ -76,7 +76,7 @@ export default function WishlistPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <h1 className="type-heading-3 text-content mb-lg">WISHLIST</h1>
+          <h1 className="type-heading-3 text-content mb-lg mt-6">WISHLIST</h1>
           
           {loading && (
             <div className="flex items-center justify-center py-12">

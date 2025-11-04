@@ -145,120 +145,29 @@ export default function ProductDetailPage() {
     }
   }, [slug])
 
-  // Handle global scrolling - ALWAYS scroll images first until exhausted
+  // Handle showing specifications when user scrolls past images
   useEffect(() => {
-    const imageColumn = imageColumnRef.current
-    const rightColumn = document.getElementById('main-product-content')
-    if (!imageColumn || !product || !rightColumn) return
-
-    let isScrolling = false
-    let scrollTarget = 0
-    let rafId: number | null = null
-
-    const smoothScrollTo = (element: HTMLElement, target: number, duration: number = 300) => {
-      const start = element.scrollTop
-      const distance = target - start
-      const startTime = performance.now()
-
-      const animate = (currentTime: number) => {
-        const elapsed = currentTime - startTime
-        const progress = Math.min(elapsed / duration, 1)
-        // Easing function for smooth animation
-        const ease = progress < 0.5 
-          ? 2 * progress * progress 
-          : -1 + (4 - 2 * progress) * progress
-        
-        element.scrollTop = start + distance * ease
-
-        if (progress < 1) {
-          rafId = requestAnimationFrame(animate)
-        } else {
-          isScrolling = false
-          rafId = null
-        }
-      }
-
-      rafId = requestAnimationFrame(animate)
-    }
-
-    const isImageColumnInView = () => {
-      const rect = imageColumn.getBoundingClientRect()
-      return rect.top < window.innerHeight && rect.bottom > 0
-    }
-
-    const isRightColumnFullyInView = () => {
-      const rect = rightColumn.getBoundingClientRect()
-      return rect.top >= 0 && rect.bottom <= window.innerHeight
-    }
-
-    const handleGlobalWheel = (e: WheelEvent) => {
-      // Always prioritize image scrolling when images are in view
-      if (!isImageColumnInView()) return
-
-      const { scrollTop, scrollHeight, clientHeight } = imageColumn
-      const isAtTop = scrollTop <= 1
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1
-
-      // If scrolling down and not at bottom, ALWAYS scroll images first (faster)
-      if (e.deltaY > 0 && !isAtBottom) {
-        e.preventDefault()
-        e.stopPropagation()
-        
-        if (rafId) cancelAnimationFrame(rafId)
-        
-        scrollTarget = Math.min(scrollTop + e.deltaY * 3, scrollHeight - clientHeight)
-        smoothScrollTo(imageColumn, scrollTarget, 100)
-        return false
-      }
-
-      // If scrolling up and not at top, ALWAYS scroll images first (faster)
-      if (e.deltaY < 0 && !isAtTop) {
-        e.preventDefault()
-        e.stopPropagation()
-        
-        if (rafId) cancelAnimationFrame(rafId)
-        
-        scrollTarget = Math.max(scrollTop + e.deltaY * 3, 0)
-        smoothScrollTo(imageColumn, scrollTarget, 100)
-        return false
-      }
-
-      // If at top and scrolling up, allow normal page scroll
-      // If at bottom and scrolling down, allow normal page scroll
-      return true
-    }
-
-    // Also handle scrollbar dragging on the image column
-    const handleImageColumnScroll = () => {
-      // This ensures scrollbar also works smoothly
-    }
+    if (!product) return
 
     const handleScroll = () => {
-      const { scrollTop, scrollHeight, clientHeight } = imageColumn
-      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10
-      
-      if (isAtBottom && !hasScrolledImages && specificationsRef.current) {
+      const imageColumn = imageColumnRef.current
+      if (!imageColumn || !specificationsRef.current) return
+
+      const imageColumnRect = imageColumn.getBoundingClientRect()
+      const imageColumnBottom = imageColumnRect.bottom
+      const viewportHeight = window.innerHeight
+
+      // Check if images section has been scrolled past
+      if (imageColumnBottom < viewportHeight && !hasScrolledImages) {
         setHasScrolledImages(true)
         setShowSpecifications(true)
-        // Smooth scroll to specifications
-        setTimeout(() => {
-          specificationsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }, 100)
       }
     }
 
-    // Add global wheel listener to window
-    window.addEventListener('wheel', handleGlobalWheel, { passive: false })
-    imageColumn.addEventListener('scroll', handleScroll)
-    imageColumn.addEventListener('scroll', handleImageColumnScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
     
     return () => {
-      window.removeEventListener('wheel', handleGlobalWheel)
-      imageColumn.removeEventListener('scroll', handleScroll)
-      imageColumn.removeEventListener('scroll', handleImageColumnScroll)
-      if (rafId) {
-        cancelAnimationFrame(rafId)
-      }
+      window.removeEventListener('scroll', handleScroll)
     }
   }, [product, hasScrolledImages])
 
@@ -429,11 +338,16 @@ export default function ProductDetailPage() {
   // This ensures we respect the API's real-time stock count, including when it's 0
   const hasApiAvailability = availableQuantity !== null && availableQuantity !== undefined
   
-  const currentAvailableQty = hasApiAvailability
+  let currentAvailableQty = hasApiAvailability
     ? availableQuantity  // Use API value even if it's 0 (real-time stock)
     : (currentProduct.availableQuantity !== undefined && currentProduct.availableQuantity !== null && currentProduct.availableQuantity > 0
         ? currentProduct.availableQuantity 
         : (currentProduct.quantity !== undefined && currentProduct.quantity !== null ? currentProduct.quantity : 0))
+  
+  // Subtract cart quantity from available quantity
+  const cartItem = cart?.items?.find(item => item.product?.id === currentProduct.id || (item as any).productId === currentProduct.id)
+  const cartQuantity = cartItem?.quantity || 0
+  currentAvailableQty = Math.max(0, currentAvailableQty - cartQuantity)
   
   // Debug: Log stock information
   console.log('Product stock debug:', {
@@ -442,6 +356,7 @@ export default function ProductDetailPage() {
     productAvailableQuantity: currentProduct.availableQuantity,
     productQuantity: currentProduct.quantity,
     calculatedQty: currentAvailableQty,
+    cartQuantity,
     active: currentProduct.active,
     hasApiAvailability
   })
@@ -499,33 +414,20 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Left Column Container - Images + Materials/Specs */}
             <div className="flex flex-col">
-              {/* Images (Scrollable Only) */}
+              {/* Images - Part of natural page flow */}
               <div 
                 ref={imageColumnRef}
-                className="overflow-y-auto flex-1"
-                style={{ 
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                  maxHeight: 'calc(100vh - 200px)',
-                  scrollBehavior: 'smooth'
-                }}
+                className="flex flex-col"
               >
-                <style jsx>{`
-                  div::-webkit-scrollbar {
-                    display: none;
-                  }
-                `}</style>
-                <div className="flex flex-col">
-                  {allImages.length > 0 ? (
-                    allImages.map((image, index) => (
-                      <ProductImageZoom key={image.id} image={image} productName={currentProduct.name} />
-                    ))
-                  ) : (
-                    <div className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center">
-                      <Package className="w-24 h-24 text-gray-400" />
-                    </div>
-                  )}
-                </div>
+                {allImages.length > 0 ? (
+                  allImages.map((image, index) => (
+                    <ProductImageZoom key={image.id} image={image} productName={currentProduct.name} />
+                  ))
+                ) : (
+                  <div className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center">
+                    <Package className="w-24 h-24 text-gray-400" />
+                  </div>
+                )}
               </div>
               
               {/* Materials Section - Below images, in left column */}
@@ -642,7 +544,7 @@ export default function ProductDetailPage() {
             {/* Right Column - Product Info (Sticky) */}
             <div 
               id="main-product-content"
-              className="sticky top-8 h-fit"
+              className="sticky top-8 h-fit pt-8"
             >
               <div className="flex flex-col flex-1 justify-between">
                 <div className="flex justify-between items-start gap-2xl">
@@ -822,11 +724,15 @@ export default function ProductDetailPage() {
                   )}
                   <button
                     onClick={handleToggleFavorite}
-                    className="relative inline-block uppercase text-center outline-none border focus-visible:ring-2 ring-offset-2 transition-colors duration-300 text-sm tracking-wide leading-5 bg-black text-white border-black hover:bg-gray-800 disabled:bg-gray-300 disabled:text-gray-500 disabled:border-gray-300 ml-1 flex-[0_0_40px] p-3"
+                    className={`relative inline-block uppercase text-center outline-none border focus-visible:ring-2 ring-offset-2 transition-all duration-300 text-sm tracking-wide leading-5 ml-1 flex-[0_0_40px] p-3 ${
+                      isFavorite 
+                        ? 'bg-white text-red-500 border-red-500 hover:bg-red-50' 
+                        : 'bg-black text-white border-black hover:bg-gray-800'
+                    } disabled:bg-gray-300 disabled:text-gray-500 disabled:border-gray-300`}
                     type="button"
                   >
                     <span className="flex justify-center items-center gap-2">
-                      <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                      <Heart className={`w-5 h-5 transition-all duration-300 ${isFavorite ? 'fill-red-500 text-red-500' : 'text-white'}`} style={{ strokeWidth: isFavorite ? 0 : 1.5, stroke: isFavorite ? 'transparent' : 'currentColor' }} />
                     </span>
                   </button>
                 </div>

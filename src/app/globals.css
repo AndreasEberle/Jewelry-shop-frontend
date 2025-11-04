@@ -18,6 +18,7 @@
   /* Global font family - will be overridden by FontFamilyProvider via useFontFamily hook */
   html {
     font-family: var(--font-display, "SyndicatGrotesk", Arial, Helvetica, sans-serif);
+    scroll-behavior: smooth;
   }
   
   /* Let useFontFamily hook apply the font dynamically */
@@ -27,6 +28,81 @@
 }
 
 @layer components {
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-100%);
+    }
+  }
+
+  .animate-marquee {
+    animation: marquee 30s linear infinite;
+  }
+
+  @keyframes contentShowBottom {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes contentHideBottom {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+  }
+
+  @keyframes contentShowInset {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -48%) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
+  .data-\[state\=open\]\:animate-contentShowBottom {
+    animation: contentShowBottom 0.3s ease-out;
+  }
+
+  .data-\[state\=closed\]\:animate-contentHideBottom {
+    animation: contentHideBottom 0.3s ease-in;
+  }
+
+  .md\:data-\[state\=open\]\:animate-contentShowInset {
+    @media (min-width: 768px) {
+      animation: contentShowInset 0.3s ease-out;
+    }
+  }
+
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
   }

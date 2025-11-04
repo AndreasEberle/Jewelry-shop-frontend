@@ -106,6 +106,74 @@ export default function CheckoutPage() {
     }
   }
 
+  // Helper function to convert phone code (e.g., "+423") to country code (e.g., "LI")
+  const phoneCodeToCountryCode = (value: string | undefined): string => {
+    if (!value) return 'CH'
+    
+    // If it's already a country code (2 letters), return it
+    if (value.length === 2 && /^[A-Z]{2}$/i.test(value)) {
+      return value.toUpperCase()
+    }
+    
+    // Remove leading + if present
+    const cleanCode = value.replace(/^\+/, '')
+    
+    // Comprehensive countries list matching CountryCodePicker
+    const countries = [
+      { code: 'US', phoneCode: '+1' },
+      { code: 'CA', phoneCode: '+1' },
+      { code: 'GB', phoneCode: '+44' },
+      { code: 'DE', phoneCode: '+49' },
+      { code: 'FR', phoneCode: '+33' },
+      { code: 'IT', phoneCode: '+39' },
+      { code: 'ES', phoneCode: '+34' },
+      { code: 'AU', phoneCode: '+61' },
+      { code: 'JP', phoneCode: '+81' },
+      { code: 'CN', phoneCode: '+86' },
+      { code: 'IN', phoneCode: '+91' },
+      { code: 'BR', phoneCode: '+55' },
+      { code: 'MX', phoneCode: '+52' },
+      { code: 'RU', phoneCode: '+7' },
+      { code: 'KR', phoneCode: '+82' },
+      { code: 'NL', phoneCode: '+31' },
+      { code: 'SE', phoneCode: '+46' },
+      { code: 'NO', phoneCode: '+47' },
+      { code: 'DK', phoneCode: '+45' },
+      { code: 'FI', phoneCode: '+358' },
+      { code: 'CH', phoneCode: '+41' },
+      { code: 'LI', phoneCode: '+423' },
+      { code: 'AT', phoneCode: '+43' },
+      { code: 'BE', phoneCode: '+32' },
+      { code: 'PL', phoneCode: '+48' },
+      { code: 'CZ', phoneCode: '+420' },
+      { code: 'HU', phoneCode: '+36' },
+      { code: 'RO', phoneCode: '+40' },
+      { code: 'BG', phoneCode: '+359' },
+      { code: 'GR', phoneCode: '+30' },
+      { code: 'PT', phoneCode: '+351' },
+      { code: 'IE', phoneCode: '+353' },
+      { code: 'LU', phoneCode: '+352' },
+      { code: 'MT', phoneCode: '+356' },
+      { code: 'CY', phoneCode: '+357' },
+      { code: 'EE', phoneCode: '+372' },
+      { code: 'LV', phoneCode: '+371' },
+      { code: 'LT', phoneCode: '+370' },
+      { code: 'SI', phoneCode: '+386' },
+      { code: 'SK', phoneCode: '+421' },
+      { code: 'HR', phoneCode: '+385' },
+      { code: 'RS', phoneCode: '+381' },
+      { code: 'BA', phoneCode: '+387' },
+      { code: 'ME', phoneCode: '+382' },
+      { code: 'MK', phoneCode: '+389' },
+      { code: 'AL', phoneCode: '+355' },
+      { code: 'XK', phoneCode: '+383' },
+    ]
+    
+    // Find country by phone code
+    const country = countries.find(c => c.phoneCode.replace('+', '') === cleanCode)
+    return country?.code || 'CH'
+  }
+
   const loadUserData = async () => {
     try {
       // Load user profile
@@ -115,6 +183,12 @@ export default function CheckoutPage() {
         setLastName(profile.lastName || '')
         setEmail(profile.email || '')
         setPhone(profile.phoneNumber || '')
+        
+        // Convert phone country code from phone code to country code
+        const rawPhoneCountryCode = profile.phoneCountryCode || (profile as any)?.phone_country_code
+        const countryCode = phoneCodeToCountryCode(rawPhoneCountryCode)
+        setPhoneCountryCode(countryCode)
+        
         // Set billing names from profile
         setBillingFirstName(profile.firstName || '')
         setBillingLastName(profile.lastName || '')
@@ -496,6 +570,19 @@ export default function CheckoutPage() {
               console.error('Failed to clear cart:', cartError)
               // Continue to success page even if cart clearing fails
             }
+            // Update newsletter subscription if opted in
+            if (marketingOptIn && user) {
+              try {
+                await api.put('/api/user/profile', {
+                  newsletterSubscribed: true
+                })
+                console.log('Newsletter subscription updated')
+              } catch (newsletterError) {
+                console.error('Failed to update newsletter subscription:', newsletterError)
+                // Don't fail the order if newsletter update fails
+              }
+            }
+            
             router.push(`/checkout/success?orderId=${orderId}`)
           } catch (confirmError: any) {
             console.error('Failed to confirm payment on backend:', confirmError)
@@ -547,6 +634,18 @@ export default function CheckoutPage() {
             } catch (cartError) {
               console.error('Failed to clear cart:', cartError)
               // Continue to success page even if cart clearing fails
+            }
+            // Update newsletter subscription if opted in
+            if (marketingOptIn && user) {
+              try {
+                await api.put('/api/user/profile', {
+                  newsletterSubscribed: true
+                })
+                console.log('Newsletter subscription updated')
+              } catch (newsletterError) {
+                console.error('Failed to update newsletter subscription:', newsletterError)
+                // Don't fail the order if newsletter update fails
+              }
             }
             router.push(`/checkout/success?orderId=${orderId}`)
           } catch (confirmError: any) {
@@ -777,6 +876,8 @@ export default function CheckoutPage() {
     setMounted(true)
   }, [])
 
+  // Removed redirect rule - users can stay on checkout page even with empty cart
+
   // Track when initial cart load is complete
   // We need to wait a bit after component mount to ensure cart state has fully initialized
   useEffect(() => {
@@ -862,7 +963,23 @@ export default function CheckoutPage() {
 
   // Only show empty cart message if we're sure the cart is empty AND initial load is complete
   // This prevents showing empty cart message during initial load or before cart state is confirmed
+  // Don't render empty cart message - redirect will happen via useEffect
   if (hasInitialLoadCompleted && (!cart || cart.items.length === 0)) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CheckoutHeader />
+        <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+          <div className="text-center">
+            <p className="text-gray-600">Redirecting to home...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Legacy code - keeping for reference but won't be reached
+  if (false && hasInitialLoadCompleted && (!cart || cart.items.length === 0)) {
     return (
       <div className="min-h-screen bg-gray-50">
         <CheckoutHeader />

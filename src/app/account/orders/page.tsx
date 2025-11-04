@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { AccountLayout } from '@/components/account/AccountLayout'
 import api from '@/services/api'
-import { Package, Calendar, DollarSign } from 'lucide-react'
+import { Package, Calendar, DollarSign, CheckCircle2, Circle, Truck, Clock } from 'lucide-react'
 import Link from 'next/link'
 
 interface Order {
@@ -14,9 +14,9 @@ interface Order {
   status: string
   totalAmount: number
   currency?: string
-  orderDate?: string
-  createdAt?: string
-  updatedAt?: string
+  orderDate?: string | null
+  createdAt?: string | OffsetDateTime | null
+  updatedAt?: string | null
   items: OrderItem[]
   customerEmail?: string
   customerName?: string
@@ -77,6 +77,15 @@ export default function AdminOrdersPage() {
       }
       
       console.log('Loaded orders:', ordersData)
+      // Log first order to debug structure
+      if (ordersData.length > 0) {
+        console.log('First order structure:', JSON.stringify(ordersData[0], null, 2))
+        console.log('First order createdAt:', ordersData[0].createdAt)
+        console.log('First order items:', ordersData[0].items)
+        if (ordersData[0].items && ordersData[0].items.length > 0) {
+          console.log('First item:', ordersData[0].items[0])
+        }
+      }
       setOrders(ordersData)
     } catch (err: any) {
       // If regular orders endpoint fails, try admin endpoint
@@ -100,19 +109,67 @@ export default function AdminOrdersPage() {
     }
   }
 
-  const formatDate = (dateString: string | null | undefined) => {
+  const formatDate = (dateString: string | null | undefined | any) => {
     if (!dateString) return 'N/A'
     try {
-      const date = new Date(dateString)
-      if (isNaN(date.getTime())) return 'N/A'
+      let date: Date
+      if (typeof dateString === 'string') {
+        // Handle OffsetDateTime format (e.g., "2024-01-15T10:30:00+01:00" or "2024-01-15T10:30:00Z")
+        // Also handle LocalDateTime format (e.g., "2024-01-15T10:30:00")
+        date = new Date(dateString)
+      } else if (dateString instanceof Date) {
+        date = dateString
+      } else if (dateString && typeof dateString === 'object') {
+        // Handle OffsetDateTime/LocalDateTime object from backend (Jackson serialization)
+        // Try common object formats
+        if (dateString.year && dateString.month && dateString.day) {
+          date = new Date(dateString.year, dateString.month - 1, dateString.day, 
+            dateString.hour || 0, dateString.minute || 0, dateString.second || 0)
+        } else if (dateString.toString && typeof dateString.toString === 'function') {
+          // Try toString method if available
+          try {
+            date = new Date(dateString.toString())
+          } catch {
+            return 'N/A'
+          }
+        } else if (dateString.epochSecond !== undefined) {
+          // Handle Java Instant format
+          date = new Date(dateString.epochSecond * 1000)
+        } else {
+          return 'N/A'
+        }
+      } else {
+        return 'N/A'
+      }
+      
+      if (isNaN(date.getTime()) || date.getTime() === 0) return 'N/A'
       return date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
-        day: 'numeric'
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       })
-    } catch {
+    } catch (error) {
+      console.error('Error formatting date:', dateString, error)
       return 'N/A'
     }
+  }
+
+  const getOrderStatusSteps = (status: string) => {
+    const steps = [
+      { key: 'CONFIRMED', label: 'Confirmed', icon: CheckCircle2 },
+      { key: 'PROCESSING', label: 'Processing', icon: Clock },
+      { key: 'SHIPPED', label: 'Shipped', icon: Truck },
+      { key: 'DELIVERED', label: 'Delivered', icon: CheckCircle2 }
+    ]
+    
+    const currentStatusIndex = steps.findIndex(s => s.key === status.toUpperCase())
+    return steps.map((step, index) => ({
+      ...step,
+      completed: currentStatusIndex >= index,
+      current: currentStatusIndex === index
+    }))
   }
 
   const formatCurrency = (amount: number, currency: string = 'CHF') => {
@@ -146,7 +203,7 @@ export default function AdminOrdersPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <h1 className="type-heading-3 text-content" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>ORDERS</h1>
+          <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>ORDERS</h1>
           
           {loading && (
             <div className="flex items-center justify-center py-12">
@@ -173,23 +230,13 @@ export default function AdminOrdersPage() {
                 <div key={order.id} className="border-b border-black pb-6 last:border-b-0">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                     <div>
-                      <h2 className="type-heading-6 text-content mb-2">
+                      <h2 className="type-heading-6 text-content mb-2" style={{ fontWeight: 'bold' }}>
                         Order #{order.orderNumber || order.id.substring(0, 8)}
                       </h2>
-                      {order.customerName && (
-                        <p className="type-body-3 text-content mb-1">
-                          Customer: {order.customerName}
-                        </p>
-                      )}
-                      {order.customerEmail && (
-                        <p className="type-body-3 text-content mb-2">
-                          {order.customerEmail}
-                        </p>
-                      )}
                       <div className="flex items-center gap-4 text-sm text-content">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          <span>{formatDate(order.orderDate || order.createdAt)}</span>
+                          <span>{formatDate(order.createdAt || order.orderDate)}</span>
                         </div>
                         <span className={`font-semibold ${getStatusColor(order.status)}`}>
                           {order.status}
@@ -197,34 +244,98 @@ export default function AdminOrdersPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="type-heading-6 text-content">
+                      <span className="type-heading-6 text-content" style={{ fontWeight: 'bold' }}>
                         {formatCurrency(order.totalAmount, order.currency || 'CHF')}
                       </span>
                     </div>
                   </div>
 
-                  {order.items && order.items.length > 0 && (
-                    <div className="space-y-4 mt-4">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="flex gap-4 items-start">
-                          {item.productImageUrl && (
-                            <div className="w-16 h-16 flex-shrink-0 bg-gray-100 rounded overflow-hidden">
-                              <img
-                                src={item.productImageUrl}
-                                alt={item.productName}
-                                className="w-full h-full object-cover"
-                              />
+                  {/* Order Status Tracking */}
+                  {(order.status === 'CONFIRMED' || order.status === 'PROCESSING' || order.status === 'SHIPPED' || order.status === 'DELIVERED') && (
+                    <div className="mt-6 mb-6">
+                      <div className="flex items-center justify-between relative">
+                        {getOrderStatusSteps(order.status).map((step, index) => {
+                          const Icon = step.icon
+                          const isLast = index === getOrderStatusSteps(order.status).length - 1
+                          return (
+                            <div key={step.key} className="flex items-center flex-1">
+                              <div className="flex flex-col items-center relative z-10">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${
+                                  step.completed 
+                                    ? 'bg-green-500 border-green-500 text-white' 
+                                    : step.current
+                                    ? 'bg-blue-500 border-blue-500 text-white'
+                                    : 'bg-white border-gray-300 text-gray-400'
+                                }`}>
+                                  <Icon className="w-5 h-5" />
+                                </div>
+                                <span className={`mt-2 text-xs font-medium ${
+                                  step.completed || step.current ? 'text-gray-900' : 'text-gray-400'
+                                }`}>
+                                  {step.label}
+                                </span>
+                              </div>
+                              {!isLast && (
+                                <div className={`flex-1 h-0.5 mx-2 ${
+                                  step.completed ? 'bg-green-500' : 'bg-gray-300'
+                                }`} />
+                              )}
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-content">{item.productName}</p>
-                            <p className="text-sm text-content opacity-75">Quantity: {item.quantity}</p>
-                            <p className="text-sm font-medium text-content mt-1">
-                              {formatCurrency(item.totalPrice || (item.unitPrice * item.quantity), order.currency || 'CHF')}
-                            </p>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {order.items && order.items.length > 0 && (
+                    <div className="space-y-4 mt-6">
+                      {order.items.map((item) => {
+                        const productLink = item.productSlug ? `/products/${item.productSlug}` : null
+                        return (
+                          <div key={item.id} className={`flex gap-6 items-start ${productLink ? 'cursor-pointer' : ''}`}>
+                            {productLink ? (
+                              <Link href={productLink} className="w-32 h-32 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden hover:opacity-90 transition-opacity shadow-sm">
+                                {item.productImageUrl ? (
+                                  <img
+                                    src={item.productImageUrl}
+                                    alt={item.productName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <Package className="w-12 h-12 text-gray-400" />
+                                  </div>
+                                )}
+                              </Link>
+                            ) : (
+                              <div className="w-32 h-32 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center shadow-sm">
+                                {item.productImageUrl ? (
+                                  <img
+                                    src={item.productImageUrl}
+                                    alt={item.productName}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="w-12 h-12 text-gray-400" />
+                                )}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              {productLink ? (
+                                <Link href={productLink} className="font-medium text-lg text-content hover:text-gray-600 transition-colors block mb-2">
+                                  {item.productName}
+                                </Link>
+                              ) : (
+                                <p className="font-medium text-lg text-content mb-2">{item.productName}</p>
+                              )}
+                              <p className="text-sm text-content opacity-75 mb-1">Quantity: {item.quantity}</p>
+                              <p className="text-base font-semibold text-content">
+                                {formatCurrency(item.totalPrice || (item.unitPrice * item.quantity), order.currency || 'CHF')}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                   
@@ -244,36 +355,37 @@ export default function AdminOrdersPage() {
                   
                   {/* Tracking Information */}
                   {(order.trackingNumber || order.trackingLink) && (
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h3 className="font-semibold text-content mb-3">Shipping Information</h3>
                       {order.trackingLink ? (
-                        <div>
+                        <div className="space-y-2">
                           <a 
                             href={order.trackingLink} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:text-blue-800 underline font-medium"
+                            className="inline-flex items-center text-base text-blue-600 hover:text-blue-800 underline font-medium"
                           >
                             Track Your Order →
                           </a>
                           {order.trackingNumber && (
-                            <p className="text-sm text-content mt-2">
-                              <span className="font-medium">Tracking Number:</span> {order.trackingNumber}
+                            <p className="text-sm text-content">
+                              <span className="font-medium">Tracking Number:</span> <span className="font-mono">{order.trackingNumber}</span>
                               {order.carrier && (
                                 <span className="ml-2 opacity-75">({order.carrier})</span>
                               )}
                             </p>
                           )}
                         </div>
-                      ) : (
+                      ) : order.trackingNumber ? (
                         <p className="text-sm text-content">
-                          <span className="font-medium">Tracking:</span> {order.trackingNumber}
+                          <span className="font-medium">Tracking Number:</span> <span className="font-mono">{order.trackingNumber}</span>
                           {order.carrier && (
                             <span className="ml-2 opacity-75">({order.carrier})</span>
                           )}
                         </p>
-                      )}
+                      ) : null}
                       {order.estimatedDeliveryDays && (
-                        <p className="text-sm text-content mt-2">
+                        <p className="text-sm text-content mt-3">
                           <span className="font-medium">Estimated delivery:</span> {order.estimatedDeliveryDays} {order.estimatedDeliveryDays === 1 ? 'day' : 'days'}
                         </p>
                       )}

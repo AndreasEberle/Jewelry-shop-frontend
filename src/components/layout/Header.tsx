@@ -130,108 +130,120 @@ export function Header({ backgroundImage }: HeaderProps) {
               <div className="flex items-center lg:gap-8" style={{ paddingLeft: '50px' }}>
                 {/* Desktop Logo */}
                 <div className="hidden lg:block lg:mr-xl flex-shrink-0">
-                  <Link
-                    aria-label={`${navbarName || brandingConfig?.shopName || 'Jewelry Shop'} logo - Click to return to the homepage`}
-                    href="/"
-                    className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 tracking-normal block"
-                    data-testid="nav-link"
-                  >
-                    {brandingConfig?.logoUrl ? (
-                      <img
-                        src={brandingConfig.logoUrl}
-                        alt={brandingConfig.logoAltText || 'Logo'}
-                        style={getLogoStyle()}
-                        className="overflow-visible"
-                      />
-                    ) : (
-                      <span style={{ ...getShopNameStyle(), color: '#000000' }}>
-                        {navbarName || brandingConfig?.shopName || 'JewelryShop'}
-                      </span>
-                    )}
-                  </Link>
+                  {isLoading ? (
+                    <div className="h-8 w-32 bg-gray-200 rounded animate-pulse"></div>
+                  ) : (
+                    <Link
+                      aria-label={`${navbarName || brandingConfig?.shopName || 'Jewelry Shop'} logo - Click to return to the homepage`}
+                      href="/"
+                      className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 tracking-normal block"
+                      data-testid="nav-link"
+                    >
+                      {brandingConfig?.logoUrl ? (
+                        <img
+                          src={brandingConfig.logoUrl}
+                          alt={brandingConfig.logoAltText || 'Logo'}
+                          style={getLogoStyle()}
+                          className="overflow-visible"
+                        />
+                      ) : (
+                        <span style={{ ...getShopNameStyle(), color: '#000000' }}>
+                          {navbarName || brandingConfig?.shopName || 'JewelryShop'}
+                        </span>
+                      )}
+                    </Link>
+                  )}
                 </div>
 
                 {/* Desktop Navigation Links */}
                 <nav aria-label="primary menu" data-orientation="horizontal" dir="ltr" data-testid="header-nav-root" className="hidden lg:block">
                   <div tabIndex={-1} aria-hidden="true" className="hh-overlay hidden top-full z-below" data-testid="mega-menu-overlay"></div>
                   <div style={{ position: 'relative' }}>
-                    <ul
-                      data-orientation="horizontal"
-                      data-testid="header-main-menu"
-                      className="flex items-center gap-6"
-                      dir="ltr"
-                    >
-                    <li className="whitespace-nowrap">
-                      <button 
-                        type="button"
-                        className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
-                        data-title="Mega Menu" 
-                        accessibility-role="menuitem" 
-                        accessibility-label="Menu"
+                    {isLoading ? (
+                      <div className="flex items-center gap-6">
+                        <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="h-4 w-24 bg-gray-200 rounded animate-pulse"></div>
+                      </div>
+                    ) : (
+                      <ul
+                        data-orientation="horizontal"
+                        data-testid="header-main-menu"
+                        className="flex items-center gap-6"
+                        dir="ltr"
                       >
-                        <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
-                          <Link
-                            href="/products"
-                            aria-label="All Jewelry "
-                            aria-expanded="false"
-                            aria-haspopup="menu"
-                            data-testid="nav-link"
-                            className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
-                            style={{ ...navTextStyle, fontSize: '0.75em' }}
+                        <li className="whitespace-nowrap">
+                          <button 
+                            type="button"
+                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
+                            data-title="Mega Menu" 
+                            accessibility-role="menuitem" 
+                            accessibility-label="Menu"
                           >
-                            All Jewelry 
-                          </Link>
-                        </span>
-                      </button>
-                    </li>
-                    <li className="whitespace-nowrap">
-                      <button 
-                        type="button"
-                        className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
-                        data-title="Mega Menu" 
-                        accessibility-role="menuitem" 
-                        accessibility-label="Menu"
-                      >
-                        <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
-                          <Link
-                            href="/products?new=true"
-                            aria-label="New In"
-                            aria-expanded="false"
-                            aria-haspopup="menu"
-                            data-testid="nav-link"
-                            className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
-                            style={{ ...navTextStyle, fontSize: '0.75em' }}
+                            <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
+                              <Link
+                                href="/products"
+                                aria-label="All Jewelry "
+                                aria-expanded="false"
+                                aria-haspopup="menu"
+                                data-testid="nav-link"
+                                className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
+                                style={{ ...navTextStyle, fontSize: '0.75em' }}
+                              >
+                                All Jewelry 
+                              </Link>
+                            </span>
+                          </button>
+                        </li>
+                        <li className="whitespace-nowrap">
+                          <button 
+                            type="button"
+                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
+                            data-title="Mega Menu" 
+                            accessibility-role="menuitem" 
+                            accessibility-label="Menu"
                           >
-                            New In
-                          </Link>
-                        </span>
-                      </button>
-                    </li>
-                    <li className="whitespace-nowrap">
-                      <button 
-                        type="button"
-                        className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
-                        data-title="Mega Menu" 
-                        accessibility-role="menuitem" 
-                        accessibility-label="Menu"
-                      >
-                        <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
-                          <Link
-                            href="/products?featured=true"
-                            aria-label="Best Sellers"
-                            aria-expanded="false"
-                            aria-haspopup="menu"
-                            data-testid="nav-link"
-                            className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
-                            style={{ ...navTextStyle, fontSize: '0.75em' }}
+                            <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
+                              <Link
+                                href="/products?new=true"
+                                aria-label="New In"
+                                aria-expanded="false"
+                                aria-haspopup="menu"
+                                data-testid="nav-link"
+                                className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
+                                style={{ ...navTextStyle, fontSize: '0.75em' }}
+                              >
+                                New In
+                              </Link>
+                            </span>
+                          </button>
+                        </li>
+                        <li className="whitespace-nowrap">
+                          <button 
+                            type="button"
+                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none p-0 tracking-utility uppercase tracking-normal type-heading-6" 
+                            data-title="Mega Menu" 
+                            accessibility-role="menuitem" 
+                            accessibility-label="Menu"
                           >
-                            Best Sellers
-                          </Link>
-                        </span>
-                      </button>
-                    </li>
-                  </ul>
-                </div>
+                            <span className="flex justify-center items-center gap-xxs preserve-line-height w-fit text-current">
+                              <Link
+                                href="/products?featured=true"
+                                aria-label="Best Sellers"
+                                aria-expanded="false"
+                                aria-haspopup="menu"
+                                data-testid="nav-link"
+                                className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
+                                style={{ ...navTextStyle, fontSize: '0.75em' }}
+                              >
+                                Best Sellers
+                              </Link>
+                            </span>
+                          </button>
+                        </li>
+                      </ul>
+                    )}
+                  </div>
                 </nav>
               </div>
 
@@ -262,51 +274,64 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Mobile Logo - Centered */}
                       <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[69px]">
-                        <Link
-                          aria-label={`${navbarName || brandingConfig?.shopName || 'Jewelry Shop'} logo - Click to return to the homepage`}
-                          href="/"
-                          className="pointer-events-auto transition-colors ease-in-out duration-300 focus-visible:ring-1 focus-visible:ring-offset-4 outline-none tracking-normal block"
-                        >
-                          {brandingConfig?.logoUrl ? (
-                            <img
-                              src={brandingConfig.logoUrl}
-                              alt={brandingConfig.logoAltText || 'Logo'}
-                              style={getLogoStyle()}
-                              className="object-contain max-h-6"
-                            />
-                          ) : (
-                            <span style={{ ...getShopNameStyle(), color: '#000000' }} className="text-base font-semibold">
-                              {navbarName || brandingConfig?.shopName || 'JS'}
-                            </span>
-                          )}
-                        </Link>
+                        {isLoading ? (
+                          <div className="h-6 w-[69px] bg-gray-200 rounded animate-pulse"></div>
+                        ) : (
+                          <Link
+                            aria-label={`${navbarName || brandingConfig?.shopName || 'Jewelry Shop'} logo - Click to return to the homepage`}
+                            href="/"
+                            className="pointer-events-auto transition-colors ease-in-out duration-300 focus-visible:ring-1 focus-visible:ring-offset-4 outline-none tracking-normal block"
+                          >
+                            {brandingConfig?.logoUrl ? (
+                              <img
+                                src={brandingConfig.logoUrl}
+                                alt={brandingConfig.logoAltText || 'Logo'}
+                                style={getLogoStyle()}
+                                className="object-contain max-h-6"
+                              />
+                            ) : (
+                              <span style={{ ...getShopNameStyle(), color: '#000000' }} className="text-base font-semibold">
+                                {navbarName || brandingConfig?.shopName || 'JS'}
+                              </span>
+                            )}
+                          </Link>
+                        )}
                       </div>
 
                       {/* Mobile Search/Account */}
                       <div className="shrink-0 flex items-center gap-3">
-                        <button
-                          onClick={() => setIsSearchOpen(true)}
-                          className="p-1"
-                          aria-label="Search"
-                        >
-                          <Search className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
-                        </button>
-                        {isAuthenticated ? (
-                          <Link
-                            href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
-                            className="p-1"
-                            aria-label="My Account"
-                          >
-                              <User className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
-                          </Link>
+                        {isLoading ? (
+                          <>
+                            <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+                            <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
+                          </>
                         ) : (
-                          <button
-                            onClick={() => openAuthModal('login')}
-                            className="p-1"
-                            aria-label="Login"
-                          >
-                              <User className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => setIsSearchOpen(true)}
+                              className="p-1"
+                              aria-label="Search"
+                            >
+                              <Search className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                            </button>
+                            {isAuthenticated ? (
+                              <Link
+                                href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
+                                className="p-1"
+                                aria-label="My Account"
+                              >
+                                  <User className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                              </Link>
+                            ) : (
+                              <button
+                                onClick={() => openAuthModal('login')}
+                                className="p-1"
+                                aria-label="Login"
+                              >
+                                  <User className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -386,7 +411,11 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Language */}
                       <li className="flex items-center">
-                        <LanguageSelectorCompact />
+                        {isLoading ? (
+                          <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
+                        ) : (
+                          <LanguageSelectorCompact />
+                        )}
                       </li>
 
                       {/* Currency - Only show if enabled */}
@@ -398,72 +427,95 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Account */}
                       <li className="flex" data-testid="account-dropdown">
-                        {isAuthenticated ? (
-                          <button
-                            onClick={() => setIsAccountDropdownOpen(true)}
-                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
-                            title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
-                          >
-                            <span className="flex justify-center items-center gap-xxs preserve-line-height">
-                              <User className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="My Account" />
-                              <span className="sr-only">My Account</span>
-                            </span>
-                          </button>
+                        {isLoading ? (
+                          <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
                         ) : (
-                          <button
-                            onClick={() => openAuthModal('login')}
-                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
-                            title="Login"
-                          >
-                            <span className="flex justify-center items-center gap-xxs preserve-line-height">
-                              <User className="w-lg h-lg" style={navTextStyle} aria-label="log in" />
-                              <span className="sr-only">My Account</span>
-                            </span>
-                          </button>
+                          isAuthenticated ? (
+                            <button
+                              onClick={() => setIsAccountDropdownOpen(true)}
+                              className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
+                              title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                            >
+                              <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                                <User className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="My Account" />
+                                <span className="sr-only">My Account</span>
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openAuthModal('login')}
+                              className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
+                              title="Login"
+                            >
+                              <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                                <User className="w-lg h-lg" style={navTextStyle} aria-label="log in" />
+                                <span className="sr-only">My Account</span>
+                              </span>
+                            </button>
+                          )
                         )}
                       </li>
 
                       {/* Favorites/Wishlist */}
                       <li className="flex">
-                        {isAuthenticated && (
-                          <Link
-                            className="relative pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 uppercase tracking-normal"
+                        {isLoading ? (
+                          <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (!isAuthenticated) {
+                                openAuthModal('login')
+                              }
+                            }}
+                            className="relative pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 uppercase tracking-normal bg-transparent border-none p-0"
                             data-testid="link-to-wishlist"
-                            aria-label="Go to your wishlist"
-                            href="/favorites"
+                            aria-label={isAuthenticated ? "Go to your wishlist" : "Sign in to view wishlist"}
                           >
-                            <Heart className={`w-lg h-lg ${favoriteCount > 0 ? 'fill-current' : ''}`} style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="Go to your wishlist" />
-                            {favoriteCount > 0 && (
-                              <span className="absolute top-0 right-[-8px] rounded-full flex items-center justify-center h-[13px] w-[13px] text-xxxs font-display bg-backgroundTheme-dark text-contentTheme-inv">
-                                {favoriteCount > 9 ? '9+' : favoriteCount}
-                                <span className="sr-only">Items in wishlist</span>
-                              </span>
+                            {isAuthenticated ? (
+                              <Link
+                                href="/favorites"
+                                className="relative pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 uppercase tracking-normal"
+                              >
+                                <Heart className={`w-lg h-lg transition-all duration-300 ease-in-out ${favoriteCount > 0 ? 'fill-red-500 text-red-500' : 'text-black'}`} style={{ fontSize: '0.75em', strokeWidth: favoriteCount > 0 ? 0 : 1.5 }} aria-label="Go to your wishlist" />
+                                {favoriteCount > 0 && (
+                                  <span key={favoriteCount} className="absolute top-0 right-[-8px] rounded-full flex items-center justify-center h-[13px] w-[13px] text-xxxs font-display bg-backgroundTheme-dark text-contentTheme-inv transition-all duration-300 ease-in-out">
+                                    {favoriteCount > 9 ? '9+' : favoriteCount}
+                                    <span className="sr-only">Items in wishlist</span>
+                                  </span>
+                                )}
+                                <span className="sr-only">Go to your wishlist</span>
+                              </Link>
+                            ) : (
+                              <Heart className="w-lg h-lg transition-all duration-300 ease-in-out text-black" style={{ fontSize: '0.75em', strokeWidth: 1.5 }} aria-label="Sign in to view wishlist" />
                             )}
-                            <span className="sr-only">Go to your wishlist</span>
-                          </Link>
+                          </button>
                         )}
                       </li>
 
                       {/* Cart */}
                       <li className="flex" data-testid="cart-modal-desktop">
-                        <button
-                          onClick={() => setIsCartDrawerOpen(true)}
-                          className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
-                          aria-label="Open Bag"
-                        >
-                          <span className="flex justify-center items-center gap-xxs preserve-line-height">
-                            <div className="relative">
-                              <ShoppingBag className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} data-testid="icon-bag-2" viewBox="0 0 24 24" role="graphics-symbol" />
-                              {itemCount > 0 && (
-                                <span className="absolute top-0 right-[-8px] rounded-full flex items-center justify-center h-[13px] w-[13px] text-xxxs font-display bg-backgroundTheme-dark text-contentTheme-inv">
-                                  {itemCount > 9 ? '9+' : itemCount}
-                                  <span className="sr-only">Item in Bag</span>
-                                </span>
-                              )}
-                              <span className="sr-only">Open Bag</span>
-                            </div>
-                          </span>
-                        </button>
+                        {isLoading ? (
+                          <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
+                        ) : (
+                          <button
+                            onClick={() => setIsCartDrawerOpen(true)}
+                            className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
+                            aria-label="Open Bag"
+                          >
+                            <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                              <div className="relative">
+                                <ShoppingBag className="w-lg h-lg transition-all duration-300 ease-in-out" style={{ ...navTextStyle, fontSize: '0.75em' }} data-testid="icon-bag-2" viewBox="0 0 24 24" role="graphics-symbol" />
+                                {itemCount > 0 && (
+                                  <span key={itemCount} className="absolute top-0 right-[-8px] rounded-full flex items-center justify-center h-[13px] w-[13px] text-xxxs font-display bg-backgroundTheme-dark text-contentTheme-inv transition-all duration-300 ease-in-out">
+                                    {itemCount > 9 ? '9+' : itemCount}
+                                    <span className="sr-only">Item in Bag</span>
+                                  </span>
+                                )}
+                                <span className="sr-only">Open Bag</span>
+                              </div>
+                            </span>
+                          </button>
+                        )}
                       </li>
                     </ul>
                   </div>

@@ -258,6 +258,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       } else {
         // Guest user - use local storage cart
         addToGuestCart(product, quantity)
+        // Also dispatch event to open cart drawer for guest users
+        if (typeof window !== 'undefined' && !window.location.pathname.includes('/checkout')) {
+          window.dispatchEvent(new Event('openCartDrawer'))
+        }
       }
     } catch (err: any) {
       console.error('CartContext: Error adding to cart:', err)

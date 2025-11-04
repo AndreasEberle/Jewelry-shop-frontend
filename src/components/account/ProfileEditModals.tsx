@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { userService, UpdateProfileRequest } from '@/services/userService'
 import { CountryCodePicker } from '@/components/auth/CountryCodePicker'
@@ -19,6 +19,7 @@ export function EditNameModal({ isOpen, onClose, currentFirstName, currentLastNa
   const [lastName, setLastName] = useState(currentLastName)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -27,6 +28,24 @@ export function EditNameModal({ isOpen, onClose, currentFirstName, currentLastNa
       setError(null)
     }
   }, [isOpen, currentFirstName, currentLastName])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node) && isOpen) {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, onClose])
 
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim()) {
@@ -50,11 +69,11 @@ export function EditNameModal({ isOpen, onClose, currentFirstName, currentLastNa
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+    <div className={`fixed inset-0 bg-black z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-60' : 'opacity-0'}`}>
+      <div ref={modalRef} className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl transform transition-all duration-300 border-2 border-gray-900 ring-2 ring-black">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">Edit Preferred Name</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <h2 className="text-xl font-semibold text-gray-900">Edit Preferred Name</h2>
+          <button onClick={onClose} className="text-gray-700 hover:text-gray-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -70,7 +89,7 @@ export function EditNameModal({ isOpen, onClose, currentFirstName, currentLastNa
               type="text"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-black bg-white"
             />
           </div>
           <div>
@@ -79,21 +98,21 @@ export function EditNameModal({ isOpen, onClose, currentFirstName, currentLastNa
               type="text"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-black bg-white"
             />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Saving...' : 'Save'}
           </button>
@@ -128,21 +147,43 @@ export function EditPhoneModal({ isOpen, onClose, currentPhoneCountryCode, curre
     return country?.phoneCode || '+41'
   }
   
-  const [countryCode, setCountryCode] = useState(currentPhoneCountryCode || 'CH')
-  const [phoneCode, setPhoneCode] = useState(getPhoneCode(currentPhoneCountryCode || 'CH'))
-  const [phoneNumber, setPhoneNumber] = useState(currentPhoneNumber || '')
+  const [countryCode, setCountryCode] = useState<string>('CH')
+  const [phoneCode, setPhoneCode] = useState<string>('+41')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isOpen) {
+      // Always update from props when modal opens
       const code = currentPhoneCountryCode || 'CH'
+      const phonePrefix = getPhoneCode(code)
       setCountryCode(code)
-      setPhoneCode(getPhoneCode(code))
+      setPhoneCode(phonePrefix)
       setPhoneNumber(currentPhoneNumber || '')
       setError(null)
+      console.log('EditPhoneModal opened with:', { code, phonePrefix, currentPhoneNumber })
     }
   }, [isOpen, currentPhoneCountryCode, currentPhoneNumber])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node) && isOpen) {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, onClose])
 
   const handleCountryChange = (code: string, codePrefix: string) => {
     setCountryCode(code)
@@ -211,11 +252,11 @@ export function EditPhoneModal({ isOpen, onClose, currentPhoneCountryCode, curre
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+    <div className={`fixed inset-0 bg-black z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-60' : 'opacity-0'}`}>
+      <div ref={modalRef} className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl transform transition-all duration-300 border-2 border-gray-900 ring-2 ring-black">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">{currentPhoneNumber ? 'Edit Phone' : 'Add Phone'}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="text-gray-700 hover:text-gray-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -248,14 +289,14 @@ export function EditPhoneModal({ isOpen, onClose, currentPhoneCountryCode, curre
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+              className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Saving...' : 'Save'}
             </button>
@@ -277,6 +318,7 @@ export function EditPasswordModal({ isOpen, onClose }: EditPasswordModalProps) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -286,6 +328,24 @@ export function EditPasswordModal({ isOpen, onClose }: EditPasswordModalProps) {
       setError(null)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node) && isOpen) {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, onClose])
 
   const handleSave = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
@@ -319,11 +379,11 @@ export function EditPasswordModal({ isOpen, onClose }: EditPasswordModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+    <div className={`fixed inset-0 bg-black z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-60' : 'opacity-0'}`}>
+      <div ref={modalRef} className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl transform transition-all duration-300 border-2 border-gray-900 ring-2 ring-black">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Edit Password</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="text-gray-700 hover:text-gray-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -339,7 +399,7 @@ export function EditPasswordModal({ isOpen, onClose }: EditPasswordModalProps) {
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-black bg-white"
             />
           </div>
           <div>
@@ -348,7 +408,7 @@ export function EditPasswordModal({ isOpen, onClose }: EditPasswordModalProps) {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-black bg-white"
             />
           </div>
           <div>
@@ -357,21 +417,135 @@ export function EditPasswordModal({ isOpen, onClose }: EditPasswordModalProps) {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-black"
+              className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-black bg-white"
             />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors"
+          >
+            {loading ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface EditBirthdayModalProps {
+  isOpen: boolean
+  onClose: () => void
+  currentBirthday?: string
+  onSave: () => void
+}
+
+export function EditBirthdayModal({ isOpen, onClose, currentBirthday, onSave }: EditBirthdayModalProps) {
+  const [birthday, setBirthday] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      // Format birthday for date input (YYYY-MM-DD)
+      if (currentBirthday) {
+        const date = new Date(currentBirthday)
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const day = String(date.getDate()).padStart(2, '0')
+        setBirthday(`${year}-${month}-${day}`)
+      } else {
+        setBirthday('')
+      }
+      setError(null)
+    }
+  }, [isOpen, currentBirthday])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node) && isOpen) {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.body.style.overflow = 'unset'
+    }
+  }, [isOpen, onClose])
+
+  const handleSave = async () => {
+    if (!birthday) {
+      setError('Birthday is required')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    try {
+      await userService.updateProfile({ dateOfBirth: birthday })
+      onSave()
+      onClose()
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update birthday')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className={`fixed inset-0 bg-black z-50 flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-60' : 'opacity-0'}`}>
+      <div ref={modalRef} className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl transform transition-all duration-300 border-2 border-gray-900 ring-2 ring-black">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">{currentBirthday ? 'Edit Birthday' : 'Add Birthday'}</h2>
+          <button onClick={onClose} className="text-gray-700 hover:text-gray-900 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Birthday</label>
+            <input
+              type="date"
+              value={birthday}
+              onChange={(e) => setBirthday(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="w-full px-4 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-black bg-white"
+            />
+          </div>
+        </div>
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="flex-1 px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 disabled:opacity-50 transition-colors"
           >
             {loading ? 'Saving...' : 'Save'}
           </button>

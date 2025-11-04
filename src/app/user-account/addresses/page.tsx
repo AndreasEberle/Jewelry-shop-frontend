@@ -98,7 +98,7 @@ export default function AddressesPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mt-6">
             <h1 className="type-heading-3 text-content">ADDRESSES</h1>
             {!showAddAddress && (
               <button

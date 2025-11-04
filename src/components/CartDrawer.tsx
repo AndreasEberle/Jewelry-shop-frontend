@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Heart, Plus, Minus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { X, Heart, Plus, Minus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { useCart } from '@/contexts/CartContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { favoriteService } from '@/services/favoriteService'
@@ -23,6 +23,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { formatPrice } = useCurrency()
   const { config: freeShippingConfig } = useFreeShippingConfig()
   const [wishlistItems, setWishlistItems] = useState<any[]>([])
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [loadingWishlist, setLoadingWishlist] = useState(false)
   const [youMayAlsoLike, setYouMayAlsoLike] = useState<any[]>([])
   const [youMayAlsoLikeIndex, setYouMayAlsoLikeIndex] = useState(0)
@@ -33,6 +34,23 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const currentTotal = cart?.total || 0
   const amountNeeded = Math.max(0, FREE_SHIPPING_THRESHOLD - currentTotal)
   const progressPercentage = FREE_SHIPPING_THRESHOLD > 0 ? Math.min(100, (currentTotal / FREE_SHIPPING_THRESHOLD) * 100) : 0
+
+  // Load favorite IDs to check if cart items are favorited
+  useEffect(() => {
+    if (isAuthenticated && isOpen && cart && cart.items.length > 0) {
+      // Load favorite IDs to check if cart items are favorited
+      favoriteService.getFavoriteIds()
+        .then(ids => {
+          setFavoriteIds(new Set(ids))
+        })
+        .catch(error => {
+          console.error('Error loading favorite IDs:', error)
+          setFavoriteIds(new Set())
+        })
+    } else {
+      setFavoriteIds(new Set())
+    }
+  }, [isAuthenticated, isOpen, cart?.items.length])
 
   // Load wishlist count on mount and when authenticated/changes
   useEffect(() => {
@@ -171,13 +189,37 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
   const handleAddFromWishlist = async (product: any) => {
     try {
+      // Check availability before adding to cart
+      const availability = await productService.getProductAvailability(product.id)
+      
+      if (availability <= 0) {
+        alert('This item is currently out of stock and cannot be added to your cart.')
+        return
+      }
+      
+      // Add to cart
       await addToCart(product, 1)
+      
+      // Remove from wishlist
       await favoriteService.removeFromFavorites(product.id)
       setWishlistItems(wishlistItems.filter(item => item.id !== product.id))
+      setFavoriteIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(product.id)
+        return newSet
+      })
+      
       // Dispatch event to update header favorite count
       window.dispatchEvent(new Event('favoriteChanged'))
-    } catch (error) {
+      window.dispatchEvent(new CustomEvent('productUnfavorited', { detail: { productId: product.id } }))
+    } catch (error: any) {
       console.error('Error adding to cart:', error)
+      const errorMsg = error.response?.data?.message || error.message || 'Failed to add item to cart'
+      if (errorMsg.includes('stock') || errorMsg.includes('available')) {
+        alert('This item is no longer available in the requested quantity.')
+      } else {
+        alert('Failed to add item to cart. Please try again.')
+      }
     }
   }
 
@@ -211,7 +253,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         }`}
       >
         {/* Header */}
-        <div className="h-[55px] flex items-center justify-between px-4 border-b border-black">
+        <div className="h-[55px] flex items-center justify-end px-4">
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded"
@@ -232,7 +274,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               onClick={() => setActiveTab('bag')}
               className="w-full"
             >
-              <p className={`type-utility-1 text-content ${activeTab === 'bag' ? 'font-medium' : ''}`}>Bag ({bagItemCount})</p>
+              <p className={`type-utility-1 text-content ${activeTab === 'bag' ? 'font-bold' : 'font-medium'} uppercase`}>BAG ({bagItemCount})</p>
             </button>
           </li>
           <li className={`flex-1 text-center pb-3 ${activeTab === 'wishlist' ? 'border-b-2 border-black' : ''}`}>
@@ -244,7 +286,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               onClick={() => setActiveTab('wishlist')}
               className="w-full"
             >
-              <p className={`type-utility-1 text-content ${activeTab === 'wishlist' ? 'font-medium' : ''}`}>Wishlist ({wishlistCount})</p>
+              <p className={`type-utility-1 text-content ${activeTab === 'wishlist' ? 'font-bold' : 'font-medium'} uppercase`}>WISHLIST ({wishlistCount})</p>
             </button>
           </li>
         </ul>
@@ -297,6 +339,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       const primaryImage = item.product.images?.find(img => img.isPrimary) || item.product.images?.[0] || null
                       const hasSpecialOffer = item.product.specialOfferPrice && item.product.specialOfferPrice < item.product.price
                       const displayPrice = hasSpecialOffer ? item.product.specialOfferPrice! : item.product.price
+                      // Check if product is in wishlist using favorite IDs
+                      const isInWishlist = favoriteIds.has(item.product.id)
 
                       const isRemoving = removingItems.has(item.product.id)
                       
@@ -330,34 +374,40 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                           </div>
 
                           {/* Product Info */}
-                          <div className="flex flex-col justify-between min-w-0">
+                          <div className="flex flex-col justify-between min-w-0 text-[0.875rem]">
                             <div className="flex flex-col justify-start h-full">
                               <Link
                                 href={`/products/${item.product.slug || item.product.sku}`}
                                 onClick={onClose}
                                 className="pointer-events-auto transition-colors duration-300 hover:text-gray-600"
                               >
-                                <span className="type-heading-6 text-content font-bold" style={{ fontSize: '0.875rem' }}>{item.product.name}</span>
+                                <span className="type-heading-6 text-content font-bold">{item.product.name}</span>
                               </Link>
-                              <ul>
-                                {(item.product.material || item.product.color || item.product.finish) && (
-                                  <li>
-                                    <p className="type-body-3 text-content" style={{ fontSize: '0.875rem' }}>
-                                      {item.product.material || item.product.color || item.product.finish || 'N/A'}
-                                    </p>
-                                  </li>
+                              <div className="text-[0.750rem] space-y-0.5 mt-1" style={{ fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}>
+                                {item.product.material && (
+                                  <p className="text-content">
+                                    {item.product.material}
+                                  </p>
                                 )}
-                                <li>
-                                  <p className="type-body-3 text-content mt-1" style={{ fontSize: '0.875rem' }}>
+                                {item.product.ringSize && (
+                                  <p className="text-content">
+                                    Size: {item.product.ringSize}
+                                  </p>
+                                )}
+                                {item.product.chainLength && (
+                                  <p className="text-content">
+                                    Length: {item.product.chainLength}
+                                    </p>
+                                )}
+                                <p className="text-content">
                                     In Stock
                                   </p>
-                                </li>
-                              </ul>
+                              </div>
                             </div>
 
                             {/* Quantity Selector */}
                             <div className="flex justify-between gap-2 items-center mt-2">
-                              <div className="border border-gray-300 rounded flex items-center justify-between w-[120px] h-[44px] text-sm bg-white">
+                              <div className="border border-gray-300 rounded flex items-center justify-between w-[100px] h-[36px] text-sm bg-white">
                                 <button
                                   onClick={async () => {
                                     const itemId = item.id || item.product.id
@@ -380,7 +430,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                 >
                                   —
                                 </button>
-                                <span className="flex-1 text-center font-medium text-gray-900 min-w-[30px]">
+                                <span className="flex-1 text-center font-medium text-gray-900 min-w-[30px]" style={{ fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}>
                                   {item.quantity}
                                 </span>
                                 <button
@@ -390,20 +440,27 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                   }}
                                   disabled={(() => {
                                     // Get available quantity for this product
+                                    // productAvailability excludes our cart reservations, so it shows what's available to others
+                                    // To know what we can add, we need: availableQty (what's left excluding our cart) + item.quantity (what we have) = total available
+                                    // Then we can add up to: total available - item.quantity = availableQty
                                     const availableQty = productAvailability[item.product.id] ?? 
                                       (item.product.availableQuantity !== undefined && item.product.availableQuantity !== null && item.product.availableQuantity > 0
                                         ? item.product.availableQuantity 
                                         : (item.product.quantity !== undefined && item.product.quantity !== null ? item.product.quantity : 0))
-                                    // Disable if we already have all available stock
-                                    return availableQty <= item.quantity
+                                    // availableQty excludes our cart, so if we have item.quantity and availableQty is what's left,
+                                    // we can add up to availableQty more (total would be item.quantity + availableQty)
+                                    // Disable if we can't add any more (availableQty is 0 or less)
+                                    return availableQty <= 0
                                   })()}
                                   className={`px-2 h-full flex items-center justify-center rounded-r ${
                                     (() => {
+                                      // productAvailability excludes our cart reservations
                                       const availableQty = productAvailability[item.product.id] ?? 
                                         (item.product.availableQuantity !== undefined && item.product.availableQuantity !== null && item.product.availableQuantity > 0
                                           ? item.product.availableQuantity 
                                           : (item.product.quantity !== undefined && item.product.quantity !== null ? item.product.quantity : 0))
-                                      return availableQty <= item.quantity
+                                      // availableQty is what's left excluding our cart, so disable if we can't add any more
+                                      return availableQty <= 0
                                     })()
                                       ? 'opacity-50 cursor-not-allowed text-gray-400'
                                       : 'hover:bg-gray-100 text-gray-900'
@@ -420,15 +477,15 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             <div className="flex flex-col items-end mb-2">
                               {hasSpecialOffer ? (
                                 <>
-                                  <span className="type-body-3 text-content font-medium" style={{ fontSize: '0.875rem' }}>
+                                  <span className="type-body-3 text-content font-medium" style={{ fontSize: '0.875rem', fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}>
                                     {formatPrice(displayPrice * item.quantity)}
                                   </span>
-                                  <span className="type-body-3 text-content line-through text-gray-400 mt-1" style={{ fontSize: '0.875rem' }}>
+                                  <span className="type-body-3 text-content line-through text-gray-400 mt-1" style={{ fontSize: '0.875rem', fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}>
                                     {formatPrice(item.product.price * item.quantity)}
                                   </span>
                                 </>
                               ) : (
-                                <span className="type-body-3 text-content font-medium" style={{ fontSize: '0.875rem' }}>
+                                <span className="type-body-3 text-content font-medium" style={{ fontSize: '0.875rem', fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}>
                                   {formatPrice(displayPrice * item.quantity)}
                                 </span>
                               )}
@@ -438,7 +495,14 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                 <button
                                   onClick={async () => {
                                     try {
+                                      // Add to wishlist
                                       await favoriteService.addToFavorites(item.product.id)
+                                      // Update local state
+                                      setFavoriteIds(prev => new Set(prev).add(item.product.id))
+                                      const favorites = await favoriteService.getFavorites()
+                                      setWishlistItems(Array.isArray(favorites) ? favorites : [])
+                                      
+                                      // Remove from cart
                                       const itemId = item.id || item.product.id
                                       setRemovingItems(prev => new Set(prev).add(item.product.id))
                                       setTimeout(async () => {
@@ -448,9 +512,11 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                           newSet.delete(item.product.id)
                                           return newSet
                                         })
-                                        // Dispatch event to update header favorite count
-                                        window.dispatchEvent(new Event('favoriteChanged'))
                                       }, 700)
+                                      
+                                      // Dispatch events to update header favorite count and product page wishlist icon
+                                      window.dispatchEvent(new Event('favoriteChanged'))
+                                      window.dispatchEvent(new CustomEvent('productFavorited', { detail: { productId: item.product.id } }))
                                     } catch (error) {
                                       console.error('Error moving to wishlist:', error)
                                       setRemovingItems(prev => {
@@ -458,9 +524,11 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                         newSet.delete(item.product.id)
                                         return newSet
                                       })
+                                      alert('Failed to move to wishlist. Please try again.')
                                     }
                                   }}
                                   className="type-utility-1 mixed-case font-normal text-gray-600 hover:text-black transition-colors underline text-xs whitespace-nowrap"
+                                  style={{ fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}
                                 >
                                   Move to wishlist
                                 </button>
@@ -479,9 +547,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                     })
                                   }, 700) // Match animation duration
                                 }}
-                                className="type-utility-1 font-normal mixed-case text-gray-600 hover:text-black transition-colors underline text-xs whitespace-nowrap"
+                                className="p-2 hover:bg-gray-100 rounded transition-colors"
+                                aria-label="Remove from cart"
                               >
-                                Remove
+                                <Trash2 className="w-5 h-5 text-gray-600 hover:text-black transition-colors" />
                               </button>
                             </div>
                           </div>
@@ -506,7 +575,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         {currentProduct && (
                           <div className="px-4 md:px-6">
                             <div className="border border-gray-300 w-full h-[160px] relative">
-                              <div className="grid gap-3 grid-cols-[120px_1fr] h-full p-2">
+                              <div 
+                                key={currentProduct.id}
+                                className="grid gap-3 grid-cols-[120px_1fr] h-full p-2 animate-fade-in"
+                              >
                                 <div className="h-full w-full relative overflow-hidden">
                                   {(() => {
                                     const primaryImage = currentProduct.images?.find(img => img.isPrimary) || currentProduct.images?.[0] || null
@@ -525,20 +597,32 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                     )
                                   })()}
                                 </div>
-                                <div className="flex flex-col justify-between ml-0 h-full">
+                                <div className="flex flex-col justify-between ml-0 h-full text-[0.875rem]">
                                   <div>
                                     <Link
                                       href={`/products/${currentProduct.slug || currentProduct.sku}`}
                                       onClick={onClose}
-                                      className="type-heading-6 uppercase tracking-normal hover:text-gray-600 mb-1 block line-clamp-2"
+                                      className="type-heading-6 uppercase tracking-normal hover:text-gray-600 mb-1 block line-clamp-2 font-bold"
                                     >
                                       {currentProduct.name}
                                     </Link>
-                                    {(currentProduct.material || currentProduct.color || currentProduct.finish) && (
-                                      <p className="type-caption text-content">
-                                        {currentProduct.material || currentProduct.color || currentProduct.finish || 'N/A'}
+                                    <div className="text-[0.750rem] space-y-0.5">
+                                      {currentProduct.material && (
+                                        <p className="text-content">
+                                          Material: {currentProduct.material}
+                                        </p>
+                                      )}
+                                      {currentProduct.ringSize && (
+                                        <p className="text-content">
+                                          Size: {currentProduct.ringSize}
+                                        </p>
+                                      )}
+                                      {currentProduct.chainLength && (
+                                        <p className="text-content">
+                                          Length: {currentProduct.chainLength}
                                       </p>
                                     )}
+                                    </div>
                                   </div>
                                   <div className="flex flex-col items-end mt-auto">
                                     <span className="type-body-3 text-content mb-2">
@@ -635,64 +719,88 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     return (
                       <li
                         key={item.id}
-                        className="pb-4 border-b border-gray-200 pt-4 grid gap-2 md:gap-4 grid-cols-[25%_1fr_100px]"
+                        className="pb-4 border-b border-gray-200 pt-4 grid gap-2 md:gap-4 grid-cols-[140px_1fr_100px] transition-all duration-700 ease-in-out opacity-100 scale-100 translate-x-0"
+                        data-testid="wishlist-line-item"
                       >
-                        <div className="w-full relative overflow-hidden h-fit">
-                          <Link href={`/products/${item.slug || item.sku}`} onClick={onClose}>
+                        {/* Image */}
+                        <div className="w-full aspect-square relative overflow-hidden">
+                          <Link href={`/products/${item.slug || item.sku}`} onClick={onClose} className="block w-full h-full">
                             {primaryImage ? (
                               <Image
                                 src={primaryImage.url}
                                 alt={primaryImage.altText || item.name}
-                                width={100}
-                                height={120}
-                                className="w-full h-auto object-cover"
-                                sizes="100px"
+                                width={140}
+                                height={140}
+                                className="w-full h-full object-contain"
+                                sizes="140px"
+                                unoptimized
                               />
                             ) : (
-                              <div className="w-full aspect-square bg-gray-100 flex items-center justify-center">
-                                <span className="text-gray-400">No Image</span>
+                              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                                <span className="text-gray-400 text-xs">No Image</span>
                               </div>
                             )}
                           </Link>
                         </div>
 
-                        <div className="flex flex-col justify-between min-w-0">
+                        {/* Product Info */}
+                        <div className="flex flex-col justify-between min-w-0 text-[0.875rem]">
                           <div className="flex flex-col justify-start h-full">
                             <Link
                               href={`/products/${item.slug || item.sku}`}
                               onClick={onClose}
-                              className="type-heading-6 text-content hover:text-gray-600"
+                              className="pointer-events-auto transition-colors duration-300 hover:text-gray-600"
                             >
-                              {item.name}
+                              <span className="type-heading-6 text-content font-bold">{item.name}</span>
                             </Link>
-                            <ul>
-                              {(item.material || item.color || item.finish) && (
-                                <li>
-                                  <p className="type-body-3 text-content">{item.material || item.color || item.finish || 'N/A'}</p>
-                                </li>
+                            <div className="text-[0.750rem] space-y-0.5 mt-1" style={{ fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}>
+                              {item.material && (
+                                <p className="text-content">
+                                  {item.material}
+                                </p>
                               )}
-                            </ul>
+                              {item.ringSize && (
+                                <p className="text-content">
+                                  Size: {item.ringSize}
+                                </p>
+                              )}
+                              {item.chainLength && (
+                                <p className="text-content">
+                                  Length: {item.chainLength}
+                                </p>
+                              )}
+                              <p className="text-content">
+                                In Stock
+                              </p>
+                            </div>
+
+                            {/* Add to bag button */}
+                            <div className="flex justify-between gap-2 items-center mt-auto">
+                              <button
+                                onClick={() => handleAddFromWishlist(item)}
+                                className="pointer-events-auto ease-ease inline-block uppercase text-center outline-none disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-all duration-300 ease-ease shrink-0 py-2 px-6 border border-black bg-gray-100 text-black hover:bg-[#8a9a8a] hover:text-white"
+                                style={{ fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400, borderWidth: '1px' }}
+                              >
+                                Add to bag
+                              </button>
+                            </div>
                           </div>
                         </div>
 
+                        {/* Price & Actions */}
                         <div className="flex flex-col justify-between items-end">
-                          <div className="flex flex-col items-end">
-                            <span className="type-body-3 text-content">
+                          <div className="flex flex-col items-end mb-2">
+                            <span className="type-body-3 text-content font-medium" style={{ fontSize: '0.875rem', fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}>
                               {formatPrice(displayPrice)}
                             </span>
                           </div>
-                          <div className="flex justify-end w-full mt-2">
-                            <button
-                              onClick={() => handleAddFromWishlist(item)}
-                              className="type-utility-1 font-normal mixed-case text-gray-600 hover:text-black transition-colors underline mr-4"
-                            >
-                              Add to bag
-                            </button>
+                          <div className="flex justify-end items-center w-full">
                             <button
                               onClick={() => handleRemoveFromWishlist(item.id)}
-                              className="type-utility-1 font-normal mixed-case text-gray-600 hover:text-black transition-colors underline"
+                              className="p-2 hover:bg-gray-100 rounded transition-colors"
+                              aria-label="Remove from wishlist"
                             >
-                              Remove
+                              <Trash2 className="w-5 h-5 text-gray-600 hover:text-black transition-colors" />
                             </button>
                           </div>
                         </div>

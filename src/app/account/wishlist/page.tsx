@@ -76,7 +76,7 @@ export default function AdminWishlistPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <h1 className="type-heading-3 text-content" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>WISHLIST</h1>
+          <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>WISHLIST</h1>
           
           {loading && (
             <div className="flex items-center justify-center py-12">

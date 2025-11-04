@@ -96,7 +96,10 @@ export function EnhancedFeaturedProductsCarousel({
   }, [])
 
   const handleToggleFavorite = async (productId: string) => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      window.dispatchEvent(new CustomEvent('openAuthModal', { detail: { mode: 'login' } }))
+      return
+    }
 
     setTogglingFavorite(productId)
     try {

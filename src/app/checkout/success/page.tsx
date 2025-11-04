@@ -17,13 +17,14 @@ interface Order {
   currency: string
   createdAt: string
   items: Array<{
-    product: {
-      id: string
-      name: string
-      images?: Array<{ url: string; altText?: string }>
-    }
+    id: string
+    productId: string
+    productName: string
+    productSlug?: string
+    productImageUrl?: string
     quantity: number
-    price: number
+    unitPrice: number
+    totalPrice: number
   }>
   shippingAddress?: {
     street: string
@@ -157,23 +158,32 @@ export default function CheckoutSuccessPage() {
               <h3 className="text-md font-semibold text-gray-900 mb-4">Order Items</h3>
               <div className="space-y-4">
                 {order.items.map((item, index) => {
-                  const primaryImage = item.product.images?.[0]
                   return (
-                    <div key={index} className="flex gap-4">
-                      {primaryImage && (
-                        <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded overflow-hidden">
+                    <div key={item.id || index} className="flex gap-4">
+                      {item.productImageUrl ? (
+                        <Link href={item.productSlug ? `/products/${item.productSlug}` : '#'} className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded overflow-hidden hover:opacity-80 transition-opacity">
                           <img
-                            src={primaryImage.url}
-                            alt={primaryImage.altText || item.product.name}
+                            src={item.productImageUrl}
+                            alt={item.productName}
                             className="w-full h-full object-cover"
                           />
+                        </Link>
+                      ) : (
+                        <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                          <Package className="w-8 h-8 text-gray-400" />
                         </div>
                       )}
                       <div className="flex-1">
-                        <p className="font-medium text-gray-900">{item.product.name}</p>
+                        {item.productSlug ? (
+                          <Link href={`/products/${item.productSlug}`} className="font-medium text-gray-900 hover:text-gray-600 transition-colors block">
+                            {item.productName}
+                          </Link>
+                        ) : (
+                          <p className="font-medium text-gray-900">{item.productName}</p>
+                        )}
                         <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                         <p className="text-sm font-medium text-gray-900 mt-1">
-                          {order.currency} {(item.price * item.quantity).toFixed(2)}
+                          {order.currency} {(item.totalPrice || (item.unitPrice * item.quantity)).toFixed(2)}
                         </p>
                       </div>
                     </div>
