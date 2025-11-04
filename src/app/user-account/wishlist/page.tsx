@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { AccountLayout } from '@/components/account/AccountLayout'
@@ -20,13 +22,21 @@ interface Product {
 }
 
 export default function WishlistPage() {
+  const router = useRouter()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    loadWishlist()
-  }, [])
+    if (!authLoading && !isAuthenticated) {
+      router.push('/')
+      return
+    }
+    if (isAuthenticated) {
+      loadWishlist()
+    }
+  }, [isAuthenticated, authLoading, router])
 
   const loadWishlist = async () => {
     try {

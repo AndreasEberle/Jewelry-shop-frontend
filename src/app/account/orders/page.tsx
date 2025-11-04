@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { AccountLayout } from '@/components/account/AccountLayout'
 import api from '@/services/api'
-import { Package, Calendar, DollarSign, CheckCircle2, Circle, Truck, Clock } from 'lucide-react'
+import { Package, Calendar, DollarSign, CheckCircle2, Circle, Truck, Clock, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
 
 interface Order {
@@ -15,7 +15,7 @@ interface Order {
   totalAmount: number
   currency?: string
   orderDate?: string | null
-  createdAt?: string | OffsetDateTime | null
+  createdAt?: string | null
   updatedAt?: string | null
   items: OrderItem[]
   customerEmail?: string
@@ -49,109 +49,238 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedShipping, setExpandedShipping] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    loadOrders()
-  }, [])
+  // Calculate estimated delivery date (working days, skip weekends)
+  const calculateEstimatedDeliveryDate = (orderDate: Date | null, estimatedDays: number): Date | null => {
+    if (!orderDate || !estimatedDays) return null
+    
+    let currentDate = new Date(orderDate)
+    let workingDaysAdded = 0
+    
+    while (workingDaysAdded < estimatedDays) {
+      currentDate.setDate(currentDate.getDate() + 1)
+      const dayOfWeek = currentDate.getDay()
+      // Skip weekends (Saturday = 6, Sunday = 0)
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        workingDaysAdded++
+      }
+    }
+    
+    return currentDate
+  }
 
-  const loadOrders = async () => {
+  // Helper to get order date as Date object
+  const getOrderDate = (order: Order): Date | null => {
     try {
-      setLoading(true)
-      const response = await api.get('/api/orders', {
-        params: {
-          page: 0,
-          size: 50,
-          sortBy: 'orderDate',
-          sortDir: 'desc'
-        }
-      })
+      const dateStr = order.orderDate || order.createdAt
+      if (!dateStr) return null
       
-      // Handle paginated response (Page) or direct array
-      let ordersData = []
-      if (response.data.content) {
-        // It's a Page object
-        ordersData = response.data.content
-      } else if (Array.isArray(response.data)) {
-        // It's a direct array
-        ordersData = response.data
-      }
-      
-      console.log('Loaded orders:', ordersData)
-      // Log first order to debug structure
-      if (ordersData.length > 0) {
-        console.log('First order structure:', JSON.stringify(ordersData[0], null, 2))
-        console.log('First order createdAt:', ordersData[0].createdAt)
-        console.log('First order items:', ordersData[0].items)
-        if (ordersData[0].items && ordersData[0].items.length > 0) {
-          console.log('First item:', ordersData[0].items[0])
-        }
-      }
-      setOrders(ordersData)
-    } catch (err: any) {
-      // If regular orders endpoint fails, try admin endpoint
-      try {
-        const adminResponse = await api.get('/api/admin/orders', {
-          params: {
-            page: 0,
-            size: 50,
-            sortBy: 'createdAt',
-            sortOrder: 'desc'
+      if (Array.isArray(dateStr)) {
+        return new Date(dateStr[0], dateStr[1] - 1, dateStr[2], dateStr[3] || 0, dateStr[4] || 0, dateStr[5] || 0)
+      } else if (typeof dateStr === 'number') {
+        return new Date(dateStr < 1000000000000 ? dateStr * 1000 : dateStr)
+      } else if (typeof dateStr === 'string') {
+        if (dateStr.includes(',')) {
+          const parts = dateStr.split(',').map(p => parseInt(p.trim(), 10))
+          if (parts.length >= 3) {
+            return new Date(parts[0], parts[1] - 1, parts[2], parts[3] || 0, parts[4] || 0, parts[5] || 0)
           }
-        })
-        const ordersData = adminResponse.data.content || adminResponse.data || []
-        setOrders(Array.isArray(ordersData) ? ordersData : [])
-      } catch (adminErr: any) {
-        setError(adminErr.response?.data?.message || 'Failed to load orders')
-        console.error('Error loading orders:', adminErr)
+        }
+        const numericValue = parseFloat(dateStr)
+        if (!isNaN(numericValue) && dateStr.trim().match(/^\d+\.?\d*$/)) {
+          return new Date(numericValue < 1000000000000 ? numericValue * 1000 : numericValue)
+        }
+        return new Date(dateStr)
       }
-    } finally {
-      setLoading(false)
+      return null
+    } catch {
+      return null
     }
   }
 
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        setLoading(true)
+        const response = await api.get('/api/orders', {
+          params: {
+            page: 0,
+            size: 50,
+            sortBy: 'orderDate',
+            sortDir: 'desc'
+          }
+        })
+        
+        // Handle paginated response (Page) or direct array
+        let ordersData = []
+        if (response.data.content) {
+          ordersData = response.data.content
+        } else if (Array.isArray(response.data)) {
+          ordersData = response.data
+        }
+        
+        setOrders(ordersData)
+      } catch (err: any) {
+        // If regular orders endpoint fails, try admin endpoint
+        try {
+          const adminResponse = await api.get('/api/admin/orders', {
+            params: {
+              page: 0,
+              size: 50,
+              sortBy: 'createdAt',
+              sortOrder: 'desc'
+            }
+          })
+          const ordersData = adminResponse.data.content || adminResponse.data || []
+          setOrders(Array.isArray(ordersData) ? ordersData : [])
+        } catch (adminErr: any) {
+          setError(adminErr.response?.data?.message || 'Failed to load orders')
+          console.error('Error loading orders:', adminErr)
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadOrders()
+  }, [])
+
   const formatDate = (dateString: string | null | undefined | any) => {
-    if (!dateString) return 'N/A'
+    console.log('[formatDate DEBUG] Input:', dateString, 'Type:', typeof dateString, 'Is array?', Array.isArray(dateString), 'Is object?', typeof dateString === 'object' && dateString !== null)
+    if (!dateString && dateString !== 0) {
+      console.log('[formatDate DEBUG] No dateString provided, returning N/A')
+      return 'N/A'
+    }
     try {
       let date: Date
-      if (typeof dateString === 'string') {
-        // Handle OffsetDateTime format (e.g., "2024-01-15T10:30:00+01:00" or "2024-01-15T10:30:00Z")
-        // Also handle LocalDateTime format (e.g., "2024-01-15T10:30:00")
-        date = new Date(dateString)
+      // Handle array format like [2025, 11, 4, 21, 18, 15, 152971000]
+      if (Array.isArray(dateString)) {
+        console.log('[formatDate DEBUG] Array input:', dateString)
+        if (dateString.length >= 3) {
+          const year = dateString[0]
+          const month = dateString[1] - 1 // JavaScript months are 0-indexed
+          const day = dateString[2]
+          const hour = dateString[3] || 0
+          const minute = dateString[4] || 0
+          const second = dateString[5] || 0
+          date = new Date(year, month, day, hour, minute, second)
+          console.log('[formatDate DEBUG] Created Date from array:', date, 'Valid?', !isNaN(date.getTime()))
+        } else {
+          console.log('[formatDate DEBUG] Array too short, returning N/A')
+          return 'N/A'
+        }
+      } else if (typeof dateString === 'number') {
+        // Handle Unix timestamp (seconds or milliseconds)
+        console.log('[formatDate DEBUG] Number input (timestamp):', dateString)
+        // Check if it's in seconds (less than year 2000 in milliseconds) or milliseconds
+        // Year 2000 in milliseconds: 946684800000
+        // Year 2000 in seconds: 946684800
+        // If less than 1e12, it's likely seconds
+        if (dateString < 1000000000000) {
+          // Likely in seconds, convert to milliseconds
+          date = new Date(dateString * 1000)
+          console.log('[formatDate DEBUG] Converted seconds to milliseconds, created Date:', date, 'Valid?', !isNaN(date.getTime()))
+        } else {
+          // Likely already in milliseconds
+          date = new Date(dateString)
+          console.log('[formatDate DEBUG] Created Date from milliseconds:', date, 'Valid?', !isNaN(date.getTime()))
+        }
+      } else if (typeof dateString === 'string') {
+        console.log('[formatDate DEBUG] String input:', dateString)
+        // Check if it's a numeric string (timestamp)
+        const numericValue = parseFloat(dateString)
+        if (!isNaN(numericValue) && dateString.trim().match(/^\d+\.?\d*$/)) {
+          // It's a numeric string representing a timestamp
+          console.log('[formatDate DEBUG] Detected numeric string timestamp:', numericValue)
+          if (numericValue < 1000000000000) {
+            // Likely in seconds
+            date = new Date(numericValue * 1000)
+            console.log('[formatDate DEBUG] Converted string seconds to milliseconds, created Date:', date)
+          } else {
+            // Likely in milliseconds
+            date = new Date(numericValue)
+            console.log('[formatDate DEBUG] Created Date from string milliseconds:', date)
+          }
+        } else if (dateString.includes(',') && dateString.match(/^\d+,\d+,\d+/)) {
+          // Handle comma-separated format like "2025,11,4,21,18,15,152971000"
+          console.log('[formatDate DEBUG] Detected comma-separated date format')
+          const parts = dateString.split(',').map(p => parseInt(p.trim(), 10))
+          if (parts.length >= 3) {
+            // year, month, day, hour, minute, second, nano
+            const year = parts[0]
+            const month = parts[1] - 1 // JavaScript months are 0-indexed
+            const day = parts[2]
+            const hour = parts[3] || 0
+            const minute = parts[4] || 0
+            const second = parts[5] || 0
+            date = new Date(year, month, day, hour, minute, second)
+            console.log('[formatDate DEBUG] Created Date from comma-separated format:', date, 'Valid?', !isNaN(date.getTime()))
+          } else {
+            console.log('[formatDate DEBUG] Invalid comma-separated format, not enough parts')
+            return 'N/A'
+          }
+        } else {
+          // Handle format like "2025-11-04 15:02:08.807" (space-separated)
+          if (dateString.includes(' ') && !dateString.includes('T')) {
+            dateString = dateString.replace(' ', 'T')
+            console.log('[formatDate DEBUG] Converted space to T:', dateString)
+          }
+          // Handle OffsetDateTime format (e.g., "2024-01-15T10:30:00+01:00" or "2024-01-15T10:30:00Z")
+          // Also handle LocalDateTime format (e.g., "2024-01-15T10:30:00")
+          date = new Date(dateString)
+          console.log('[formatDate DEBUG] Created Date from string:', date, 'Valid?', !isNaN(date.getTime()))
+        }
       } else if (dateString instanceof Date) {
+        console.log('[formatDate DEBUG] Already a Date object:', dateString)
         date = dateString
       } else if (dateString && typeof dateString === 'object') {
+        console.log('[formatDate DEBUG] Object input:', JSON.stringify(dateString))
         // Handle OffsetDateTime/LocalDateTime object from backend (Jackson serialization)
         // Try common object formats
         if (dateString.year && dateString.month && dateString.day) {
           date = new Date(dateString.year, dateString.month - 1, dateString.day, 
             dateString.hour || 0, dateString.minute || 0, dateString.second || 0)
-        } else if (dateString.toString && typeof dateString.toString === 'function') {
-          // Try toString method if available
-          try {
-            date = new Date(dateString.toString())
-          } catch {
-            return 'N/A'
-          }
+          console.log('[formatDate DEBUG] Created Date from object with year/month/day:', date)
         } else if (dateString.epochSecond !== undefined) {
           // Handle Java Instant format
           date = new Date(dateString.epochSecond * 1000)
+          console.log('[formatDate DEBUG] Created Date from epochSecond:', date)
+        } else if (dateString.toString && typeof dateString.toString === 'function') {
+          // Try toString method if available
+          try {
+            const dateStr = dateString.toString()
+            console.log('[formatDate DEBUG] Object toString() result:', dateStr)
+            date = new Date(dateStr)
+            console.log('[formatDate DEBUG] Created Date from toString():', date)
+          } catch {
+            console.log('[formatDate DEBUG] toString() failed, returning N/A')
+            return 'N/A'
+          }
         } else {
+          console.log('[formatDate DEBUG] Object format not recognized, returning N/A. Object keys:', Object.keys(dateString))
           return 'N/A'
         }
       } else {
+        console.log('[formatDate DEBUG] Unknown type, returning N/A')
         return 'N/A'
       }
       
-      if (isNaN(date.getTime()) || date.getTime() === 0) return 'N/A'
-      return date.toLocaleDateString('en-US', {
+      if (isNaN(date.getTime()) || date.getTime() === 0) {
+        console.log('[formatDate DEBUG] Invalid date (NaN or zero), returning N/A. Date value:', date)
+        return 'N/A'
+      }
+      const formatted = date.toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
       })
+      console.log('[formatDate DEBUG] Formatted result:', formatted)
+      return formatted
     } catch (error) {
-      console.error('Error formatting date:', dateString, error)
+      console.error('[formatDate DEBUG] Error formatting date:', dateString, error)
       return 'N/A'
     }
   }
@@ -179,6 +308,27 @@ export default function AdminOrdersPage() {
       style: 'currency',
       currency: currencyCode
     }).format(amount)
+  }
+
+  const handleDownloadInvoice = async (orderId: string, orderNumber: string) => {
+    try {
+      const response = await api.get(`/api/orders/${orderId}/invoice`, {
+        responseType: 'blob'
+      })
+      
+      // Create a blob and download it
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `Invoice_${orderNumber}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Failed to download invoice:', error)
+      alert('Failed to download invoice. Please try again.')
+    }
   }
 
   const getStatusColor = (status: string) => {
@@ -226,9 +376,14 @@ export default function AdminOrdersPage() {
 
           {!loading && !error && orders.length > 0 && (
             <div className="space-y-6">
-              {orders.map((order) => (
-                <div key={order.id} className="border-b border-black pb-6 last:border-b-0">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+              {orders.map((order) => {
+                const orderDate = getOrderDate(order)
+                const estimatedDeliveryDate = orderDate ? calculateEstimatedDeliveryDate(orderDate, order.estimatedDeliveryDays || 4) : null
+                const isShippingExpanded = expandedShipping[order.id] || false
+                
+                return (
+                  <div key={order.id} className="border-b border-black pb-6 last:border-b-0">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                     <div>
                       <h2 className="type-heading-6 text-content mb-2" style={{ fontWeight: 'bold' }}>
                         Order #{order.orderNumber || order.id.substring(0, 8)}
@@ -236,17 +391,26 @@ export default function AdminOrdersPage() {
                       <div className="flex items-center gap-4 text-sm text-content">
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4" />
-                          <span>{formatDate(order.createdAt || order.orderDate)}</span>
+                          <span>{formatDate(order.orderDate || order.createdAt)}</span>
                         </div>
                         <span className={`font-semibold ${getStatusColor(order.status)}`}>
                           {order.status}
                         </span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col items-end gap-2">
                       <span className="type-heading-6 text-content" style={{ fontWeight: 'bold' }}>
                         {formatCurrency(order.totalAmount, order.currency || 'CHF')}
                       </span>
+                      {(order.status === 'CONFIRMED' || order.status === 'PROCESSING' || order.status === 'SHIPPED' || order.status === 'DELIVERED') && (
+                        <button
+                          onClick={() => handleDownloadInvoice(order.id, order.orderNumber || order.id.substring(0, 8))}
+                          className="flex items-center gap-2 px-4 py-2 border border-black text-black hover:bg-gray-100 transition-colors text-sm"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Download Invoice</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -353,46 +517,84 @@ export default function AdminOrdersPage() {
                     </div>
                   )}
                   
-                  {/* Tracking Information */}
-                  {(order.trackingNumber || order.trackingLink) && (
-                    <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h3 className="font-semibold text-content mb-3">Shipping Information</h3>
-                      {order.trackingLink ? (
-                        <div className="space-y-2">
-                          <a 
-                            href={order.trackingLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center text-base text-blue-600 hover:text-blue-800 underline font-medium"
-                          >
-                            Track Your Order →
-                          </a>
-                          {order.trackingNumber && (
+                  {/* Tracking Information - Collapsible */}
+                  {(order.trackingNumber || order.trackingLink || order.estimatedDeliveryDays) && (
+                    <div className="mt-6 border border-gray-200 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setExpandedShipping(prev => ({
+                          ...prev,
+                          [order.id]: !prev[order.id]
+                        }))}
+                        className="w-full p-4 bg-blue-50 border-b border-blue-200 flex items-center justify-between hover:bg-blue-100 transition-colors"
+                      >
+                        <h3 className="font-semibold text-content">Shipping Information</h3>
+                        {isShippingExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-content" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-content" />
+                        )}
+                      </button>
+                      {isShippingExpanded && (
+                        <div className="p-4 bg-white space-y-3">
+                          {order.trackingLink ? (
+                            <div className="space-y-2">
+                              <a 
+                                href="#"
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center text-base text-blue-600 hover:text-blue-800 underline font-medium"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  if (!order.trackingLink) return
+                                  const trackingUrl = order.trackingLink.startsWith('http://') || order.trackingLink.startsWith('https://') 
+                                    ? order.trackingLink 
+                                    : order.trackingLink.startsWith('//')
+                                    ? `https:${order.trackingLink}`
+                                    : `https://${order.trackingLink}`
+                                  window.open(trackingUrl, '_blank', 'noopener,noreferrer')
+                                }}
+                              >
+                                Track Your Order →
+                              </a>
+                              {order.trackingNumber && (
+                                <p className="text-sm text-content">
+                                  <span className="font-medium">Tracking Number:</span> <span className="font-mono">{order.trackingNumber}</span>
+                                  {order.carrier && (
+                                    <span className="ml-2 opacity-75">({order.carrier})</span>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          ) : order.trackingNumber ? (
                             <p className="text-sm text-content">
                               <span className="font-medium">Tracking Number:</span> <span className="font-mono">{order.trackingNumber}</span>
                               {order.carrier && (
                                 <span className="ml-2 opacity-75">({order.carrier})</span>
                               )}
                             </p>
+                          ) : null}
+                          {estimatedDeliveryDate && (
+                            <p className="text-sm text-content mt-3">
+                              <span className="font-medium">Estimated delivery:</span>{' '}
+                              {estimatedDeliveryDate.toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                              {order.estimatedDeliveryDays && (
+                                <span className="ml-2 opacity-75">
+                                  ({order.estimatedDeliveryDays} working {order.estimatedDeliveryDays === 1 ? 'day' : 'days'})
+                                </span>
+                              )}
+                            </p>
                           )}
                         </div>
-                      ) : order.trackingNumber ? (
-                        <p className="text-sm text-content">
-                          <span className="font-medium">Tracking Number:</span> <span className="font-mono">{order.trackingNumber}</span>
-                          {order.carrier && (
-                            <span className="ml-2 opacity-75">({order.carrier})</span>
-                          )}
-                        </p>
-                      ) : null}
-                      {order.estimatedDeliveryDays && (
-                        <p className="text-sm text-content mt-3">
-                          <span className="font-medium">Estimated delivery:</span> {order.estimatedDeliveryDays} {order.estimatedDeliveryDays === 1 ? 'day' : 'days'}
-                        </p>
                       )}
                     </div>
                   )}
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

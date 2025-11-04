@@ -31,6 +31,7 @@ export interface RegisterData {
   countryCode?: string
   dateOfBirth?: string
   gender?: string
+  newsletterSubscribed?: boolean
   address?: {
     street: string
     city: string
@@ -139,6 +140,20 @@ export const authService = {
     }
     
     return data
+  },
+
+  // Forgot password - request password reset
+  async forgotPassword(email: string): Promise<void> {
+    await api.post('/api/auth/forgot-password', null, {
+      params: { email }
+    })
+  },
+
+  // Reset password with token
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    await api.post('/api/auth/reset-password', null, {
+      params: { token, newPassword }
+    })
   }
 }
 

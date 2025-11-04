@@ -18,6 +18,7 @@ import { favoriteService } from '@/services/favoriteService'
 import { AccountDropdown } from '@/components/AccountDropdown'
 import { CartDrawer } from '@/components/CartDrawer'
 import { useCurrencyConfig } from '@/hooks/useCurrencyConfig'
+import { useOrderStats } from '@/hooks/useOrderStats'
 
 interface HeaderProps {
   backgroundImage?: string | null
@@ -41,15 +42,41 @@ export function Header({ backgroundImage }: HeaderProps) {
     setAuthMode('login')
   }
 
-  const { user, isAuthenticated, isLoading, logout } = useAuth()
+  const { user, isAuthenticated, logout } = useAuth()
   const { itemCount } = useCart()
-  const { brandingConfig, getShopNameStyle, getLogoStyle } = useBranding()
+  const { brandingConfig, loading: brandingLoading, getShopNameStyle, getLogoStyle } = useBranding()
   const { navbarName } = usePageTitle()
   const { getBackgroundStyle, getTextStyle, getOverlayStyle } = useSectionStyles()
   const { config: currencyConfig } = useCurrencyConfig()
+  const isAdmin = user?.roles?.includes('ADMIN')
+  const { getNonDeliveredCount, loading: statsLoading } = useOrderStats()
+  const nonDeliveredCount = isAdmin ? getNonDeliveredCount() : 0
+  
+  // Debug logging
+  useEffect(() => {
+    if (isAdmin) {
+      console.log('[Header] Admin user detected:', user?.roles)
+      console.log('[Header] Non-delivered count:', nonDeliveredCount)
+      console.log('[Header] Stats loading:', statsLoading)
+    }
+  }, [isAdmin, nonDeliveredCount, statsLoading, user?.roles])
   const [favoriteCount, setFavoriteCount] = useState(0)
+  const [isInitialLoad, setIsInitialLoad] = useState(true)
   const pathname = usePathname()
   const isHomepage = pathname === '/'
+
+  // Only show skeleton on initial load until branding is ready
+  useEffect(() => {
+    if (!brandingLoading && brandingConfig) {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        setIsInitialLoad(false)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [brandingLoading, brandingConfig])
+
+  const showSkeleton = isInitialLoad || brandingLoading
 
   // Load favorite count on mount and when authentication changes
   useEffect(() => {
@@ -130,7 +157,7 @@ export function Header({ backgroundImage }: HeaderProps) {
               <div className="flex items-center lg:gap-8" style={{ paddingLeft: '50px' }}>
                 {/* Desktop Logo */}
                 <div className="hidden lg:block lg:mr-xl flex-shrink-0">
-                  {isLoading ? (
+                  {showSkeleton ? (
                     <div className="h-8 w-32 bg-gray-200 rounded animate-pulse"></div>
                   ) : (
                     <Link
@@ -159,7 +186,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                 <nav aria-label="primary menu" data-orientation="horizontal" dir="ltr" data-testid="header-nav-root" className="hidden lg:block">
                   <div tabIndex={-1} aria-hidden="true" className="hh-overlay hidden top-full z-below" data-testid="mega-menu-overlay"></div>
                   <div style={{ position: 'relative' }}>
-                    {isLoading ? (
+                    {showSkeleton ? (
                       <div className="flex items-center gap-6">
                         <div className="h-4 w-20 bg-gray-200 rounded animate-pulse"></div>
                         <div className="h-4 w-16 bg-gray-200 rounded animate-pulse"></div>
@@ -274,7 +301,7 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Mobile Logo - Centered */}
                       <div className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[69px]">
-                        {isLoading ? (
+                        {showSkeleton ? (
                           <div className="h-6 w-[69px] bg-gray-200 rounded animate-pulse"></div>
                         ) : (
                           <Link
@@ -300,7 +327,7 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Mobile Search/Account */}
                       <div className="shrink-0 flex items-center gap-3">
-                        {isLoading ? (
+                        {showSkeleton ? (
                           <>
                             <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
                             <div className="w-5 h-5 bg-gray-200 rounded animate-pulse"></div>
@@ -411,7 +438,7 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Language */}
                       <li className="flex items-center">
-                        {isLoading ? (
+                        {showSkeleton ? (
                           <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
                         ) : (
                           <LanguageSelectorCompact />
@@ -427,7 +454,7 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Account */}
                       <li className="flex" data-testid="account-dropdown">
-                        {isLoading ? (
+                        {showSkeleton ? (
                           <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
                         ) : (
                           isAuthenticated ? (
@@ -436,8 +463,13 @@ export function Header({ backgroundImage }: HeaderProps) {
                               className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
                               title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
                             >
-                              <span className="flex justify-center items-center gap-xxs preserve-line-height">
+                              <span className="flex justify-center items-center gap-xxs preserve-line-height relative">
                                 <User className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="My Account" />
+                                {isAdmin && (
+                                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center min-w-[16px] leading-none" style={{ fontSize: '0.6em', padding: '2px' }}>
+                                    {nonDeliveredCount > 99 ? '99+' : (nonDeliveredCount || 0)}
+                                  </span>
+                                )}
                                 <span className="sr-only">My Account</span>
                               </span>
                             </button>
@@ -458,7 +490,7 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Favorites/Wishlist */}
                       <li className="flex">
-                        {isLoading ? (
+                        {showSkeleton ? (
                           <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
                         ) : (
                           <button
@@ -494,7 +526,7 @@ export function Header({ backgroundImage }: HeaderProps) {
 
                       {/* Cart */}
                       <li className="flex" data-testid="cart-modal-desktop">
-                        {isLoading ? (
+                        {showSkeleton ? (
                           <div className="w-lg h-lg bg-gray-200 rounded animate-pulse" style={{ width: '0.75em', height: '0.75em' }}></div>
                         ) : (
                           <button

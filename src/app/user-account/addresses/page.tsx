@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { AccountLayout } from '@/components/account/AccountLayout'
@@ -9,6 +11,8 @@ import { MapPin, Plus, Edit2, X } from 'lucide-react'
 import api from '@/services/api'
 
 export default function AddressesPage() {
+  const router = useRouter()
+  const { isAuthenticated, isLoading: authLoading } = useAuth()
   const [addresses, setAddresses] = useState<Address[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddAddress, setShowAddAddress] = useState(false)
@@ -26,9 +30,15 @@ export default function AddressesPage() {
   })
 
   useEffect(() => {
-    loadAddresses()
-    fetchShippingCountries()
-  }, [])
+    if (!authLoading && !isAuthenticated) {
+      router.push('/')
+      return
+    }
+    if (isAuthenticated) {
+      loadAddresses()
+      fetchShippingCountries()
+    }
+  }, [isAuthenticated, authLoading, router])
 
   const fetchShippingCountries = async () => {
     try {

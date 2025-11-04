@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
-import { X, User, MapPin, Package, Heart, LogOut } from 'lucide-react'
+import { X, User, MapPin, Package, Heart, LogOut, AlertCircle, XCircle, Ban, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useOrderStats } from '@/hooks/useOrderStats'
 
 interface AccountDropdownProps {
   isOpen: boolean
@@ -15,6 +16,22 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
   const { user, logout } = useAuth()
   const router = useRouter()
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const isAdmin = user?.roles?.includes('ADMIN')
+  const { getStatusCount, getNonDeliveredCount, loading: statsLoading } = useOrderStats()
+  
+  // Get counts for different statuses
+  const nonDeliveredCount = isAdmin ? getNonDeliveredCount() : 0
+  const cancelledCount = isAdmin ? getStatusCount('CANCELLED') : 0
+  const refundedCount = isAdmin ? getStatusCount('REFUNDED') : 0
+  
+  // Debug logging
+  useEffect(() => {
+    if (isAdmin) {
+      console.log('[AccountDropdown] Admin user detected:', user?.roles)
+      console.log('[AccountDropdown] Non-delivered:', nonDeliveredCount, 'Cancelled:', cancelledCount, 'Refunded:', refundedCount)
+      console.log('[AccountDropdown] Stats loading:', statsLoading)
+    }
+  }, [isAdmin, nonDeliveredCount, cancelledCount, refundedCount, statsLoading, user?.roles])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -184,7 +201,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
             </form>
 
             {/* Admin Section Separator */}
-            {user?.roles?.includes('ADMIN') && (
+            {isAdmin && (
               <>
                 <div className="my-2 h-px bg-gray-200"></div>
                 <Link
@@ -206,6 +223,49 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
                     </svg>
                   </div>
                 </Link>
+                
+                {/* Order Status Counts */}
+                <div className="mt-2 space-y-1">
+                  <Link
+                    href="/admin/orders?status=all"
+                    onClick={onClose}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="w-4 h-4 text-orange-500" />
+                      <span className="text-sm text-gray-700">Not Delivered</span>
+                    </div>
+                    <span className="bg-orange-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {nonDeliveredCount || 0}
+                    </span>
+                  </Link>
+                  <Link
+                    href="/admin/orders?status=CANCELLED"
+                    onClick={onClose}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <XCircle className="w-4 h-4 text-red-500" />
+                      <span className="text-sm text-gray-700">Cancelled</span>
+                    </div>
+                    <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {cancelledCount || 0}
+                    </span>
+                  </Link>
+                  <Link
+                    href="/admin/orders?status=REFUNDED"
+                    onClick={onClose}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <RefreshCw className="w-4 h-4 text-purple-500" />
+                      <span className="text-sm text-gray-700">Refunded</span>
+                    </div>
+                    <span className="bg-purple-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {refundedCount || 0}
+                    </span>
+                  </Link>
+                </div>
               </>
             )}
           </div>

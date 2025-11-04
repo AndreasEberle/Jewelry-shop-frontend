@@ -15,7 +15,9 @@ import {
   Clock,
   DollarSign,
   Calendar,
-  User
+  User,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react'
 
 interface Order {
@@ -87,6 +89,7 @@ export default function AdminOrdersPage() {
   const [trackingLink, setTrackingLink] = useState('')
   const [estimatedDeliveryDays, setEstimatedDeliveryDays] = useState<number>(4)
   const [notes, setNotes] = useState('')
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
     loadOrders()
@@ -146,31 +149,29 @@ export default function AdminOrdersPage() {
     if (!selectedOrder) return
 
     try {
-      // Update status separately
-      await api.put(`/api/admin/orders/${selectedOrder.id}/status?status=${newStatus}`)
-
-      // Update tracking information separately
-      const trackingParams = new URLSearchParams()
-      if (trackingNumber && trackingNumber.trim()) {
-        trackingParams.append('trackingNumber', trackingNumber.trim())
-      }
-      if (carrier && carrier.trim()) {
-        trackingParams.append('carrier', carrier.trim())
-      }
-      if (trackingLink && trackingLink.trim()) {
-        trackingParams.append('trackingLink', trackingLink.trim())
-      }
-      if (estimatedDeliveryDays != null) {
-        trackingParams.append('estimatedDeliveryDays', estimatedDeliveryDays.toString())
-      }
+      setError(null)
+      setSuccessMessage(null)
       
-      await api.put(`/api/admin/orders/${selectedOrder.id}/tracking?${trackingParams.toString()}`)
+      // Update status and all tracking info in one request
+      await api.put(`/api/admin/orders/${selectedOrder.id}/status`, {
+        status: newStatus,
+        notes: notes || undefined,
+        trackingNumber: trackingNumber?.trim() || undefined,
+        carrier: carrier?.trim() || undefined,
+        trackingLink: trackingLink?.trim() || undefined,
+        estimatedDeliveryDays: estimatedDeliveryDays || undefined
+      })
 
+      setSuccessMessage('Order status updated successfully!')
       setShowStatusModal(false)
+      setTimeout(() => {
+        setSuccessMessage(null)
+      }, 3000)
       loadOrders()
       loadStats()
     } catch (err) {
       setError('Failed to update order status')
+      setSuccessMessage(null)
       console.error('Error updating status:', err)
     }
   }
@@ -239,47 +240,81 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
+        {/* Success/Error Messages */}
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded relative" role="alert">
+            <span className="block sm:inline">{successMessage}</span>
+          </div>
+        )}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded relative" role="alert">
+            <span className="block sm:inline">{error}</span>
+          </div>
+        )}
+
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center">
-                <Package className="h-8 w-8 text-blue-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Package className="h-8 w-8 text-blue-500" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                  </div>
                 </div>
+                <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {stats.totalOrders}
+                </span>
               </div>
             </div>
             <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center">
-                <Clock className="h-8 w-8 text-yellow-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Recent Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.recentOrders}</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <AlertCircle className="h-8 w-8 text-orange-500" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Not Delivered</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {stats.totalOrders - ((stats.ordersByStatus && stats.ordersByStatus.DELIVERED) || 0)}
+                    </p>
+                  </div>
                 </div>
+                <span className="bg-orange-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {stats.totalOrders - ((stats.ordersByStatus && stats.ordersByStatus.DELIVERED) || 0)}
+                </span>
               </div>
             </div>
             <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center">
-                <DollarSign className="h-8 w-8 text-green-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {formatCurrency(stats.totalRevenue, 'CHF')}
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <XCircle className="h-8 w-8 text-red-500" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Cancelled</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {(stats.ordersByStatus && stats.ordersByStatus.CANCELLED) || 0}
+                    </p>
+                  </div>
                 </div>
+                <span className="bg-red-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {(stats.ordersByStatus && stats.ordersByStatus.CANCELLED) || 0}
+                </span>
               </div>
             </div>
             <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex items-center">
-                <CheckCircle className="h-8 w-8 text-green-500" />
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Delivered</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {(stats.ordersByStatus && stats.ordersByStatus.DELIVERED) || 0}
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <RefreshCw className="h-8 w-8 text-purple-500" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Refunded</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {(stats.ordersByStatus && stats.ordersByStatus.REFUNDED) || 0}
+                    </p>
+                  </div>
                 </div>
+                <span className="bg-purple-500 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
+                  {(stats.ordersByStatus && stats.ordersByStatus.REFUNDED) || 0}
+                </span>
               </div>
             </div>
           </div>

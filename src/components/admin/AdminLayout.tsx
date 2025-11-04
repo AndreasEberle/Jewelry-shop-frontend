@@ -27,6 +27,7 @@ import { useCurrency } from '@/contexts/CurrencyContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { NotificationContainer } from '@/components/ui/Notification'
 import { CurrencySelector } from '@/components/CurrencySelector'
+import { useOrderStats } from '@/hooks/useOrderStats'
 
 interface AdminLayoutProps {
   children: React.ReactNode
@@ -54,6 +55,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { currentLanguage, setLanguage, getLanguageFlag, getLanguageName, supportedLanguages } = useLanguage()
   const { currentCurrency } = useCurrency()
   const { navbarName } = usePageTitle()
+  const { getNonDeliveredCount } = useOrderStats()
+  const nonDeliveredCount = getNonDeliveredCount()
 
   const isActive = (href: string) => pathname === href
 
@@ -112,19 +115,27 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="flex-1 space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const Icon = item.icon
+              const isOrders = item.href === '/admin/orders'
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md ${
                     isActive(item.href)
                       ? 'bg-primary-100 text-primary-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                  {item.name}
+                  <div className="flex items-center">
+                    <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                    {item.name}
+                  </div>
+                  {isOrders && (
+                    <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                      {nonDeliveredCount || 0}
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -204,18 +215,26 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <nav className="space-y-1 px-2 py-4">
             {navigation.map((item) => {
               const Icon = item.icon
+              const isOrders = item.href === '/admin/orders'
               return (
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                  className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md ${
                     isActive(item.href)
                       ? 'bg-primary-100 text-primary-900'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
                 >
-                  <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                  {item.name}
+                  <div className="flex items-center">
+                    <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                    {item.name}
+                  </div>
+                  {isOrders && (
+                    <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                      {nonDeliveredCount || 0}
+                    </span>
+                  )}
                 </Link>
               )
             })}

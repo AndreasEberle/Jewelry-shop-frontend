@@ -252,15 +252,23 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         console.log('CartContext: Cart refreshed after adding item')
         
         // Only dispatch event to open cart drawer if not on checkout page
+        // Small delay to ensure cart state is fully updated and drawer opens smoothly
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/checkout')) {
-          window.dispatchEvent(new Event('openCartDrawer'))
+          // Use requestAnimationFrame to ensure smooth animation
+          requestAnimationFrame(() => {
+            window.dispatchEvent(new Event('openCartDrawer'))
+          })
         }
       } else {
         // Guest user - use local storage cart
         addToGuestCart(product, quantity)
         // Also dispatch event to open cart drawer for guest users
+        // Small delay to ensure cart state is fully updated and drawer opens smoothly
         if (typeof window !== 'undefined' && !window.location.pathname.includes('/checkout')) {
-          window.dispatchEvent(new Event('openCartDrawer'))
+          // Use requestAnimationFrame to ensure smooth animation
+          requestAnimationFrame(() => {
+            window.dispatchEvent(new Event('openCartDrawer'))
+          })
         }
       }
     } catch (err: any) {
@@ -301,8 +309,11 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     setCart(existingCart)
     
     // Only dispatch event to open cart drawer if not on checkout page
+    // Use requestAnimationFrame to ensure smooth animation
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/checkout')) {
-      window.dispatchEvent(new Event('openCartDrawer'))
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('openCartDrawer'))
+      })
     }
   }
 
