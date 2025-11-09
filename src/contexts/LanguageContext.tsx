@@ -20,13 +20,20 @@ interface LanguageProviderProps {
 
 export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) => {
   const [currentLanguage, setCurrentLanguage] = useState<string>('de-DE')
-  const [isLoading, setIsLoading] = useState(false)
-  const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['de-DE', 'en-US', 'ja-JP', 'fr-FR', 'it-IT'])
+  const [isLoading, setIsLoading] = useState(true)
+  const [supportedLanguages, setSupportedLanguages] = useState<string[]>(['de-DE', 'en-US', 'ja-JP'])
 
   // Load user's preferred language on mount
   useEffect(() => {
-    loadUserLanguagePreference()
-    loadSupportedLanguages()
+    const loadInitialData = async () => {
+      setIsLoading(true)
+      await Promise.all([
+        loadUserLanguagePreference(),
+        loadSupportedLanguages()
+      ])
+      setIsLoading(false)
+    }
+    loadInitialData()
   }, [])
 
   // Listen for login events to load user preferences
@@ -58,16 +65,26 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       console.error('Failed to load language preference:', error)
       // Fallback to detected language or default
       const detectedLanguage = detectUserLanguage()
-      setCurrentLanguage(detectedLanguage)
+      setCurrentLanguage(detectedLanguage || 'de-DE')
     }
   }
 
   const loadSupportedLanguages = async () => {
     try {
       const response = await api.get('/api/language/supported')
-      setSupportedLanguages(response.data)
+      const allLanguages = response.data || []
+      // Filter to only include enabled languages from system_config
+      // For now, we'll filter on frontend - backend should return only enabled ones
+      // But as a safety measure, filter out fr-FR and it-IT if they're not in our translation files
+      const enabledLanguages = allLanguages.filter((lang: string) => {
+        // Only include languages we have translations for
+        return ['de-DE', 'en-US', 'ja-JP'].includes(lang)
+      })
+      setSupportedLanguages(enabledLanguages.length > 0 ? enabledLanguages : ['de-DE', 'en-US', 'ja-JP'])
     } catch (error) {
       console.error('Failed to load supported languages:', error)
+      // Fallback to default enabled languages
+      setSupportedLanguages(['de-DE', 'en-US', 'ja-JP'])
     }
   }
 
@@ -88,11 +105,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
       'en': 'en-US',
       'en-US': 'en-US',
       'ja': 'ja-JP',
-      'ja-JP': 'ja-JP',
-      'fr': 'fr-FR',
-      'fr-FR': 'fr-FR',
-      'it': 'it-IT',
-      'it-IT': 'it-IT'
+      'ja-JP': 'ja-JP'
     }
 
     const detectedLanguage = languageMap[locale] || 'de-DE'
@@ -138,9 +151,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     const languageNames: Record<string, string> = {
       'de-DE': 'Deutsch',
       'en-US': 'English',
-      'ja-JP': '日本語',
-      'fr-FR': 'Français',
-      'it-IT': 'Italiano'
+      'ja-JP': '日本語'
     }
     return languageNames[languageCode] || languageCode
   }
@@ -150,9 +161,7 @@ export const LanguageProvider: React.FC<LanguageProviderProps> = ({ children }) 
     const languageFlags: Record<string, string> = {
       'de-DE': 'de',
       'en-US': 'us',
-      'ja-JP': 'jp',
-      'fr-FR': 'fr',
-      'it-IT': 'it'
+      'ja-JP': 'jp'
     }
     return languageFlags[languageCode] || 'de'
   }

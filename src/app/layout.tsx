@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers/Providers'
@@ -10,6 +10,14 @@ export const metadata: Metadata = {
   title: 'Jewelry Shop - Premium Jewelry Collection',
   description: 'Discover our exquisite collection of premium jewelry including rings, necklaces, earrings, and more.',
   keywords: 'jewelry, rings, necklaces, earrings, premium, luxury, gold, silver, diamonds',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({

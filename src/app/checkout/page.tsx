@@ -16,12 +16,54 @@ import api from '@/services/api'
 import { CountryCodePicker } from '@/components/auth/CountryCodePicker'
 import { useRouter } from 'next/navigation'
 import { loadStripe, Stripe, StripeElements, StripeCardElement } from '@stripe/stripe-js'
+import { useTranslation } from '@/hooks/useTranslation'
+import { X } from 'lucide-react'
+
+// Shipping Info Tooltip Component
+function ShippingInfoTooltip() {
+  const { t } = useTranslation()
+  const [isOpen, setIsOpen] = useState(false)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  return (
+    <div className="relative">
+      <button
+        ref={buttonRef}
+        onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => setIsOpen(false)}
+        className="text-gray-400 hover:text-gray-600 transition-colors"
+        aria-label={t('checkout.shippingInfoTitle')}
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+      
+      {isOpen && (
+        <div
+          ref={tooltipRef}
+          onMouseEnter={() => setIsOpen(true)}
+          onMouseLeave={() => setIsOpen(false)}
+          className="absolute right-0 top-full mt-2 w-80 bg-white border border-gray-300 rounded-lg shadow-xl z-[9999] p-4 pointer-events-auto"
+          style={{ maxWidth: 'calc(100vw - 2rem)' }}
+        >
+          <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('checkout.shippingInfoTitle')}</h4>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            {t('checkout.shippingInfoDescription')}
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function CheckoutPage() {
   const { cart, isLoading, addToCart, clearCart } = useCart()
   const { isAuthenticated, user } = useAuth()
   const { formatPrice } = useCurrency()
   const { config: freeShippingConfig } = useFreeShippingConfig()
+  const { t } = useTranslation()
   // Track if we've completed initial cart load to prevent flash of empty cart
   const [hasInitialLoadCompleted, setHasInitialLoadCompleted] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -325,20 +367,20 @@ export default function CheckoutPage() {
     }
 
     // Delivery validation
-    if (!firstName) newErrors.firstName = 'Enter a first name'
-    if (!lastName) newErrors.lastName = 'Enter a last name'
-    if (!address1) newErrors.address1 = 'Enter an address'
-    if (!city) newErrors.city = 'Enter a city'
-    if (!country) newErrors.country = 'Select a country'
-    if (!phone) newErrors.phone = 'Enter a phone number'
+    if (!firstName) newErrors.firstName = t('checkout.enterFirstName')
+    if (!lastName) newErrors.lastName = t('checkout.enterLastName')
+    if (!address1) newErrors.address1 = t('checkout.enterAddress')
+    if (!city) newErrors.city = t('checkout.enterCity')
+    if (!country) newErrors.country = t('checkout.selectACountry')
+    if (!phone) newErrors.phone = t('checkout.enterPhoneNumber')
     
     // Billing address validation (only if not using shipping address)
     if (!useShippingAsBilling) {
-      if (!billingFirstName) newErrors.billingFirstName = 'Enter a first name'
-      if (!billingLastName) newErrors.billingLastName = 'Enter a last name'
-      if (!billingAddress1) newErrors.billingAddress1 = 'Enter an address'
-      if (!billingCity) newErrors.billingCity = 'Enter a city'
-      if (!billingCountry) newErrors.billingCountry = 'Select a country'
+      if (!billingFirstName) newErrors.billingFirstName = t('checkout.enterFirstName')
+      if (!billingLastName) newErrors.billingLastName = t('checkout.enterLastName')
+      if (!billingAddress1) newErrors.billingAddress1 = t('checkout.enterAddress')
+      if (!billingCity) newErrors.billingCity = t('checkout.enterCity')
+      if (!billingCountry) newErrors.billingCountry = t('checkout.selectACountry')
     }
 
     // Payment validation (only if credit card selected)
@@ -374,20 +416,20 @@ export default function CheckoutPage() {
     }
 
     // Delivery validation
-    if (!firstName) newErrors.firstName = 'Enter a first name'
-    if (!lastName) newErrors.lastName = 'Enter a last name'
-    if (!address1) newErrors.address1 = 'Enter an address'
-    if (!city) newErrors.city = 'Enter a city'
-    if (!country) newErrors.country = 'Select a country'
-    if (!phone) newErrors.phone = 'Enter a phone number'
+    if (!firstName) newErrors.firstName = t('checkout.enterFirstName')
+    if (!lastName) newErrors.lastName = t('checkout.enterLastName')
+    if (!address1) newErrors.address1 = t('checkout.enterAddress')
+    if (!city) newErrors.city = t('checkout.enterCity')
+    if (!country) newErrors.country = t('checkout.selectACountry')
+    if (!phone) newErrors.phone = t('checkout.enterPhoneNumber')
     
     // Billing address validation (only if not using shipping address)
     if (!useShippingAsBilling) {
-      if (!billingFirstName) newErrors.billingFirstName = 'Enter a first name'
-      if (!billingLastName) newErrors.billingLastName = 'Enter a last name'
-      if (!billingAddress1) newErrors.billingAddress1 = 'Enter an address'
-      if (!billingCity) newErrors.billingCity = 'Enter a city'
-      if (!billingCountry) newErrors.billingCountry = 'Select a country'
+      if (!billingFirstName) newErrors.billingFirstName = t('checkout.enterFirstName')
+      if (!billingLastName) newErrors.billingLastName = t('checkout.enterLastName')
+      if (!billingAddress1) newErrors.billingAddress1 = t('checkout.enterAddress')
+      if (!billingCity) newErrors.billingCity = t('checkout.enterCity')
+      if (!billingCountry) newErrors.billingCountry = t('checkout.selectACountry')
     }
 
     // Payment validation (only if credit card selected)
@@ -687,7 +729,7 @@ export default function CheckoutPage() {
   // Validate and apply discount code
   const handleApplyDiscountCode = async () => {
     if (!discountCode.trim()) {
-      setDiscountError('Please enter a discount code')
+      setDiscountError(t('checkout.pleaseEnterDiscountCode'))
       return
     }
     
@@ -709,12 +751,18 @@ export default function CheckoutPage() {
       } else {
         setDiscountCodeApplied(false)
         setDiscountAmount(0)
-        setDiscountError(response.data.message || 'Invalid discount code')
+        // Always use translated error message, ignore backend message if it's generic
+        const backendMessage = response.data.message || ''
+        if (backendMessage.toLowerCase().includes('invalid') || backendMessage.toLowerCase().includes('not found')) {
+          setDiscountError(t('checkout.invalidDiscountCode'))
+        } else {
+          setDiscountError(backendMessage || t('checkout.invalidDiscountCode'))
+        }
       }
     } catch (error: any) {
       setDiscountCodeApplied(false)
       setDiscountAmount(0)
-      setDiscountError(error.response?.data?.message || 'Failed to validate discount code')
+      setDiscountError(error.response?.data?.message || t('checkout.failedToValidateDiscount'))
     } finally {
       setIsValidatingDiscount(false)
     }
@@ -970,7 +1018,7 @@ export default function CheckoutPage() {
         <CheckoutHeader />
         <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
           <div className="text-center">
-            <p className="text-gray-600">Redirecting to home...</p>
+            <p className="text-gray-600">{t('checkout.redirectingToHome')}</p>
           </div>
         </div>
         <Footer />
@@ -1001,26 +1049,26 @@ export default function CheckoutPage() {
       <CheckoutHeader />
       <main className="py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-8">Checkout</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-8">{t('checkout.title')}</h1>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Form */}
             <div className="space-y-8">
               {/* Contact Section */}
               <section className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Contact</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('checkout.contact')}</h2>
 
                 {/* Email */}
                 <div className="mb-4">
                   {isAuthenticated ? (
                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                      <span className="text-sm font-medium">Email</span>
+                      <span className="text-sm font-medium">{t('checkout.email')}</span>
                       <span className="text-sm">{email || 'user@example.com'}</span>
                     </div>
                   ) : (
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                        Email
+                        {t('checkout.email')}
                       </label>
                       <input
                         type="email"
@@ -1052,21 +1100,21 @@ export default function CheckoutPage() {
                     className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
                   />
                   <label htmlFor="marketing_opt_in" className="text-sm text-gray-700">
-                    Email me with news and offers
+                    {t('checkout.emailMeWithNews')}
                   </label>
                 </div>
               </section>
 
               {/* Delivery Section */}
               <section className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Delivery</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('checkout.delivery')}</h2>
                 
                 {/* Shipping Address Form */}
                 <div className="space-y-4 mb-6">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                            First name
+                            {t('checkout.firstName')}
                           </label>
                           <input
                             type="text"
@@ -1086,7 +1134,7 @@ export default function CheckoutPage() {
                         </div>
                         <div>
                           <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                            Last name
+                            {t('checkout.lastName')}
                           </label>
                           <input
                             type="text"
@@ -1108,7 +1156,7 @@ export default function CheckoutPage() {
 
                       <div>
                         <label htmlFor="address1" className="block text-sm font-medium text-gray-700 mb-2">
-                          Address
+                          {t('checkout.address')}
                         </label>
                         <input
                           type="text"
@@ -1129,7 +1177,7 @@ export default function CheckoutPage() {
 
                       <div>
                         <label htmlFor="address2" className="block text-sm font-medium text-gray-700 mb-2">
-                          Apartment, suite, etc. (optional)
+                          {t('checkout.apartment')}
                         </label>
                         <input
                           type="text"
@@ -1143,7 +1191,7 @@ export default function CheckoutPage() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-2">
-                            City
+                            {t('checkout.city')}
                           </label>
                           <input
                             type="text"
@@ -1163,7 +1211,7 @@ export default function CheckoutPage() {
                         </div>
                         <div>
                           <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-2">
-                            Postal code (optional)
+                            {t('checkout.postalCode')}
                           </label>
                           <input
                             type="text"
@@ -1177,7 +1225,7 @@ export default function CheckoutPage() {
 
                       <div>
                         <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
-                          Country/Region
+                          {t('checkout.country')}
                         </label>
                         <select
                           id="country"
@@ -1190,12 +1238,15 @@ export default function CheckoutPage() {
                           }`}
                           required
                         >
-                          <option value="">Select Country</option>
-                          {shippingCountries.map((countryName) => (
-                            <option key={countryName} value={countryName}>
-                              {countryName}
-                            </option>
-                          ))}
+                          <option value="">{t('checkout.selectCountry')}</option>
+                          {shippingCountries.map((countryName) => {
+                            const countryKey = countryName.toLowerCase() as 'switzerland' | 'liechtenstein'
+                            return (
+                              <option key={countryName} value={countryName}>
+                                {t(`checkout.${countryKey}`) || countryName}
+                              </option>
+                            )
+                          })}
                         </select>
                         {errors.country && (
                           <p className="mt-1 text-sm text-red-600">{errors.country}</p>
@@ -1204,7 +1255,7 @@ export default function CheckoutPage() {
 
                       <div>
                         <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                          Phone
+                          {t('checkout.phone')}
                         </label>
                         <div className="flex">
                           <CountryCodePicker
@@ -1233,7 +1284,7 @@ export default function CheckoutPage() {
 
                 {/* Shipping Method - Radio button style */}
                 <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-3">Shipping method</h3>
+                  <h3 className="text-lg font-medium mb-3">{t('checkout.shippingMethod')}</h3>
                   <div className="space-y-3">
                     <label className="flex items-start gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                       <input
@@ -1245,8 +1296,8 @@ export default function CheckoutPage() {
                         className="mt-1 w-4 h-4 text-black border-gray-300 focus:ring-black"
                       />
                       <div className="flex-1">
-                        <p className="font-medium">Standard</p>
-                        <p className="text-sm text-gray-600">3 - 7 business days</p>
+                        <p className="font-medium">{t('checkout.standard')}</p>
+                        <p className="text-sm text-gray-600">3 - 7 {t('checkout.businessDays')}</p>
                       </div>
                       <span className="font-medium">{formatPrice(15)}</span>
                     </label>
@@ -1260,8 +1311,8 @@ export default function CheckoutPage() {
                         className="mt-1 w-4 h-4 text-black border-gray-300 focus:ring-black"
                       />
                       <div className="flex-1">
-                        <p className="font-medium">Premium - TBD - TO CHECK</p>
-                        <p className="text-sm text-gray-600">1 - 3 business days</p>
+                        <p className="font-medium">{t('checkout.premium')} - TBD - TO CHECK</p>
+                        <p className="text-sm text-gray-600">1 - 3 {t('checkout.businessDays')}</p>
                       </div>
                       <span className="font-medium">{formatPrice(25)}</span>
                     </label>
@@ -1270,7 +1321,7 @@ export default function CheckoutPage() {
 
                 {/* Packaging Options - Radio button style */}
                 <div className="mt-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Packaging</h2>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('checkout.packaging')}</h2>
                   <div className="space-y-3">
                     <label className="flex items-start gap-3 p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                       <input
@@ -1282,7 +1333,7 @@ export default function CheckoutPage() {
                         className="mt-1 w-4 h-4 text-black border-gray-300 focus:ring-black"
                       />
                       <div className="flex-1">
-                        <p className="font-medium mb-1">Standard</p>
+                        <p className="font-medium mb-1">{t('checkout.standard')}</p>
                         <p className="text-sm text-gray-600">Includes a reusable, jewelry-safe velvet pouch and a branded jewelry storage box.</p>
                       </div>
                       <div className="w-20 h-20 flex-shrink-0 bg-gray-100 rounded flex items-center justify-center overflow-hidden">
@@ -1321,8 +1372,8 @@ export default function CheckoutPage() {
               {/* Payment Section */}
               <section className="bg-white rounded-lg shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">Payment</h2>
-                  <p className="text-sm text-gray-600">All transactions are secure and encrypted.</p>
+                  <h2 className="text-xl font-semibold text-gray-900">{t('checkout.payment')}</h2>
+                  <p className="text-sm text-gray-600">{t('checkout.allTransactionsSecure')}</p>
                 </div>
 
                 <div className="space-y-4">
@@ -1343,24 +1394,17 @@ export default function CheckoutPage() {
                         </label>
                       </div>
                       <div className="flex items-center gap-1">
-                        {cardType ? (
-                          // Show only the detected card type
-                          <CardIcon cardType={cardType} />
-                        ) : (
-                          // Show all card types when no card is detected
-                          <>
-                            <svg className="w-8 h-5" viewBox="0 0 48 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <rect width="48" height="16" rx="2" fill="#1434CB"/>
-                              <path d="M20.28 5.76h2.46l-1.94 4.48h-2.46l1.94-4.48zm5.04 2.92c0-.84-1.13-.89-1.13-1.27 0-.15.11-.23.34-.27.11-.02.43-.03.78.14l.14-1.1c-.18-.06-.42-.12-.71-.12-.84 0-1.44.36-1.44.87 0 .38.37.59.65.71.28.13.39.24.39.32 0 .2-.23.26-.45.26-.38 0-.61-.06-.79-.12l-.14 1.12c.19.06.54.12.88.12.88 0 1.5-.35 1.5-.89zm4.43 1.56h-1.91c-.3 0-.52-.15-.62-.38l-2.17-1.96h1.3c.17 0 .33.11.38.28l.52 1.28 1.28-3.17h1.24l-2.19 4.95z" fill="#FFFFFF"/>
-                            </svg>
-                            <svg className="w-8 h-5" viewBox="0 0 48 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <rect width="48" height="16" rx="2" fill="#EB001B"/>
-                              <circle cx="17" cy="8" r="5.5" fill="#F79E1B"/>
-                              <circle cx="31" cy="8" r="5.5" fill="#FF5F00"/>
-                              <path d="M24 3.5a5.5 5.5 0 1 0 0 9 5.5 5.5 0 0 0 0-9z" fill="#F79E1B" opacity="0.7"/>
-                            </svg>
-                          </>
-                        )}
+                        {/* Always show Visa and Mastercard icons */}
+                        <svg className="w-8 h-5" viewBox="0 0 48 16" fill="none" xmlns="http://www.w3.org/2000/svg" title="Visa">
+                          <rect width="48" height="16" rx="2" fill="#1434CB"/>
+                          <path d="M20.28 5.76h2.46l-1.94 4.48h-2.46l1.94-4.48zm5.04 2.92c0-.84-1.13-.89-1.13-1.27 0-.15.11-.23.34-.27.11-.02.43-.03.78.14l.14-1.1c-.18-.06-.42-.12-.71-.12-.84 0-1.44.36-1.44.87 0 .38.37.59.65.71.28.13.39.24.39.32 0 .2-.23.26-.45.26-.38 0-.61-.06-.79-.12l-.14 1.12c.19.06.54.12.88.12.88 0 1.5-.35 1.5-.89zm4.43 1.56h-1.91c-.3 0-.52-.15-.62-.38l-2.17-1.96h1.3c.17 0 .33.11.38.28l.52 1.28 1.28-3.17h1.24l-2.19 4.95z" fill="#FFFFFF"/>
+                        </svg>
+                        <svg className="w-8 h-5" viewBox="0 0 48 16" fill="none" xmlns="http://www.w3.org/2000/svg" title="Mastercard">
+                          <rect width="48" height="16" rx="2" fill="#EB001B"/>
+                          <circle cx="17" cy="8" r="5.5" fill="#F79E1B"/>
+                          <circle cx="31" cy="8" r="5.5" fill="#FF5F00"/>
+                          <path d="M24 3.5a5.5 5.5 0 1 0 0 9 5.5 5.5 0 0 0 0-9z" fill="#F79E1B" opacity="0.7"/>
+                        </svg>
                       </div>
                     </div>
                     {paymentMethod === 'creditCards' && (
@@ -1368,7 +1412,7 @@ export default function CheckoutPage() {
                         {/* Stripe Card Element - replaces manual card inputs */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Card details
+                            {t('checkout.cardDetails')}
                           </label>
                           <div className="relative">
                             <div 
@@ -1392,11 +1436,11 @@ export default function CheckoutPage() {
                           {(errors.cardNumber || stripeError) && (
                             <p className="mt-1 text-sm text-red-600">{errors.cardNumber || stripeError}</p>
                           )}
-                          <p className="mt-1 text-xs text-gray-500">Card details are securely processed by Stripe</p>
+                          <p className="mt-1 text-xs text-gray-500">{t('checkout.cardDetailsSecure')}</p>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Name on card
+                            {t('checkout.nameOnCard')}
                           </label>
                           <input
                             type="text"
@@ -1408,7 +1452,7 @@ export default function CheckoutPage() {
                                 ? 'border-red-500 focus:ring-red-500'
                                 : 'border-gray-300 focus:ring-black'
                             }`}
-                            placeholder="Name on card"
+                            placeholder={t('checkout.nameOnCard')}
                           />
                           {errors.nameOnCard && (
                             <p className="mt-1 text-sm text-red-600">{errors.nameOnCard}</p>
@@ -1428,12 +1472,23 @@ export default function CheckoutPage() {
                       onChange={(e) => setPaymentMethod(e.target.value as any)}
                       className="mr-2"
                     />
-                    <label htmlFor="payment-postfinance" className="font-medium">
-                      PostFinance / Twint
+                    <label htmlFor="payment-postfinance" className="font-medium flex items-center gap-2">
+                      <span>PostFinance</span>
+                      <svg className="w-6 h-4" viewBox="0 0 24 16" fill="none" xmlns="http://www.w3.org/2000/svg" title="PostFinance">
+                        <rect width="24" height="16" rx="2" fill="#FFCC00"/>
+                        <path d="M12 4C9.79 4 8 5.79 8 8s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 5.5 12 5.5s2.5 1.12 2.5 2.5S13.38 10.5 12 10.5z" fill="#000"/>
+                        <circle cx="12" cy="8" r="1.5" fill="#000"/>
+                      </svg>
+                      <span>/</span>
+                      <svg className="w-8 h-5" viewBox="0 0 40 24" fill="none" xmlns="http://www.w3.org/2000/svg" title="Twint">
+                        <rect width="40" height="24" rx="2" fill="#FF6B00"/>
+                        <path d="M20 6C16.69 6 14 8.69 14 12s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z" fill="#FFFFFF"/>
+                        <circle cx="20" cy="12" r="2" fill="#FFFFFF"/>
+                      </svg>
                     </label>
                     {paymentMethod === 'postfinance' && (
                       <div className="mt-2 ml-6 text-sm text-gray-600">
-                        You will be redirected to PostFinance / Twint to complete your payment.
+                        {t('checkout.youWillBeRedirected')}
                       </div>
                     )}
                   </div>
@@ -1449,18 +1504,18 @@ export default function CheckoutPage() {
                         className="w-4 h-4 text-black border-gray-300 rounded focus:ring-black"
                       />
                       <label htmlFor="useShippingBilling" className="text-sm font-medium text-gray-700">
-                        Use shipping address as billing address
+                        {t('checkout.useShippingAsBilling')}
                       </label>
                     </div>
                     
                     {!useShippingAsBilling && (
                       <div className="mt-4 space-y-4">
-                        <h3 className="text-lg font-medium text-gray-900 mb-3">Billing Address</h3>
+                        <h3 className="text-lg font-medium text-gray-900 mb-3">{t('checkout.billingAddress')}</h3>
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label htmlFor="billingFirstName" className="block text-sm font-medium text-gray-700 mb-2">
-                              First name
+                              {t('checkout.firstName')}
                             </label>
                             <input
                               type="text"
@@ -1480,7 +1535,7 @@ export default function CheckoutPage() {
                           </div>
                           <div>
                             <label htmlFor="billingLastName" className="block text-sm font-medium text-gray-700 mb-2">
-                              Last name
+                              {t('checkout.lastName')}
                             </label>
                             <input
                               type="text"
@@ -1502,7 +1557,7 @@ export default function CheckoutPage() {
 
                         <div>
                           <label htmlFor="billingAddress1" className="block text-sm font-medium text-gray-700 mb-2">
-                            Address
+                            {t('checkout.address')}
                           </label>
                           <input
                             type="text"
@@ -1523,7 +1578,7 @@ export default function CheckoutPage() {
 
                         <div>
                           <label htmlFor="billingAddress2" className="block text-sm font-medium text-gray-700 mb-2">
-                            Apartment, suite, etc. (optional)
+                            {t('checkout.apartment')}
                           </label>
                           <input
                             type="text"
@@ -1537,7 +1592,7 @@ export default function CheckoutPage() {
                         <div className="grid grid-cols-2 gap-4">
                           <div>
                             <label htmlFor="billingCity" className="block text-sm font-medium text-gray-700 mb-2">
-                              City
+                              {t('checkout.city')}
                             </label>
                             <input
                               type="text"
@@ -1557,7 +1612,7 @@ export default function CheckoutPage() {
                           </div>
                           <div>
                             <label htmlFor="billingPostalCode" className="block text-sm font-medium text-gray-700 mb-2">
-                              Postal code (optional)
+                              {t('checkout.postalCode')}
                             </label>
                             <input
                               type="text"
@@ -1571,7 +1626,7 @@ export default function CheckoutPage() {
 
                         <div>
                           <label htmlFor="billingCountry" className="block text-sm font-medium text-gray-700 mb-2">
-                            Country/Region
+                            {t('checkout.country')}
                           </label>
                           <select
                             id="billingCountry"
@@ -1584,12 +1639,15 @@ export default function CheckoutPage() {
                             }`}
                             required
                           >
-                            <option value="">Select Country</option>
-                            {shippingCountries.map((countryName) => (
-                              <option key={countryName} value={countryName}>
-                                {countryName}
-                              </option>
-                            ))}
+                            <option value="">{t('checkout.selectCountry')}</option>
+                            {shippingCountries.map((countryName) => {
+                              const countryKey = countryName.toLowerCase() as 'switzerland' | 'liechtenstein'
+                              return (
+                                <option key={countryName} value={countryName}>
+                                  {t(`checkout.${countryKey}`) || countryName}
+                                </option>
+                              )
+                            })}
                           </select>
                           {errors.billingCountry && (
                             <p className="mt-1 text-sm text-red-600">{errors.billingCountry}</p>
@@ -1601,7 +1659,7 @@ export default function CheckoutPage() {
                   
                   {/* Remember Me - Currently not implemented */}
                   <div className="mt-6">
-                    <h3 className="text-lg font-medium mb-3">Remember me</h3>
+                    <h3 className="text-lg font-medium mb-3">{t('checkout.rememberMe')}</h3>
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -1613,8 +1671,8 @@ export default function CheckoutPage() {
                         title="Payment method saving will be implemented with Stripe Payment Methods API"
                       />
                       <label htmlFor="rememberMe" className="text-sm text-gray-700 opacity-60">
-                        Save my payment information for faster checkout
-                        <span className="text-xs text-gray-500 ml-2">(Coming soon)</span>
+                        {t('checkout.savePaymentInfo')}
+                        <span className="text-xs text-gray-500 ml-2">({t('checkout.comingSoon')})</span>
                       </label>
                     </div>
                     
@@ -1628,10 +1686,10 @@ export default function CheckoutPage() {
                       {isProcessingPayment ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                          Processing...
+                          {t('checkout.processing')}
                         </>
                       ) : (
-                        'Pay now'
+                        t('checkout.payNow')
                       )}
                     </button>
                   </div>
@@ -1642,11 +1700,11 @@ export default function CheckoutPage() {
             {/* Right Sidebar - Order Summary */}
             <aside className="lg:sticky lg:top-8 h-fit">
               <div className="bg-white rounded-lg shadow-sm p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Order summary</h2>
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">{t('checkout.orderSummary')}</h2>
                 
                 {/* Shopping Cart */}
                 <section className="mb-6">
-                  <h3 className="text-lg font-medium mb-4">Shopping cart</h3>
+                  <h3 className="text-lg font-medium mb-4">{t('checkout.shoppingCart')}</h3>
                   <div className={`space-y-4 ${cart.items.length > 3 ? 'max-h-[400px] overflow-y-auto pr-2' : ''}`}>
                     {cart.items.map((item) => {
                       const primaryImage = item.product.images?.[0]
@@ -1691,7 +1749,7 @@ export default function CheckoutPage() {
                               </div>
                               {hasSpecialOffer && totalSavingsForItem > 0 && (
                                 <div className="text-xs text-green-600 font-medium">
-                                  Save {formatPrice(totalSavingsForItem)} ({(item.quantity > 1 ? `${item.quantity} × ` : '')}{formatPrice(savingsPerItem)})
+                                  {t('checkout.save')} {formatPrice(totalSavingsForItem)} ({(item.quantity > 1 ? `${item.quantity} × ` : '')}{formatPrice(savingsPerItem)})
                                 </div>
                               )}
                             </div>
@@ -1704,13 +1762,13 @@ export default function CheckoutPage() {
 
                 {/* Discount Code */}
                 <section className="mb-6">
-                  <h3 className="text-lg font-medium mb-3">Discount code or gift card</h3>
+                  <h3 className="text-lg font-medium mb-3">{t('checkout.discountCodeOrGiftCard')}</h3>
                   {!discountCodeApplied ? (
                     <div className="space-y-2">
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          placeholder="Enter discount code"
+                          placeholder={t('checkout.enterDiscountCode')}
                           value={discountCode}
                           onChange={(e) => {
                             setDiscountCode(e.target.value.toUpperCase())
@@ -1728,7 +1786,7 @@ export default function CheckoutPage() {
                           disabled={isValidatingDiscount || !discountCode.trim()}
                           className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isValidatingDiscount ? 'Applying...' : 'Apply'}
+                          {isValidatingDiscount ? t('checkout.applying') : t('checkout.apply')}
                         </button>
                       </div>
                       {discountError && (
@@ -1739,7 +1797,7 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-green-800">
-                          Code applied: {discountCode}
+                          {t('checkout.codeApplied')}: {discountCode}
                         </span>
                         <span className="text-sm text-green-600">
                           -{formatPrice(discountAmount)}
@@ -1749,7 +1807,7 @@ export default function CheckoutPage() {
                         onClick={handleRemoveDiscountCode}
                         className="text-sm text-red-600 hover:text-red-800 underline"
                       >
-                        Remove
+                        {t('checkout.remove')}
                       </button>
                     </div>
                   )}
@@ -1757,26 +1815,22 @@ export default function CheckoutPage() {
 
                 {/* Cost Summary */}
                 <section>
-                  <h3 className="text-lg font-medium mb-4">Cost summary</h3>
+                  <h3 className="text-lg font-medium mb-4">{t('checkout.costSummary')}</h3>
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-700">Subtotal · {cart.items.length} {cart.items.length === 1 ? 'item' : 'items'}</span>
+                      <span className="text-sm text-gray-700">{t('cart.subtotal')} · {cart.items.length} {cart.items.length === 1 ? t('checkout.item') : t('checkout.items')}</span>
                       <span className="text-sm font-medium">{formatPrice(subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-700">Shipping</span>
-                        <button className="text-gray-400 hover:text-gray-600" title="Shipping information">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </button>
+                        <span className="text-sm text-gray-700">{t('cart.shipping')}</span>
+                        <ShippingInfoTooltip />
                       </div>
                       <span className="text-sm font-medium">
                         {isFreeShipping ? (
                           <>
                             <span className="line-through text-gray-400 mr-2">{formatPrice(15)}</span>
-                            <span className="text-green-600">Free</span>
+                            <span className="text-green-600">{t('checkout.free')}</span>
                           </>
                         ) : (
                           formatPrice(15)
@@ -1785,9 +1839,8 @@ export default function CheckoutPage() {
                     </div>
                     <div className="border-t border-gray-300 pt-3 mt-3">
                       <div className="flex justify-between items-center">
-                        <span className="text-lg font-bold">Total</span>
+                        <span className="text-lg font-bold">{t('checkout.total')}</span>
                         <div className="text-right">
-                          <span className="text-sm text-gray-600 mr-2">CHF</span>
                           <span className="text-lg font-bold">{formatPrice(estimatedTotal)}</span>
                         </div>
                       </div>
@@ -1800,7 +1853,7 @@ export default function CheckoutPage() {
                             <circle cx="7.75" cy="4.5" r="0.563" strokeLinecap="round" strokeLinejoin="round"></circle>
                             <path strokeLinejoin="round" d="M7.74 4.49h.02v.02h-.02z"></path>
                           </svg>
-                          <strong className="text-sm font-semibold text-gray-900 uppercase">TOTAL SAVINGS</strong>
+                          <strong className="text-sm font-semibold text-gray-900 uppercase">{t('checkout.totalSavings')}</strong>
                         </div>
                         <strong className="text-sm font-semibold text-green-600">{formatPrice(totalSavings)}</strong>
                       </div>
@@ -1811,7 +1864,7 @@ export default function CheckoutPage() {
                 {/* You May Also Like */}
                 {youMayAlsoLike.length > 0 && (
                   <section className="mt-8">
-                    <h3 className="text-lg font-medium mb-4">You May Also Like</h3>
+                    <h3 className="text-lg font-medium mb-4">{t('cart.youMayAlsoLike')}</h3>
                     <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
                       {youMayAlsoLike.map((product) => {
                         const primaryImage = product.images?.find(img => img.isPrimary) || product.images?.[0]
@@ -1852,7 +1905,7 @@ export default function CheckoutPage() {
                                 }}
                                 className="px-3 py-1 text-xs bg-black text-white rounded hover:bg-gray-800"
                               >
-                                Add
+                                {t('common.add')}
                               </button>
                             </div>
                           </div>

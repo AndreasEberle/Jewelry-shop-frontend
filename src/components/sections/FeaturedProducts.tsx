@@ -10,8 +10,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { EnhancedFeaturedProductsCarousel } from './EnhancedFeaturedProductsCarousel'
 import api from '@/services/api'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export function FeaturedProducts() {
+  const { t } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [addingToCart, setAddingToCart] = useState<string | null>(null)
@@ -116,8 +118,8 @@ export function FeaturedProducts() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
-          <p className="text-gray-600 mt-4">Discover our most popular jewelry pieces</p>
+          <h2 className="text-3xl font-bold text-gray-900">{t('home.featuredProducts')}</h2>
+          <p className="text-gray-600 mt-4">{t('home.discoverPopular')}</p>
         </div>
         
         {products.length === 0 ? (
@@ -141,7 +143,7 @@ export function FeaturedProducts() {
         
         <div className="text-center mt-12">
           <Link href="/products" className="btn btn-outline text-lg px-8 py-3">
-            View All Products
+            {t('home.viewAllProducts')}
           </Link>
         </div>
       </div>

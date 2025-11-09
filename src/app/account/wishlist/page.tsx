@@ -8,6 +8,7 @@ import { favoriteService } from '@/services/favoriteService'
 import { Heart, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface Product {
   id: string
@@ -20,9 +21,11 @@ interface Product {
 }
 
 export default function AdminWishlistPage() {
+  const { t, isLoading: isLanguageLoading } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [removingProducts, setRemovingProducts] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     loadWishlist()
@@ -55,11 +58,27 @@ export default function AdminWishlistPage() {
 
   const handleRemoveFavorite = async (productId: string) => {
     try {
-      await favoriteService.removeFromFavorites(productId)
-      // Dispatch event to update header favorite count
-      window.dispatchEvent(new Event('favoriteChanged'))
-      setProducts(products.filter(p => p.id !== productId))
+      // Mark as removing to trigger animation
+      setRemovingProducts(prev => new Set(prev).add(productId))
+      
+      // Wait for animation (~0.5s) before actually removing
+      setTimeout(async () => {
+        await favoriteService.removeFromFavorites(productId)
+        // Dispatch event to update header favorite count
+        window.dispatchEvent(new Event('favoriteChanged'))
+        setProducts(products.filter(p => p.id !== productId))
+        setRemovingProducts(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(productId)
+          return newSet
+        })
+      }, 600)
     } catch (err: any) {
+      setRemovingProducts(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(productId)
+        return newSet
+      })
       alert(err.message || 'Failed to remove from wishlist')
     }
   }
@@ -76,11 +95,19 @@ export default function AdminWishlistPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>WISHLIST</h1>
+          <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>
+            {!isLanguageLoading ? t('account.wishlist').toUpperCase() : (
+              <span className="h-8 w-40 bg-gray-200 rounded animate-pulse inline-block"></span>
+            )}
+          </h1>
           
           {loading && (
             <div className="flex items-center justify-center py-12">
-              <p className="type-body-2 text-content">Loading wishlist...</p>
+              <p className="type-body-2 text-content">
+                {!isLanguageLoading ? t('account.loadingWishlist') : (
+                  <span className="h-5 w-40 bg-gray-200 rounded animate-pulse inline-block"></span>
+                )}
+              </p>
             </div>
           )}
 
@@ -93,12 +120,12 @@ export default function AdminWishlistPage() {
           {!loading && !error && products.length === 0 && (
             <div className="text-center py-12">
               <Heart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p className="type-body-2 text-content mb-4">Your wishlist is empty.</p>
+              <p className="type-body-2 text-content mb-4">{t('cart.wishlistEmpty')}</p>
               <Link
                 href="/products"
                 className="inline-block px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors"
               >
-                Start Shopping
+                {t('cart.startShopping')}
               </Link>
             </div>
           )}
@@ -110,7 +137,12 @@ export default function AdminWishlistPage() {
                 const hasSpecialOffer = product.specialOfferPrice && product.specialOfferPrice < product.price
 
                 return (
-                  <div key={product.id} className="border border-black group">
+                  <div 
+                    key={product.id} 
+                    className={`border border-black group transition-all duration-500 ease-in-out ${
+                      removingProducts.has(product.id) ? 'opacity-0 scale-95 -translate-y-2' : 'opacity-100 scale-100 translate-y-0'
+                    }`}
+                  >
                     <Link href={`/products/${product.slug}`} className="block">
                       <div className="relative aspect-square bg-gray-100 overflow-hidden">
                         {primaryImage ? (
@@ -158,8 +190,8 @@ export default function AdminWishlistPage() {
                         onClick={() => handleRemoveFavorite(product.id)}
                         className="flex items-center gap-2 text-sm text-content hover:text-red-600 transition-colors pt-2"
                       >
-                        <Heart className="w-4 h-4 fill-current" />
-                        <span>Remove from wishlist</span>
+                        <Heart className="w-4 h-4 fill-red-500 text-red-500" />
+                        <span>{t('cart.remove')}</span>
                       </button>
                     </div>
                   </div>

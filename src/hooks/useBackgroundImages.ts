@@ -33,12 +33,18 @@ export function useBackgroundImages() {
     return image ? backgroundImageService.getEffectiveUrl(image) : null
   }
 
+  const getBackgroundMimeTypeForSection = (sectionName: string): string | null => {
+    const image = getBackgroundImageForSection(sectionName)
+    return image ? image.mimeType : null
+  }
+
   return {
     backgroundImages,
     loading,
     error,
     getBackgroundImageForSection,
     getBackgroundUrlForSection,
+    getBackgroundMimeTypeForSection,
     refresh: loadBackgroundImages
   }
 }

@@ -28,25 +28,27 @@ import { usePageTitle } from '@/hooks/usePageTitle'
 import { NotificationContainer } from '@/components/ui/Notification'
 import { CurrencySelector } from '@/components/CurrencySelector'
 import { useOrderStats } from '@/hooks/useOrderStats'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface AdminLayoutProps {
   children: React.ReactNode
 }
 
 const navigation = [
-  { name: 'Analytics Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-  { name: 'Payments', href: '/admin/payments', icon: CreditCard },
-  { name: 'Products', href: '/admin/products', icon: Package },
-  { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Discount Codes', href: '/admin/discount-codes', icon: Tag },
-  { name: 'Stock Notifications', href: '/admin/stock-notifications', icon: Bell },
-  { name: 'Styling', href: '/admin/styling', icon: Palette },
-  { name: 'Settings', href: '/admin/settings', icon: Settings },
-  { name: 'Test', href: '/admin/test', icon: TestTube2 },
+  { nameKey: 'admin.nav.analytics', href: '/admin', icon: LayoutDashboard },
+  { nameKey: 'admin.nav.orders', href: '/admin/orders', icon: ShoppingCart },
+  { nameKey: 'admin.nav.payments', href: '/admin/payments', icon: CreditCard },
+  { nameKey: 'admin.nav.products', href: '/admin/products', icon: Package },
+  { nameKey: 'admin.nav.users', href: '/admin/users', icon: Users },
+  { nameKey: 'admin.nav.discountCodes', href: '/admin/discount-codes', icon: Tag },
+  { nameKey: 'admin.nav.stockNotifications', href: '/admin/stock-notifications', icon: Bell },
+  { nameKey: 'admin.nav.styling', href: '/admin/styling', icon: Palette },
+  { nameKey: 'admin.nav.settings', href: '/admin/settings', icon: Settings },
+  { nameKey: 'admin.nav.test', href: '/admin/test', icon: TestTube2 },
 ]
 
 export function AdminLayout({ children }: AdminLayoutProps) {
+  const { t } = useTranslation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const pathname = usePathname()
@@ -55,6 +57,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { currentLanguage, setLanguage, getLanguageFlag, getLanguageName, supportedLanguages } = useLanguage()
   const { currentCurrency } = useCurrency()
   const { navbarName } = usePageTitle()
+  // Always load order stats so the badge is visible on all admin pages
   const { getNonDeliveredCount } = useOrderStats()
   const nonDeliveredCount = getNonDeliveredCount()
 
@@ -104,7 +107,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="relative flex w-64 flex-col bg-white shadow-xl">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('admin.panel') || 'Admin Panel'}</h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="text-gray-400 hover:text-gray-600"
@@ -118,7 +121,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               const isOrders = item.href === '/admin/orders'
               return (
                 <Link
-                  key={item.name}
+                  key={item.nameKey}
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md ${
@@ -129,7 +132,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 >
                   <div className="flex items-center">
                     <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                    {item.name}
+                    {t(item.nameKey)}
                   </div>
                   {isOrders && (
                     <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center">
@@ -145,7 +148,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="border-t border-gray-200 p-4">
             <div className="mb-4">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-medium text-gray-700">Language</span>
+                <span className="text-sm font-medium text-gray-700">{t('admin.language') || 'Language'}</span>
               </div>
               <div className="grid grid-cols-2 gap-1">
                 {supportedLanguages.map((langCode) => (
@@ -172,7 +175,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             {/* Currency Selector - Mobile */}
             <div className="mb-4">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-medium text-gray-700">Currency</span>
+                <span className="text-sm font-medium text-gray-700">{t('admin.currency') || 'Currency'}</span>
               </div>
               <CurrencySelector />
             </div>
@@ -191,7 +194,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                     : user?.email}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {user?.roles?.includes('ADMIN') ? 'Administrator' : 'User'}
+                  {user?.roles?.includes('ADMIN') ? (t('admin.administrator') || 'Administrator') : (t('admin.user') || 'User')}
                 </p>
               </div>
               <button
@@ -210,7 +213,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col h-full bg-white border-r border-gray-200">
           <div className="flex h-16 items-center px-4">
-            <h1 className="text-xl font-bold text-gray-900">Admin Panel</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('admin.panel') || 'Admin Panel'}</h1>
           </div>
           <nav className="space-y-1 px-2 py-4">
             {navigation.map((item) => {
@@ -218,7 +221,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               const isOrders = item.href === '/admin/orders'
               return (
                 <Link
-                  key={item.name}
+                  key={item.nameKey}
                   href={item.href}
                   className={`group flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md ${
                     isActive(item.href)
@@ -228,7 +231,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 >
                   <div className="flex items-center">
                     <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                    {item.name}
+                    {t(item.nameKey)}
                   </div>
                   {isOrders && (
                     <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-center">
@@ -244,7 +247,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <div className="border-t border-gray-200 p-3">
             <div className="mb-3">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-medium text-gray-700">Language</span>
+                <span className="text-sm font-medium text-gray-700">{t('admin.language') || 'Language'}</span>
               </div>
               <div className="grid grid-cols-2 gap-1">
                 {supportedLanguages.map((langCode) => (
@@ -268,7 +271,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             {/* Currency Selector - Desktop */}
             <div className="mb-2">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm font-medium text-gray-700">Currency</span>
+                <span className="text-sm font-medium text-gray-700">{t('admin.currency') || 'Currency'}</span>
               </div>
               <CurrencySelector />
             </div>
@@ -290,7 +293,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                     : user?.email}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {user?.roles?.includes('ADMIN') ? 'Administrator' : 'User'}
+                  {user?.roles?.includes('ADMIN') ? (t('admin.administrator') || 'Administrator') : (t('admin.user') || 'User')}
                 </p>
               </div>
               <button

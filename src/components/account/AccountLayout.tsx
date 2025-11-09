@@ -7,6 +7,8 @@ import { useRouter, usePathname } from 'next/navigation'
 import { userService } from '@/services/userService'
 import { EditNameModal, EditPhoneModal, EditPasswordModal, EditBirthdayModal } from './ProfileEditModals'
 import { CountryCodePicker } from '@/components/auth/CountryCodePicker'
+import { useTranslation } from '@/hooks/useTranslation'
+import { User, Phone, Lock } from 'lucide-react'
 
 const COUNTRIES = [
   { code: 'US', phoneCode: '+1' },
@@ -94,6 +96,7 @@ interface AccountLayoutProps {
 
 export function AccountLayout({ children }: AccountLayoutProps) {
   const { user, refreshUser, isLoading } = useAuth()
+  const { t, isLoading: isLanguageLoading } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
   const isAdmin = user?.roles?.includes('ADMIN')
@@ -130,6 +133,19 @@ export function AccountLayout({ children }: AccountLayoutProps) {
       loadProfile()
     }
   }, [pathname, basePath, editPhoneModalOpen, editNameModalOpen])
+
+  // Trigger fade-in animation for profile section on mount
+  useEffect(() => {
+    if (isActive('/profile') || pathname === basePath || pathname === `${basePath}/`) {
+      const profileSection = document.querySelector('.fade-in-on-scroll')
+      if (profileSection) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          profileSection.classList.add('fade-in-on-scroll')
+        }, 100)
+      }
+    }
+  }, [pathname, basePath])
   
   const handleProfileUpdate = async () => {
     try {
@@ -163,7 +179,7 @@ export function AccountLayout({ children }: AccountLayoutProps) {
               <div className="h-[4.5rem] w-64 bg-gray-200 rounded animate-pulse" style={{ fontSize: '3rem' }}></div>
             </div>
           ) : (
-            <h1 className="type-heading-2 text-content mb-lg uppercase" style={{ fontWeight: 'bold', fontSize: '3rem' }}>Hi, {preferredName.split(' ')[0] || 'User'}</h1>
+            <h1 className="type-heading-2 text-content mb-lg uppercase" style={{ fontWeight: 'bold', fontSize: '3rem' }}>{t('account.hi')}, {preferredName.split(' ')[0] || t('account.user')}</h1>
           )}
           
           {/* Tab Navigation */}
@@ -199,7 +215,9 @@ export function AccountLayout({ children }: AccountLayoutProps) {
                 data-testid="navigation-link-0"
                 aria-label="profile"
               >
-                profile
+                {!isLanguageLoading ? t('account.profile').toLowerCase() : (
+                  <span className="h-4 w-16 bg-gray-200 rounded animate-pulse inline-block"></span>
+                )}
               </Link>
               <Link
                 href={`${basePath}/orders`}
@@ -211,7 +229,9 @@ export function AccountLayout({ children }: AccountLayoutProps) {
                 data-testid="navigation-link-1"
                 aria-label="orders"
               >
-                orders
+                {!isLanguageLoading ? t('account.orders').toLowerCase() : (
+                  <span className="h-4 w-16 bg-gray-200 rounded animate-pulse inline-block"></span>
+                )}
               </Link>
               <Link
                 href={`${basePath}/addresses`}
@@ -223,7 +243,9 @@ export function AccountLayout({ children }: AccountLayoutProps) {
                 data-testid="navigation-link-2"
                 aria-label="addresses"
               >
-                addresses
+                {!isLanguageLoading ? t('account.addresses').toLowerCase() : (
+                  <span className="h-4 w-16 bg-gray-200 rounded animate-pulse inline-block"></span>
+                )}
               </Link>
               <Link
                 href={`${basePath}/wishlist`}
@@ -235,7 +257,9 @@ export function AccountLayout({ children }: AccountLayoutProps) {
                 data-testid="navigation-link-3"
                 aria-label="wishlist"
               >
-                wishlist
+                {!isLanguageLoading ? t('account.wishlist').toLowerCase() : (
+                  <span className="h-4 w-16 bg-gray-200 rounded animate-pulse inline-block"></span>
+                )}
               </Link>
             </div>
             
@@ -259,11 +283,15 @@ export function AccountLayout({ children }: AccountLayoutProps) {
 
           {/* Profile Section - Only show when on profile page */}
           {(isActive('/profile') || pathname === basePath || pathname === `${basePath}/`) && (
-            <div className="flex max-lg:flex-col pt-lg mt-lg border-t border-black gap-6xl">
+            <div className="flex max-lg:flex-col pt-lg mt-lg border-t border-black gap-6xl fade-in-on-scroll" style={{ opacity: 0 }}>
               <div className="lg:w-6/12">
-                <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>PROFILE</h1>
+                <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>{t('account.profile').toUpperCase()}</h1>
                 <div className="mt-3xl">
-                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>Preferred Name</h1>
+                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>
+                    {!isLanguageLoading ? t('account.preferredName') : (
+                      <span className="h-6 w-32 bg-gray-200 rounded animate-pulse inline-block"></span>
+                    )}
+                  </h1>
                   {isLoading || !user ? (
                     <div className="mb-xxs">
                       <div className="h-6 w-48 bg-gray-200 rounded animate-pulse"></div>
@@ -271,17 +299,22 @@ export function AccountLayout({ children }: AccountLayoutProps) {
                   ) : (
                     <p className="type-body-2 text-content mb-xxs">{preferredName}</p>
                   )}
-                  <button 
-                    onClick={() => setEditNameModalOpen(true)}
-                    className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility underline pt-xs type-body-3 mixed-case"
-                    type="button"
-                    disabled={isLoading || !user}
-                  >
-                    <span className="flex justify-center items-center gap-xxs preserve-line-height">Edit Preferred Name</span>
-                  </button>
+                  <div className="flex items-center">
+                    <User className="ml-[-5px] w-6 h-6 stroke-[1.5] opacity-70" />
+                    <button 
+                      onClick={() => setEditNameModalOpen(true)}
+                      className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none capitalize hover:text-utility-hover pt-xs underline type-body-3 bg-transparent border-none p-0"
+                      type="button"
+                      disabled={isLoading || !user}
+                    >
+                      {!isLanguageLoading ? t('account.editPreferredName') : (
+                        <span className="h-4 w-24 bg-gray-200 rounded animate-pulse inline-block"></span>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div style={{ marginTop: '48px' }}>
-                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>Email</h1>
+                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>{t('account.email')}</h1>
                   {isLoading || !user ? (
                     <div className="mb-xxs">
                       <div className="h-6 w-64 bg-gray-200 rounded animate-pulse"></div>
@@ -289,26 +322,36 @@ export function AccountLayout({ children }: AccountLayoutProps) {
                   ) : (
                     <p className="type-body-2 text-content mb-xxs">{user?.email}</p>
                   )}
-                  <button 
-                    onClick={() => setEditPasswordModalOpen(true)}
-                    className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility underline pt-xs type-body-3"
-                    type="button"
-                  >
-                    <span className="flex justify-center items-center gap-xxs preserve-line-height">Edit Password</span>
-                  </button>
+                  <div className="flex items-center">
+                    <Lock className="ml-[-5px] w-6 h-6 stroke-[1.5] opacity-70" />
+                    <button 
+                      onClick={() => setEditPasswordModalOpen(true)}
+                      className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none capitalize hover:text-utility-hover pt-xs underline type-body-3 bg-transparent border-none p-0"
+                      type="button"
+                    >
+                      {!isLanguageLoading ? t('account.editPassword') : (
+                        <span className="h-4 w-24 bg-gray-200 rounded animate-pulse inline-block"></span>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div style={{ marginTop: '48px' }}>
-                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>Phone</h1>
-                  <button 
-                    onClick={() => setEditPhoneModalOpen(true)}
-                    className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility underline pt-xs type-body-3"
-                    type="button"
-                  >
-                    <span className="flex justify-center items-center gap-xxs preserve-line-height">{profileData?.phoneNumber || (profileData as any)?.phone_number ? 'Edit Phone' : 'Add Phone'}</span>
-                  </button>
+                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>{t('account.phone')}</h1>
+                  <div className="flex items-center">
+                    <Phone className="ml-[-5px] w-6 h-6 stroke-[1.5] opacity-70" />
+                    <button 
+                      onClick={() => setEditPhoneModalOpen(true)}
+                      className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none capitalize hover:text-utility-hover pt-xs underline type-body-3 bg-transparent border-none p-0"
+                      type="button"
+                    >
+                      {!isLanguageLoading ? (profileData?.phoneNumber || (profileData as any)?.phone_number ? t('account.editPhone') : t('account.addPhone')) : (
+                        <span className="h-4 w-24 bg-gray-200 rounded animate-pulse inline-block"></span>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div style={{ marginTop: '48px', paddingBottom: '32px' }}>
-                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>Birthday</h1>
+                  <h1 className="type-heading-6 text-content mb-xxs" style={{ fontWeight: 'bold' }}>{t('account.birthday')}</h1>
                   <div className="flex items-center">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="ml-[-5px] w-xl h-xl">
                       <path fillRule="evenodd" clipRule="evenodd" d="M9.97961 5.73612C9.97961 6.68722 10.7541 7.46163 11.7051 7.46163C12.6521 7.46163 13.4224 6.69547 13.4327 5.75259C13.4778 5.23699 13.2293 4.6413 12.6952 3.9819C12.3258 3.5271 11.9488 3.20096 11.9093 3.16681C11.9079 3.16564 11.907 3.16481 11.9064 3.16433L11.7113 3L11.512 3.16022C11.4484 3.2095 10.0002 4.40295 9.97961 5.73406V5.73612ZM11.7051 6.84539C11.095 6.84539 10.5959 6.34826 10.5959 5.73818L10.5959 5.73823C10.6041 4.94944 11.3415 4.15652 11.7051 3.81553C12.157 4.24895 12.878 5.085 12.8164 5.7074L12.8144 5.72177V5.73615C12.8144 6.3483 12.3173 6.84539 11.7051 6.84539ZM12.6194 8.6119V11.4692C12.359 11.469 12.0956 11.4687 11.8318 11.4684L11.7047 11.4682H11.7042C11.4025 11.4677 11.102 11.4672 10.8056 11.4672V8.6119H12.6194ZM10.1893 8.50304V11.4669L8.57253 11.4652C7.50026 11.4631 6.70531 11.4631 6.51633 11.4631C5.12771 11.4631 4 12.5929 4 13.9794C4 14.699 4.3027 15.3735 4.83389 15.851V20.2118C4.83389 20.5733 5.12763 20.867 5.48916 20.867H17.9352C18.2967 20.867 18.5905 20.5733 18.5905 20.2118V15.8481C19.118 15.3726 19.4185 14.7004 19.4185 13.9836C19.4185 12.599 18.2887 11.4713 16.9022 11.4713C16.6254 11.4713 15.0708 11.4713 13.2336 11.4695V8.50304C13.2336 8.22366 13.0056 7.99565 12.7262 7.99565H10.6967C10.4173 7.99565 10.1893 8.22367 10.1893 8.50304ZM8.56635 12.0814L10.1893 12.0831V12.0834H10.4478L10.487 12.0835C10.8855 12.0835 11.2937 12.084 11.702 12.0845H11.702H11.702C12.1103 12.085 12.5185 12.0855 12.917 12.0855H13.0095C14.4028 12.0855 15.6591 12.0866 16.3588 12.0872L16.896 12.0876C17.9436 12.0876 18.7961 12.938 18.7961 13.9836C18.7961 14.5649 18.5352 15.1051 18.0813 15.4667C17.7457 15.7351 17.3398 15.8787 16.9091 15.8815L16.902 15.8816C16.3166 15.8816 15.7722 15.6186 15.4086 15.1606L15.1683 14.8566L15.1673 14.8577L15.1664 14.8566L14.9307 15.1546L14.9259 15.1606C14.6987 15.4456 14.4016 15.6552 14.0684 15.7723C13.9148 15.8263 13.7535 15.8606 13.5878 15.8736C13.5378 15.8775 13.4874 15.8795 13.4367 15.8795C12.8533 15.8795 12.311 15.6166 11.9474 15.1585L11.7051 14.8545L11.705 14.8545L11.705 14.8545L11.7035 14.8564L11.4627 15.1565C11.0991 15.6145 10.5568 15.8775 9.97342 15.8775C9.66999 15.8775 9.37767 15.8063 9.11583 15.6736C8.87591 15.5513 8.66173 15.3771 8.48824 15.1585L8.24585 14.8545L8.24464 14.856L8.24179 14.8525L7.9994 15.1565C7.63584 15.6145 7.09352 15.8775 6.51015 15.8775C6.254 15.8775 6.00637 15.8277 5.77689 15.7316C5.61809 15.6646 5.46973 15.5757 5.33714 15.4667L5.20143 15.3553C4.82396 14.9982 4.61006 14.504 4.61006 13.9794C4.61006 12.9318 5.46252 12.0793 6.51015 12.0793L6.83089 12.0798H6.83119H6.83176C7.19745 12.0804 7.81294 12.0814 8.56635 12.0814ZM6.01088 16.4447C5.81597 16.4053 5.62764 16.3431 5.45009 16.2599V20.2119C5.45009 20.2325 5.46653 20.251 5.48912 20.251H17.9352C17.9557 20.251 17.9742 20.2345 17.9742 20.2119V16.2578C17.6394 16.416 17.2758 16.4982 16.9019 16.4982C16.8121 16.4982 16.7229 16.4935 16.6348 16.4842C16.0831 16.4267 15.5702 16.1897 15.1675 15.8087C14.7034 16.2499 14.0895 16.4961 13.4386 16.4961C13.2946 16.4961 13.1524 16.4839 13.0132 16.4602C12.5233 16.3771 12.0705 16.1508 11.7073 15.8076C11.4133 16.0867 11.0594 16.2876 10.6742 16.3974C10.4501 16.4621 10.2153 16.4958 9.97554 16.4958C9.32278 16.4958 8.71106 16.2476 8.24696 15.8066C8.0277 16.0145 7.77513 16.1795 7.50109 16.2956C7.19398 16.4263 6.85958 16.4958 6.51427 16.4958C6.34462 16.4958 6.17588 16.4784 6.01088 16.4447Z" fill="black"></path>
@@ -318,7 +361,7 @@ export function AccountLayout({ children }: AccountLayoutProps) {
                       className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none capitalize hover:text-utility-hover pt-xs underline type-body-3 bg-transparent border-none p-0"
                       aria-label="Add Your Birthday"
                     >
-                      Add Your Birthday
+                      {t('account.addBirthday')}
                     </button>
                   </div>
                 </div>

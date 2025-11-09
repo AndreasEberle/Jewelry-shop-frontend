@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { useTranslation } from '@/hooks/useTranslation'
 import { TestTube2, CheckCircle2, XCircle, AlertCircle, Loader2 } from 'lucide-react'
 import api from '@/services/api'
 
@@ -28,6 +29,7 @@ interface TestResult {
 }
 
 export default function AdminTestPage() {
+  const { t } = useTranslation()
   const [generatingProducts, setGeneratingProducts] = useState(false)
   const [testingStripe, setTestingStripe] = useState(false)
   const [testingStripeProd, setTestingStripeProd] = useState(false)
@@ -165,11 +167,11 @@ export default function AdminTestPage() {
       <div className="container mx-auto p-6">
         <div className="flex items-center space-x-3 mb-6">
           <TestTube2 className="w-8 h-8 text-primary-600" />
-          <h1 className="text-3xl font-bold text-gray-900">Test Utilities</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('admin.test.title') || 'Test Utilities'}</h1>
         </div>
 
         <p className="text-gray-600 mb-8">
-          Use these utilities to test system functionality. All actions require confirmation.
+          {t('admin.test.description') || 'Use these utilities to test system functionality. All actions require confirmation.'}
         </p>
 
         <div className="space-y-6">
@@ -177,9 +179,9 @@ export default function AdminTestPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Generate Test Products</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{t('admin.test.generateTestProducts') || 'Generate Test Products'}</h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Creates 2-3 test products from JSON files in test-products directory
+                  {t('admin.test.generateTestProductsDesc') || 'Creates 2-3 test products from JSON files in test-products directory'}
                 </p>
               </div>
             </div>
@@ -187,7 +189,7 @@ export default function AdminTestPage() {
             {confirmDialogs.products ? (
               <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-yellow-800 font-medium mb-3">
-                  Are you sure you want to generate test products? This will create new products in the database.
+                  {t('admin.test.generateConfirm') || 'Are you sure you want to generate test products? This will create new products in the database.'}
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -198,17 +200,17 @@ export default function AdminTestPage() {
                     {generatingProducts ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Generating...
+                        {t('admin.test.generating') || 'Generating...'}
                       </>
                     ) : (
-                      'Yes, Generate Products'
+                      t('admin.test.yesGenerate') || 'Yes, Generate Products'
                     )}
                   </button>
                   <button
                     onClick={() => setConfirmDialogs({ ...confirmDialogs, products: false })}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                   >
-                    Cancel
+                    {t('admin.test.cancel') || 'Cancel'}
                   </button>
                 </div>
               </div>
@@ -218,7 +220,7 @@ export default function AdminTestPage() {
                 disabled={generatingProducts}
                 className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
               >
-                Generate Test Products
+                {t('admin.test.generateTestProducts') || 'Generate Test Products'}
               </button>
             )}
 
@@ -231,7 +233,7 @@ export default function AdminTestPage() {
                     
                     {productResult.createdProducts && productResult.createdProducts.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-sm font-medium text-gray-700 mb-1">Created Products:</p>
+                        <p className="text-sm font-medium text-gray-700 mb-1">{t('admin.test.createdProducts') || 'Created Products:'}</p>
                         <ul className="list-disc list-inside text-sm text-gray-600 space-y-1">
                           {productResult.createdProducts.map((product, idx) => (
                             <li key={idx}>{product}</li>
@@ -242,7 +244,7 @@ export default function AdminTestPage() {
 
                     {productResult.errors && productResult.errors.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-sm font-medium text-red-700 mb-1">Errors:</p>
+                        <p className="text-sm font-medium text-red-700 mb-1">{t('admin.test.errors') || 'Errors:'}</p>
                         <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
                           {productResult.errors.map((error, idx) => (
                             <li key={idx}>{error}</li>
@@ -261,10 +263,10 @@ export default function AdminTestPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Test Stripe Connection <span className="text-sm font-normal text-blue-700">(SANDBOX/TEST)</span>
+                  {t('admin.test.testStripeSandbox') || 'Test Stripe Connection'} <span className="text-sm font-normal text-blue-700">(SANDBOX/TEST)</span>
                 </h2>
                 <p className="text-sm text-gray-600 mt-1">
-                  Tests Stripe TEST/SANDBOX mode connection by creating a test PaymentIntent
+                  {t('admin.test.testStripeDesc') || 'Tests Stripe TEST/SANDBOX mode connection by creating a test PaymentIntent'}
                 </p>
               </div>
             </div>
@@ -272,7 +274,7 @@ export default function AdminTestPage() {
             {confirmDialogs.stripe ? (
               <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-yellow-800 font-medium mb-3">
-                  Are you sure you want to test the Stripe connection? This will check your API key configuration.
+                  {t('admin.test.testStripeConfirm') || 'Are you sure you want to test the Stripe connection? This will check your API key configuration.'}
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -283,17 +285,17 @@ export default function AdminTestPage() {
                     {testingStripe ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Testing...
+                        {t('admin.test.testing') || 'Testing...'}
                       </>
                     ) : (
-                      'Yes, Test Stripe'
+                      t('admin.test.yesTestStripe') || 'Yes, Test Stripe'
                     )}
                   </button>
                   <button
                     onClick={() => setConfirmDialogs({ ...confirmDialogs, stripe: false })}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                   >
-                    Cancel
+                    {t('admin.test.cancel') || 'Cancel'}
                   </button>
                 </div>
               </div>
@@ -303,7 +305,7 @@ export default function AdminTestPage() {
                 disabled={testingStripe}
                 className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
               >
-                Test Stripe Connection
+                {t('admin.test.testStripe') || 'Test Stripe Connection'}
               </button>
             )}
 
@@ -315,30 +317,30 @@ export default function AdminTestPage() {
                     <p className="font-medium text-gray-900 whitespace-pre-line">{stripeResult.message}</p>
                     
                     {stripeResult.modeLabel && (
-                      <p className="mt-2 text-sm font-semibold text-blue-700">Mode: {stripeResult.modeLabel}</p>
+                      <p className="mt-2 text-sm font-semibold text-blue-700">{t('admin.test.mode') || 'Mode'}: {stripeResult.modeLabel}</p>
                     )}
                     
                     {stripeResult.hasPublishableKey !== undefined && (
                       <div className="mt-2 text-sm text-gray-600">
-                        <p>Configured: <span className="font-medium">{stripeResult.configured ? 'Yes' : 'No'}</span></p>
+                        <p>{t('admin.test.configured') || 'Configured'}: <span className="font-medium">{stripeResult.configured ? t('admin.test.yes') || 'Yes' : t('admin.test.no') || 'No'}</span></p>
                         {stripeResult.publishableKeyPreview && (
-                          <p>Publishable Key: <span className="font-medium">{stripeResult.publishableKeyPreview}</span></p>
+                          <p>{t('admin.test.publishableKey') || 'Publishable Key'}: <span className="font-medium">{stripeResult.publishableKeyPreview}</span></p>
                         )}
                       </div>
                     )}
                     
                     {stripeResult.testPaymentIntentId && (
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <p className="text-sm font-semibold text-blue-900 mb-2">Test PaymentIntent Details:</p>
+                        <p className="text-sm font-semibold text-blue-900 mb-2">{t('admin.test.testPaymentIntentDetails') || 'Test PaymentIntent Details:'}</p>
                         <div className="text-sm text-blue-800 space-y-1">
-                          <p>ID: <span className="font-mono font-medium">{stripeResult.testPaymentIntentId}</span></p>
+                          <p>{t('admin.test.id') || 'ID'}: <span className="font-mono font-medium">{stripeResult.testPaymentIntentId}</span></p>
                           {stripeResult.testAmount && stripeResult.testCurrency && (
-                            <p>Amount: <span className="font-medium">{stripeResult.testAmount} {stripeResult.testCurrency}</span></p>
+                            <p>{t('admin.test.amount') || 'Amount'}: <span className="font-medium">{stripeResult.testAmount} {stripeResult.testCurrency}</span></p>
                           )}
                           {stripeResult.dashboardUrl && (
                             <a href={stripeResult.dashboardUrl} target="_blank" rel="noopener noreferrer" 
                                className="text-blue-600 hover:text-blue-800 underline">
-                              View in Stripe Dashboard →
+                              {t('admin.test.viewInStripe') || 'View in Stripe Dashboard →'}
                             </a>
                           )}
                         </div>
@@ -355,10 +357,10 @@ export default function AdminTestPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-xl font-semibold text-red-900">
-                  Test Stripe Connection <span className="text-sm font-normal text-red-700">(PRODUCTION/LIVE)</span>
+                  {t('admin.test.testStripeProd') || 'Test Stripe Connection'} <span className="text-sm font-normal text-red-700">(PRODUCTION/LIVE)</span>
                 </h2>
                 <p className="text-sm text-red-600 mt-1">
-                  ⚠️ <strong>WARNING:</strong> This will create a REAL transaction in LIVE mode. Only use this with production keys (sk_live_*).
+                  {t('admin.test.testStripeProdDesc') || '⚠️ WARNING: This will create a REAL transaction in LIVE mode. Only use this with production keys (sk_live_*).'}
                 </p>
               </div>
             </div>
@@ -366,13 +368,10 @@ export default function AdminTestPage() {
             {confirmDialogs.stripeProd ? (
               <div className="mb-4 p-4 bg-red-100 border-2 border-red-400 rounded-lg">
                 <p className="text-red-900 font-bold mb-2 text-lg">
-                  ⚠️ WARNING: This will create a REAL transaction!
+                  ⚠️ {t('admin.test.testStripeProdDesc') || 'WARNING: This will create a REAL transaction!'}
                 </p>
                 <p className="text-red-800 mb-3">
-                  This test will create an actual PaymentIntent using LIVE Stripe keys (sk_live_*).
-                  This is a REAL transaction that will appear in your production Stripe Dashboard.
-                  <br />
-                  <strong>Only proceed if you have configured LIVE keys and understand the implications.</strong>
+                  {t('admin.test.testStripeProdDesc') || 'This test will create an actual PaymentIntent using LIVE Stripe keys (sk_live_*). This is a REAL transaction that will appear in your production Stripe Dashboard. Only proceed if you have configured LIVE keys and understand the implications.'}
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -383,17 +382,17 @@ export default function AdminTestPage() {
                     {testingStripeProd ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Testing...
+                        {t('admin.test.testing') || 'Testing...'}
                       </>
                     ) : (
-                      '⚠️ Yes, Test LIVE Mode'
+                      `⚠️ ${t('admin.test.yesTestStripe') || 'Yes, Test LIVE Mode'}`
                     )}
                   </button>
                   <button
                     onClick={() => setConfirmDialogs({ ...confirmDialogs, stripeProd: false })}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                   >
-                    Cancel
+                    {t('admin.test.cancel') || 'Cancel'}
                   </button>
                 </div>
               </div>
@@ -403,7 +402,7 @@ export default function AdminTestPage() {
                 disabled={testingStripeProd}
                 className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 font-semibold"
               >
-                Test Stripe PROD Connection
+                {t('admin.test.testStripeProd') || 'Test Stripe PROD Connection'}
               </button>
             )}
 
@@ -415,7 +414,7 @@ export default function AdminTestPage() {
                     <p className="font-medium text-gray-900 whitespace-pre-line">{stripeProdResult.message}</p>
                     
                     {stripeProdResult.modeLabel && (
-                      <p className="mt-2 text-sm font-semibold text-red-700">Mode: {stripeProdResult.modeLabel}</p>
+                      <p className="mt-2 text-sm font-semibold text-red-700">{t('admin.test.mode') || 'Mode'}: {stripeProdResult.modeLabel}</p>
                     )}
                     
                     {stripeProdResult.warning && (
@@ -426,25 +425,25 @@ export default function AdminTestPage() {
                     
                     {stripeProdResult.hasPublishableKey !== undefined && (
                       <div className="mt-2 text-sm text-gray-600">
-                        <p>Configured: <span className="font-medium">{stripeProdResult.configured ? 'Yes' : 'No'}</span></p>
+                        <p>{t('admin.test.configured') || 'Configured'}: <span className="font-medium">{stripeProdResult.configured ? t('admin.test.yes') || 'Yes' : t('admin.test.no') || 'No'}</span></p>
                         {stripeProdResult.publishableKeyPreview && (
-                          <p>Publishable Key: <span className="font-medium">{stripeProdResult.publishableKeyPreview}</span></p>
+                          <p>{t('admin.test.publishableKey') || 'Publishable Key'}: <span className="font-medium">{stripeProdResult.publishableKeyPreview}</span></p>
                         )}
                       </div>
                     )}
                     
                     {stripeProdResult.testPaymentIntentId && (
                       <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
-                        <p className="text-sm font-semibold text-red-900 mb-2">⚠️ LIVE PaymentIntent Details:</p>
+                        <p className="text-sm font-semibold text-red-900 mb-2">{t('admin.test.livePaymentIntentDetails') || '⚠️ LIVE PaymentIntent Details:'}</p>
                         <div className="text-sm text-red-800 space-y-1">
-                          <p>ID: <span className="font-mono font-medium">{stripeProdResult.testPaymentIntentId}</span></p>
+                          <p>{t('admin.test.id') || 'ID'}: <span className="font-mono font-medium">{stripeProdResult.testPaymentIntentId}</span></p>
                           {stripeProdResult.testAmount && stripeProdResult.testCurrency && (
-                            <p>Amount: <span className="font-medium">{stripeProdResult.testAmount} {stripeProdResult.testCurrency}</span></p>
+                            <p>{t('admin.test.amount') || 'Amount'}: <span className="font-medium">{stripeProdResult.testAmount} {stripeProdResult.testCurrency}</span></p>
                           )}
                           {stripeProdResult.dashboardUrl && (
                             <a href={stripeProdResult.dashboardUrl} target="_blank" rel="noopener noreferrer" 
                                className="text-red-600 hover:text-red-800 underline font-semibold">
-                              View in Stripe Dashboard →
+                              {t('admin.test.viewInStripe') || 'View in Stripe Dashboard →'}
                             </a>
                           )}
                         </div>
@@ -480,19 +479,19 @@ export default function AdminTestPage() {
             ) : !confirmDialogs.deleteEverythingSecond ? (
               <div className="mb-4 p-4 bg-red-50 border-2 border-red-300 rounded-lg">
                 <p className="text-red-900 font-bold mb-2 text-lg">
-                  ⚠️ FIRST CONFIRMATION: Are you absolutely sure?
+                  {t('admin.test.firstConfirm') || '⚠️ FIRST CONFIRMATION: Are you absolutely sure?'}
                 </p>
                 <p className="text-red-800 mb-3">
-                  This will delete:
+                  {t('admin.test.willDelete') || 'This will delete:'}
                   <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li>All products and product images</li>
-                    <li>All orders and payments</li>
-                    <li>All carts and cart items</li>
-                    <li>All user favorites</li>
-                    <li>All product reviews</li>
-                    <li>All analytics data</li>
-                    <li>All addresses</li>
-                    <li>All files in S3 products/ folder</li>
+                    <li>{t('admin.test.deleteProducts') || 'All products and product images'}</li>
+                    <li>{t('admin.test.deleteOrders') || 'All orders and payments'}</li>
+                    <li>{t('admin.test.deleteCarts') || 'All carts and cart items'}</li>
+                    <li>{t('admin.test.deleteFavorites') || 'All user favorites'}</li>
+                    <li>{t('admin.test.deleteReviews') || 'All product reviews'}</li>
+                    <li>{t('admin.test.deleteAnalytics') || 'All analytics data'}</li>
+                    <li>{t('admin.test.deleteAddresses') || 'All addresses'}</li>
+                    <li>{t('admin.test.deleteS3Files') || 'All files in S3 products/ folder'}</li>
                   </ul>
                 </p>
                 <div className="flex gap-3">
@@ -501,23 +500,23 @@ export default function AdminTestPage() {
                     disabled={deletingEverything}
                     className="px-4 py-2 bg-red-700 text-white rounded-lg hover:bg-red-800 disabled:opacity-50 font-bold"
                   >
-                    Yes, I Understand - Continue
+                    {t('admin.test.yesContinue') || 'Yes, I Understand - Continue'}
                   </button>
                   <button
                     onClick={() => setConfirmDialogs({ ...confirmDialogs, deleteEverything: false })}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                   >
-                    Cancel
+                    {t('admin.test.cancel') || 'Cancel'}
                   </button>
                 </div>
               </div>
             ) : (
               <div className="mb-4 p-4 bg-red-100 border-4 border-red-500 rounded-lg">
                 <p className="text-red-900 font-bold mb-2 text-xl">
-                  ⚠️ SECOND CONFIRMATION: Final Warning!
+                  {t('admin.test.secondConfirm') || '⚠️ SECOND CONFIRMATION: Final Warning!'}
                 </p>
                 <p className="text-red-800 mb-3 font-semibold">
-                  This is your LAST chance to cancel. All data will be permanently deleted and cannot be recovered.
+                  {t('admin.test.deleteWarning') || 'This is your LAST chance to cancel. All data will be permanently deleted and cannot be recovered.'}
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -528,10 +527,10 @@ export default function AdminTestPage() {
                     {deletingEverything ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Deleting...
+                        {t('admin.test.deleting') || 'Deleting...'}
                       </>
                     ) : (
-                      '⚠️ DELETE EVERYTHING NOW'
+                      t('admin.test.deleteNow') || '⚠️ DELETE EVERYTHING NOW'
                     )}
                   </button>
                   <button
@@ -539,7 +538,7 @@ export default function AdminTestPage() {
                     disabled={deletingEverything}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                   >
-                    Cancel
+                    {t('admin.test.cancel') || 'Cancel'}
                   </button>
                 </div>
               </div>
@@ -556,15 +555,15 @@ export default function AdminTestPage() {
                       <div className="mt-4 space-y-2">
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                           <p className="text-sm font-semibold text-gray-700 mb-2">
-                            📊 Summary:
+                            {t('admin.test.summary') || '📊 Summary:'}
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                             <p className="text-gray-600">
-                              Database Records: <span className="font-bold text-gray-900">{deleteResult.deletedDatabaseRecords.toLocaleString()}</span>
+                              {t('admin.test.databaseRecords') || 'Database Records'}: <span className="font-bold text-gray-900">{deleteResult.deletedDatabaseRecords.toLocaleString()}</span>
                             </p>
                             {deleteResult.deletedS3Files !== undefined && deleteResult.deletedS3Files > 0 && (
                               <p className="text-gray-600">
-                                Storage Files: <span className="font-bold text-gray-900">{deleteResult.deletedS3Files.toLocaleString()}</span>
+                                {t('admin.test.storageFiles') || 'Storage Files'}: <span className="font-bold text-gray-900">{deleteResult.deletedS3Files.toLocaleString()}</span>
                               </p>
                             )}
                           </div>
@@ -573,7 +572,7 @@ export default function AdminTestPage() {
                         {deleteResult.breakdown && Object.keys(deleteResult.breakdown).length > 0 && (
                           <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                             <p className="text-sm font-semibold text-blue-900 mb-3">
-                              📋 Detailed Breakdown by Table:
+                              {t('admin.test.detailedBreakdown') || '📋 Detailed Breakdown by Table:'}
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                               {Object.entries(deleteResult.breakdown)
@@ -586,7 +585,7 @@ export default function AdminTestPage() {
                                 ))}
                             </div>
                             {Object.values(deleteResult.breakdown).every(count => count === 0) && (
-                              <p className="text-sm text-gray-500 italic">No records found to delete.</p>
+                              <p className="text-sm text-gray-500 italic">{t('admin.test.noRecordsToDelete') || 'No records found to delete.'}</p>
                             )}
                           </div>
                         )}
@@ -594,13 +593,13 @@ export default function AdminTestPage() {
                         {deleteResult.s3Error && (
                           <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-2">
                             <p className="text-sm font-semibold text-yellow-900 mb-1">
-                              ⚠️ Storage Cleanup Warning:
+                              {t('admin.test.storageCleanupWarning') || '⚠️ Storage Cleanup Warning:'}
                             </p>
                             <p className="text-sm text-yellow-800">
                               {deleteResult.s3Error}
                             </p>
                             <p className="text-xs text-yellow-700 mt-1 italic">
-                              Note: Database cleanup completed successfully. Storage cleanup can be retried separately.
+                              {t('admin.test.storageCleanupNote') || 'Note: Database cleanup completed successfully. Storage cleanup can be retried separately.'}
                             </p>
                           </div>
                         )}

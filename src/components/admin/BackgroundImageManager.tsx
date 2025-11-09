@@ -86,15 +86,17 @@ export function BackgroundImageManager({ sectionName, sectionInfo, onImagesChang
     if (!file) return
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'video/quicktime']
     if (!allowedTypes.includes(file.type)) {
-      alert('Please select a valid image file (JPG, PNG, WebP, or GIF)')
+      alert('Please select a valid image or video file (JPG, PNG, WebP, GIF, MP4, WebM, or MOV)')
       return
     }
 
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB')
+    // Validate file size (max 50MB for videos, 10MB for images)
+    const maxSize = file.type.startsWith('video/') ? 50 * 1024 * 1024 : 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      const maxSizeMB = file.type.startsWith('video/') ? 50 : 10
+      alert(`File size must be less than ${maxSizeMB}MB`)
       return
     }
 
@@ -181,6 +183,7 @@ export function BackgroundImageManager({ sectionName, sectionInfo, onImagesChang
   }
 
   const isGif = (mimeType: string) => mimeType === 'image/gif'
+  const isVideo = (mimeType: string) => mimeType.startsWith('video/')
 
   const getEffectiveUrl = (image: BackgroundImage): string | null => {
     if (image.storageType === 's3' && image.s3Url) {
@@ -234,14 +237,14 @@ export function BackgroundImageManager({ sectionName, sectionInfo, onImagesChang
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+          accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
           onChange={handleFileUpload}
           className="hidden"
         />
         
         <div className="text-sm text-gray-600">
-          <p>Supported formats: JPG, PNG, WebP{sectionInfo.supportsGif ? ', GIF' : ''}</p>
-          <p>Maximum file size: 10MB</p>
+          <p>Supported formats: JPG, PNG, WebP{sectionInfo.supportsGif ? ', GIF' : ''}, MP4, WebM, MOV</p>
+          <p>Maximum file size: 50MB (videos), 10MB (images)</p>
           <p>Recommended size: {sectionInfo.recommendedSize}</p>
           {storageStatus && !storageStatus.s3Configured && (
             <p className="text-yellow-600 font-medium">⚠️ S3 not configured - files will be stored locally only</p>
@@ -273,21 +276,31 @@ export function BackgroundImageManager({ sectionName, sectionInfo, onImagesChang
                   image.isActive ? 'border-primary-500 bg-primary-50' : 'border-gray-200'
                 }`}
               >
-                {/* Image Preview */}
+                {/* Image/Video Preview */}
                 <div className="aspect-video bg-gray-100 relative">
                   {getEffectiveUrl(image) ? (
-                    <img
-                      src={getEffectiveUrl(image)}
-                      alt={image.originalFilename}
-                      className="w-full h-full object-cover"
-                      style={{
-                        animationPlayState: isGif(image.mimeType) && isGifPlaying ? 'running' : 'paused'
-                      }}
-                      onError={(e) => {
-                        console.error('Image failed to load:', getEffectiveUrl(image))
-                        e.currentTarget.style.display = 'none'
-                      }}
-                    />
+                    isVideo(image.mimeType) ? (
+                      <video
+                        src={getEffectiveUrl(image) || undefined}
+                        className="w-full h-full object-cover"
+                        muted
+                        loop
+                        playsInline
+                      />
+                    ) : (
+                      <img
+                        src={getEffectiveUrl(image)}
+                        alt={image.originalFilename}
+                        className="w-full h-full object-cover"
+                        style={{
+                          animationPlayState: isGif(image.mimeType) && isGifPlaying ? 'running' : 'paused'
+                        }}
+                        onError={(e) => {
+                          console.error('Image failed to load:', getEffectiveUrl(image))
+                          e.currentTarget.style.display = 'none'
+                        }}
+                      />
+                    )
                   ) : (
                     <div className="flex items-center justify-center h-full">
                       <ImageIcon className="w-8 h-8 text-gray-400" />
@@ -368,9 +381,9 @@ export function BackgroundImageManager({ sectionName, sectionInfo, onImagesChang
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">Image Preview</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Preview</h3>
               <div className="flex items-center space-x-2">
-                {isGif(previewImage.mimeType) && (
+                {(isGif(previewImage.mimeType) || isVideo(previewImage.mimeType)) && (
                   <button
                     onClick={() => setIsGifPlaying(!isGifPlaying)}
                     className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full"
@@ -393,14 +406,25 @@ export function BackgroundImageManager({ sectionName, sectionInfo, onImagesChang
             </div>
             
             <div className="p-4">
-              <img
-                src={getEffectiveUrl(previewImage) || ''}
-                alt={previewImage.originalFilename}
-                className="max-w-full max-h-[70vh] object-contain mx-auto"
-                style={{
-                  animationPlayState: isGif(previewImage.mimeType) && isGifPlaying ? 'running' : 'paused'
-                }}
-              />
+              {isVideo(previewImage.mimeType) ? (
+                <video
+                  src={getEffectiveUrl(previewImage) || undefined}
+                  className="max-w-full max-h-[70vh] object-contain mx-auto"
+                  controls
+                  autoPlay
+                  loop
+                  muted
+                />
+              ) : (
+                <img
+                  src={getEffectiveUrl(previewImage) || ''}
+                  alt={previewImage.originalFilename}
+                  className="max-w-full max-h-[70vh] object-contain mx-auto"
+                  style={{
+                    animationPlayState: isGif(previewImage.mimeType) && isGifPlaying ? 'running' : 'paused'
+                  }}
+                />
+              )}
               
               <div className="mt-4 text-sm text-gray-600">
                 <p><strong>Filename:</strong> {previewImage.originalFilename}</p>

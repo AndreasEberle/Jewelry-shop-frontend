@@ -5,6 +5,7 @@ import { Star, Search, Check } from 'lucide-react'
 import { reviewService, ProductReview, ProductReviewStats } from '@/services/reviewService'
 import { ReviewModal } from './ReviewModal'
 import { AskQuestionModal } from './AskQuestionModal'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface ProductReviewsProps {
   productId: string
@@ -18,6 +19,7 @@ const REVIEW_FILTERS = [
 ]
 
 export function ProductReviews({ productId, productName }: ProductReviewsProps) {
+  const { t } = useTranslation()
   const [reviews, setReviews] = useState<ProductReview[]>([])
   const [stats, setStats] = useState<ProductReviewStats | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
@@ -115,7 +117,7 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
     <div id="reviews" className="px-4 sm:px-6 lg:px-16 py-12 sm:py-16 lg:py-20 text-center">
       <div className="flex flex-col gap-4 md:gap-0 md:flex-row justify-between items-start md:items-center mb-8">
         <div className="text-left">
-          <h2 className="text-2xl md:text-3xl font-bold mb-2">Customer reviews</h2>
+          <h2 className="text-2xl md:text-3xl font-bold mb-2">{t('product.customerReviews')}</h2>
           {stats && (
             <div className="flex items-center gap-2">
               {renderStars(Math.round(stats.averageRating * 10) / 10, 'lg')}
@@ -128,20 +130,20 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
             onClick={() => setIsReviewModalOpen(true)}
             className="relative inline-block uppercase px-6 text-center outline-none border border-gray-300 hover:bg-gray-50 disabled:border-gray-200 disabled:bg-transparent py-2 text-sm font-normal"
           >
-            Write A Review
+            {t('product.writeReview')}
           </button>
           <button
             onClick={() => setIsQuestionModalOpen(true)}
             className="relative inline-block uppercase px-6 text-center outline-none border border-gray-300 hover:bg-gray-50 disabled:border-gray-200 disabled:bg-transparent py-2 text-sm font-normal"
           >
-            Ask a question
+            {t('product.askQuestion')}
           </button>
         </div>
       </div>
 
       <div role="tablist" className="border-b flex justify-start gap-x-8 items-center mb-6">
         <button role="tab" className="pb-2 mb-[-1px] border-b-2 border-black">
-          <p className="text-sm">Reviews ({stats?.totalReviews || 0})</p>
+          <p className="text-sm">{t('product.reviews')} ({stats?.totalReviews || 0})</p>
         </button>
       </div>
 
@@ -196,7 +198,7 @@ export function ProductReviews({ productId, productName }: ProductReviewsProps) 
             className="inline-flex items-center justify-between gap-2 outline-none focus:ring-2 focus:ring-blue-500 py-2 uppercase text-sm"
             onClick={() => setSortBy(sortBy === 'rating' ? 'date' : 'rating')}
           >
-            <span>Sort: {sortBy === 'rating' ? 'Highest Rating' : 'Newest First'}</span>
+            <span>{sortBy === 'rating' ? t('common.sortHighestRating') : t('common.sortNewestFirst')}</span>
             <span>▼</span>
           </button>
         </div>

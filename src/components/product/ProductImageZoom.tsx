@@ -134,6 +134,7 @@ export function ProductImageZoom({ image, productName }: ProductImageZoomProps) 
           transition: isZoomed ? 'transform 0.1s ease-out' : 'transform 0.3s ease-out',
           transformOrigin: 'center center',
           willChange: 'transform',
+          maxHeight: '100%',
         }}
       />
       {/* Custom cursor - circle with + or - */}

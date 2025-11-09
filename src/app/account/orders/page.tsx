@@ -7,6 +7,7 @@ import { AccountLayout } from '@/components/account/AccountLayout'
 import api from '@/services/api'
 import { Package, Calendar, DollarSign, CheckCircle2, Circle, Truck, Clock, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface Order {
   id: string
@@ -46,6 +47,7 @@ interface OrderItem {
 }
 
 export default function AdminOrdersPage() {
+  const { t, currentLanguage, isLoading: isLanguageLoading } = useTranslation()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -270,7 +272,9 @@ export default function AdminOrdersPage() {
         console.log('[formatDate DEBUG] Invalid date (NaN or zero), returning N/A. Date value:', date)
         return 'N/A'
       }
-      const formatted = date.toLocaleDateString('en-US', {
+      const locale = currentLanguage === 'ja-JP' ? 'ja-JP' : 
+                     currentLanguage === 'de-DE' ? 'de-DE' : 'en-US'
+      const formatted = date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -287,10 +291,10 @@ export default function AdminOrdersPage() {
 
   const getOrderStatusSteps = (status: string) => {
     const steps = [
-      { key: 'CONFIRMED', label: 'Confirmed', icon: CheckCircle2 },
-      { key: 'PROCESSING', label: 'Processing', icon: Clock },
-      { key: 'SHIPPED', label: 'Shipped', icon: Truck },
-      { key: 'DELIVERED', label: 'Delivered', icon: CheckCircle2 }
+      { key: 'CONFIRMED', label: t('account.confirmed'), icon: CheckCircle2 },
+      { key: 'PROCESSING', label: t('account.processing'), icon: Clock },
+      { key: 'SHIPPED', label: t('account.shipped'), icon: Truck },
+      { key: 'DELIVERED', label: t('account.delivered'), icon: CheckCircle2 }
     ]
     
     const currentStatusIndex = steps.findIndex(s => s.key === status.toUpperCase())
@@ -353,11 +357,19 @@ export default function AdminOrdersPage() {
       <Header />
       <AccountLayout>
         <div className="space-y-6xl">
-          <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>ORDERS</h1>
+          <h1 className="type-heading-3 text-content mt-6" style={{ paddingBottom: '24px', fontSize: '1.5rem', fontWeight: 'bold' }}>
+            {!isLanguageLoading ? t('account.ordersTitle') : (
+              <span className="h-8 w-32 bg-gray-200 rounded animate-pulse inline-block"></span>
+            )}
+          </h1>
           
           {loading && (
             <div className="flex items-center justify-center py-12">
-              <p className="type-body-2 text-content">Loading orders...</p>
+              <p className="type-body-2 text-content">
+                {!isLanguageLoading ? t('account.loadingOrders') : (
+                  <span className="h-5 w-40 bg-gray-200 rounded animate-pulse inline-block"></span>
+                )}
+              </p>
             </div>
           )}
 
@@ -386,7 +398,7 @@ export default function AdminOrdersPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
                     <div>
                       <h2 className="type-heading-6 text-content mb-2" style={{ fontWeight: 'bold' }}>
-                        Order #{order.orderNumber || order.id.substring(0, 8)}
+                        {t('account.orderNumber')}{order.orderNumber || order.id.substring(0, 8)}
                       </h2>
                       <div className="flex items-center gap-4 text-sm text-content">
                         <div className="flex items-center gap-2">
@@ -408,7 +420,7 @@ export default function AdminOrdersPage() {
                           className="flex items-center gap-2 px-4 py-2 border border-black text-black hover:bg-gray-100 transition-colors text-sm"
                         >
                           <Download className="w-4 h-4" />
-                          <span>Download Invoice</span>
+                          <span>{t('account.downloadInvoice')}</span>
                         </button>
                       )}
                     </div>
@@ -492,7 +504,7 @@ export default function AdminOrdersPage() {
                               ) : (
                                 <p className="font-medium text-lg text-content mb-2">{item.productName}</p>
                               )}
-                              <p className="text-sm text-content opacity-75 mb-1">Quantity: {item.quantity}</p>
+                              <p className="text-sm text-content opacity-75 mb-1">{t('account.quantity')}: {item.quantity}</p>
                               <p className="text-base font-semibold text-content">
                                 {formatCurrency(item.totalPrice || (item.unitPrice * item.quantity), order.currency || 'CHF')}
                               </p>
@@ -527,7 +539,7 @@ export default function AdminOrdersPage() {
                         }))}
                         className="w-full p-4 bg-blue-50 border-b border-blue-200 flex items-center justify-between hover:bg-blue-100 transition-colors"
                       >
-                        <h3 className="font-semibold text-content">Shipping Information</h3>
+                        <h3 className="font-semibold text-content">{t('account.shippingInformation')}</h3>
                         {isShippingExpanded ? (
                           <ChevronUp className="w-5 h-5 text-content" />
                         ) : (
@@ -554,11 +566,11 @@ export default function AdminOrdersPage() {
                                   window.open(trackingUrl, '_blank', 'noopener,noreferrer')
                                 }}
                               >
-                                Track Your Order →
+                                {t('account.trackYourOrder')} →
                               </a>
                               {order.trackingNumber && (
                                 <p className="text-sm text-content">
-                                  <span className="font-medium">Tracking Number:</span> <span className="font-mono">{order.trackingNumber}</span>
+                                  <span className="font-medium">{t('account.trackingNumber')}:</span> <span className="font-mono">{order.trackingNumber}</span>
                                   {order.carrier && (
                                     <span className="ml-2 opacity-75">({order.carrier})</span>
                                   )}
@@ -567,7 +579,7 @@ export default function AdminOrdersPage() {
                             </div>
                           ) : order.trackingNumber ? (
                             <p className="text-sm text-content">
-                              <span className="font-medium">Tracking Number:</span> <span className="font-mono">{order.trackingNumber}</span>
+                              <span className="font-medium">{t('account.trackingNumber')}:</span> <span className="font-mono">{order.trackingNumber}</span>
                               {order.carrier && (
                                 <span className="ml-2 opacity-75">({order.carrier})</span>
                               )}
@@ -575,15 +587,19 @@ export default function AdminOrdersPage() {
                           ) : null}
                           {estimatedDeliveryDate && (
                             <p className="text-sm text-content mt-3">
-                              <span className="font-medium">Estimated delivery:</span>{' '}
-                              {estimatedDeliveryDate.toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
+                              <span className="font-medium">{t('account.estimatedDelivery')}:</span>{' '}
+                              {estimatedDeliveryDate.toLocaleDateString(
+                                currentLanguage === 'ja-JP' ? 'ja-JP' : 
+                                currentLanguage === 'de-DE' ? 'de-DE' : 'en-US', 
+                                {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                }
+                              )}
                               {order.estimatedDeliveryDays && (
                                 <span className="ml-2 opacity-75">
-                                  ({order.estimatedDeliveryDays} working {order.estimatedDeliveryDays === 1 ? 'day' : 'days'})
+                                  ({order.estimatedDeliveryDays} {order.estimatedDeliveryDays === 1 ? t('account.workingDay') : t('account.workingDays')})
                                 </span>
                               )}
                             </p>

@@ -8,6 +8,7 @@ import { Footer } from '@/components/layout/Footer'
 import { useCart } from '@/contexts/CartContext'
 import { CheckCircle, Package, Mail, ArrowRight } from 'lucide-react'
 import api from '@/services/api'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface Order {
   id: string
@@ -44,6 +45,7 @@ export default function CheckoutSuccessPage() {
   const router = useRouter()
   const orderId = searchParams.get('orderId')
   const { clearCart } = useCart()
+  const { t } = useTranslation()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -93,7 +95,7 @@ export default function CheckoutSuccessPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading order details...</p>
+              <p className="mt-4 text-gray-600">{t('checkout.loadingOrderDetails')}</p>
             </div>
           </div>
         </main>
@@ -109,10 +111,10 @@ export default function CheckoutSuccessPage() {
         <main className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">Order Not Found</h1>
-              <p className="text-gray-600 mb-6">{error || 'Unable to load order details'}</p>
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">{t('checkout.orderNotFound')}</h1>
+              <p className="text-gray-600 mb-6">{error || t('checkout.unableToLoadOrderDetails')}</p>
               <Link href="/account/orders" className="btn btn-primary">
-                View My Orders
+                {t('checkout.viewMyOrders')}
               </Link>
             </div>
           </div>
@@ -132,9 +134,9 @@ export default function CheckoutSuccessPage() {
             <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-10 h-10 text-green-600" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('checkout.orderConfirmed')}</h1>
             <p className="text-lg text-gray-600">
-              Thank you for your purchase. We've received your order and will send you a confirmation email shortly.
+              {t('checkout.thankYouForPurchase')}
             </p>
           </div>
 
@@ -142,11 +144,11 @@ export default function CheckoutSuccessPage() {
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-6 pb-6 border-b">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Order Number</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('checkout.orderNumber')}</h2>
                 <p className="text-gray-600">{order.orderNumber}</p>
               </div>
               <div className="text-right">
-                <h2 className="text-lg font-semibold text-gray-900">Total</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t('checkout.total')}</h2>
                 <p className="text-xl font-bold text-gray-900">
                   {order.currency} {order.totalAmount.toFixed(2)}
                 </p>
@@ -155,7 +157,7 @@ export default function CheckoutSuccessPage() {
 
             {/* Order Items */}
             <div className="mb-6">
-              <h3 className="text-md font-semibold text-gray-900 mb-4">Order Items</h3>
+              <h3 className="text-md font-semibold text-gray-900 mb-4">{t('checkout.orderItems')}</h3>
               <div className="space-y-4">
                 {order.items.map((item, index) => {
                   return (
@@ -181,7 +183,7 @@ export default function CheckoutSuccessPage() {
                         ) : (
                           <p className="font-medium text-gray-900">{item.productName}</p>
                         )}
-                        <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                        <p className="text-sm text-gray-600">{t('account.quantity')}: {item.quantity}</p>
                         <p className="text-sm font-medium text-gray-900 mt-1">
                           {order.currency} {(item.totalPrice || (item.unitPrice * item.quantity)).toFixed(2)}
                         </p>
@@ -197,7 +199,7 @@ export default function CheckoutSuccessPage() {
               <div className="mb-6 pb-6 border-b">
                 <h3 className="text-md font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  Shipping Address
+                  {t('checkout.shippingAddress')}
                 </h3>
                 <p className="text-gray-700">
                   {order.shippingAddress.street}
@@ -214,7 +216,7 @@ export default function CheckoutSuccessPage() {
             {/* Payment Status */}
             {order.payment && (
               <div className="mb-6">
-                <h3 className="text-md font-semibold text-gray-900 mb-2">Payment Status</h3>
+                <h3 className="text-md font-semibold text-gray-900 mb-2">{t('checkout.paymentStatus')}</h3>
                 <div className="flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     order.payment.status === 'COMPLETED'
@@ -225,7 +227,7 @@ export default function CheckoutSuccessPage() {
                   </span>
                   {order.payment.transactionId && (
                     <span className="text-sm text-gray-600">
-                      Transaction: {order.payment.transactionId.substring(0, 20)}...
+                      {t('checkout.transaction')}: {order.payment.transactionId.substring(0, 20)}...
                     </span>
                   )}
                 </div>
@@ -236,9 +238,9 @@ export default function CheckoutSuccessPage() {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
               <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-blue-900">Confirmation Email Sent</p>
+                <p className="text-sm font-medium text-blue-900">{t('checkout.confirmationEmailSent')}</p>
                 <p className="text-sm text-blue-700 mt-1">
-                  We've sent a confirmation email with your order details and tracking information.
+                  {t('checkout.confirmationEmailDescription')}
                 </p>
               </div>
             </div>
@@ -250,14 +252,14 @@ export default function CheckoutSuccessPage() {
               href="/account/orders"
               className="btn btn-primary flex items-center justify-center gap-2"
             >
-              View My Orders
+              {t('checkout.viewMyOrders')}
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
               href="/products"
               className="btn btn-outline flex items-center justify-center gap-2"
             >
-              Continue Shopping
+              {t('checkout.continueShopping')}
             </Link>
           </div>
         </div>

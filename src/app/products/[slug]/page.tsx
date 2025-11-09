@@ -33,10 +33,14 @@ import { ProductImageZoom } from '@/components/product/ProductImageZoom'
 import { useAuth } from '@/contexts/AuthContext'
 import { favoriteService } from '@/services/favoriteService'
 import api from '@/services/api'
+import { useTranslation } from '@/hooks/useTranslation'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const { t } = useTranslation()
+  const { currentLanguage } = useLanguage()
   const slug = params.slug as string
   
   const [product, setProduct] = useState<Product | null>(null)
@@ -45,6 +49,7 @@ export default function ProductDetailPage() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [addingToCart, setAddingToCart] = useState(false)
+  const [specialOfferTranslations, setSpecialOfferTranslations] = useState<Record<string, string>>({})
   const [isFavorite, setIsFavorite] = useState(false)
   const [showMaterials, setShowMaterials] = useState(false)
   const [showSpecifications, setShowSpecifications] = useState(false)
@@ -144,6 +149,29 @@ export default function ProductDetailPage() {
       fetchProduct()
     }
   }, [slug])
+
+  // Load special offer description translations
+  useEffect(() => {
+    const loadSpecialOfferTranslations = async () => {
+      try {
+        const response = await api.get('/api/public/special-offer-descriptions', {
+          params: { lang: currentLanguage },
+          headers: {
+            'Accept-Language': currentLanguage
+          }
+        })
+        if (response.data?.translations) {
+          setSpecialOfferTranslations(response.data.translations)
+        }
+      } catch (error) {
+        console.error('Failed to load special offer translations:', error)
+      }
+    }
+    
+    if (currentLanguage) {
+      loadSpecialOfferTranslations()
+    }
+  }, [currentLanguage])
 
   // Handle showing specifications when user scrolls past images
   useEffect(() => {
@@ -255,7 +283,7 @@ export default function ProductDetailPage() {
     }
     
     if (quantity > stockAfterCart) {
-      alert(`Only ${stockAfterCart} ${stockAfterCart === 1 ? 'item' : 'items'} available. You already have ${itemInCart?.quantity || 0} in your cart.`)
+      alert(`${t('common.onlyAvailable')}: ${stockAfterCart} ${stockAfterCart === 1 ? t('common.itemAvailable') : t('common.itemsAvailable')}. ${t('common.youHave')} ${itemInCart?.quantity || 0} ${t('common.inCart')}.`)
       return
     }
 
@@ -388,9 +416,9 @@ export default function ProductDetailPage() {
                 href="/products"
                 className="pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none capitalize hover:text-utility-hover"
                 data-testid="internal-link"
-                aria-label="Shop All"
+                aria-label={t('nav.shopAll')}
               >
-                Shop All
+                {t('nav.shopAll')}
               </Link>
             </li>
             <li aria-hidden="true">/</li>
@@ -401,7 +429,10 @@ export default function ProductDetailPage() {
                 data-testid="internal-link"
                 aria-label={product.categories[0]}
               >
-                {product.categories[0]}
+                {(() => {
+                  const categoryKey = product.categories[0].toLowerCase() as 'necklaces' | 'bracelets' | 'rings' | 'earrings'
+                  return t(`common.${categoryKey}`) || product.categories[0].charAt(0).toUpperCase() + product.categories[0].slice(1)
+                })()}
               </Link>
             </li>
           </ol>
@@ -441,7 +472,7 @@ export default function ProductDetailPage() {
                   className="group relative flex flex-col w-full cursor-pointer py-4 focus-visible:outline-none border-b border-gray-200 transition-all duration-300"
                 >
                   <div className="flex items-center justify-between w-full text-left">
-                    <p className="type-utility-1 text-content uppercase font-normal">Materials</p>
+                    <p className="type-utility-1 text-content uppercase font-normal">{t('product.materials')}</p>
                     <span className={`text-lg font-normal transition-transform duration-300 ${showMaterials ? '' : ''}`}>
                       {showMaterials ? '−' : '+'}
                     </span>
@@ -478,7 +509,7 @@ export default function ProductDetailPage() {
                   className="group relative flex flex-col w-full cursor-pointer py-4 focus-visible:outline-none border-b border-gray-200 transition-all duration-300"
                 >
                   <div className="flex items-center justify-between w-full text-left">
-                    <p className="type-utility-1 text-content uppercase font-normal">Specifications</p>
+                    <p className="type-utility-1 text-content uppercase font-normal">{t('product.specifications')}</p>
                     <span className={`text-lg font-normal transition-transform duration-300 ${showSpecifications ? '' : ''}`}>
                       {showSpecifications ? '−' : '+'}
                     </span>
@@ -496,7 +527,7 @@ export default function ProductDetailPage() {
                       <div className="space-y-2">
                         {currentProduct.material && (
                           <p>
-                            <strong>- Material:</strong> {currentProduct.material}
+                            <strong>- {t('product.material')}:</strong> {currentProduct.material}
                           </p>
                         )}
                         {currentProduct.weightGrams && (
@@ -516,12 +547,12 @@ export default function ProductDetailPage() {
                         )}
                         {currentProduct.ringSize && (
                           <p>
-                            <strong>- Ring Size:</strong> {currentProduct.ringSize}
+                            <strong>- {t('product.size')}:</strong> {currentProduct.ringSize}
                           </p>
                         )}
                         {currentProduct.chainLength && (
                           <p>
-                            <strong>- Chain Length:</strong> {currentProduct.chainLength}
+                            <strong>- {t('product.length')}:</strong> {currentProduct.chainLength}
                           </p>
                         )}
                         {currentProduct.gemstone && (
@@ -551,7 +582,7 @@ export default function ProductDetailPage() {
                   <h1 className="type-heading-3 text-content text-base md:text-lg font-bold">{currentProduct.name}</h1>
                   <div>
                     <div className="flex flex-row-reverse justify-center items-center gap-x-xs">
-                      <div className="flex gap-x-[6px]" aria-label={`Rating: ${(currentProduct.averageRating || 0).toFixed(1)} out of 5 stars`} role="img">
+                      <div className="flex gap-x-[6px]" aria-label={`${t('product.rating')}: ${(currentProduct.averageRating || 0).toFixed(1)} ${t('product.outOf5Stars')}`} role="img">
                         {[1, 2, 3, 4, 5].map((i) => (
                           <svg
                             key={i}
@@ -606,7 +637,14 @@ export default function ProductDetailPage() {
                       </div>
                       {currentProduct.specialOfferDescription && (
                         <span className="text-sm text-red-600 font-medium ml-2">
-                          {currentProduct.specialOfferDescription}
+                          {(() => {
+                            // Split comma-separated descriptions and translate each
+                            const descriptions = currentProduct.specialOfferDescription.split(',').map(d => d.trim())
+                            return descriptions.map(desc => {
+                              // Try to find translation, fallback to original
+                              return specialOfferTranslations[desc] || desc
+                            }).join(', ')
+                          })()}
                         </span>
                       )}
                     </div>
@@ -630,7 +668,7 @@ export default function ProductDetailPage() {
                   <h5 className="sr-only">Material</h5>
                   <div className="flex flex-col-reverse gap-y-2">
                     <div className="mb-1 flex items-center">
-                      <div role="radiogroup" className="flex gap-2 items-center flex-wrap" aria-label="Material Options">
+                      <div role="radiogroup" className="flex gap-2 items-center flex-wrap" aria-label={t('product.materialOptions')}>
                         <button
                           type="button"
                           role="radio"
@@ -657,10 +695,10 @@ export default function ProductDetailPage() {
                         <div className="mt-4 flex items-center gap-2 ml-1 my-0">
                           <Check className="w-3 h-3 text-green-600" />
                           <span className="text-xs md:text-sm">
-                            In stock - ready to ship
+                            {t('cart.inStock')} - {t('product.readyToShip')}
                             {currentAvailableQty > 0 && (
                               <span className="ml-2 text-gray-600">
-                                ({currentAvailableQty} {currentAvailableQty === 1 ? 'item' : 'items'} left)
+                                ({currentAvailableQty} {currentAvailableQty === 1 ? t('common.itemAvailable') : t('common.itemsAvailable')})
                               </span>
                             )}
                           </span>
@@ -668,7 +706,7 @@ export default function ProductDetailPage() {
                       ) : (
                         <div className="mt-4 flex items-center gap-2 ml-1 my-0">
                           <span className="text-xs md:text-sm text-red-600 font-medium">
-                            Out of stock
+                            {t('common.outOfStock')}
                           </span>
                         </div>
                       )}
@@ -685,7 +723,7 @@ export default function ProductDetailPage() {
                       type="button"
                     >
                       <span className="flex justify-center items-center gap-2">
-                        {addingToCart ? 'Adding...' : currentAvailableQty <= 0 ? 'Out of Stock' : 'Add to bag'}
+                        {addingToCart ? t('common.loading') : currentAvailableQty <= 0 ? t('common.outOfStock') : t('product.addToCart')}
                       </span>
                     </button>
                   ) : (
@@ -718,7 +756,7 @@ export default function ProductDetailPage() {
                       type="button"
                     >
                       <span className="flex justify-center items-center gap-2">
-                        Request when available
+                        {t('common.requestWhenAvailable')}
                       </span>
                     </button>
                   )}
@@ -738,7 +776,7 @@ export default function ProductDetailPage() {
                 </div>
                 {!inStock && (
                   <p className="mt-2 text-sm text-gray-600">
-                    This item is currently out of stock
+                    {t('common.outOfStock')}
                   </p>
                 )}
               </form>
@@ -746,6 +784,7 @@ export default function ProductDetailPage() {
               {/* Product Description */}
               {currentProduct.description && (
                 <div className="my-8">
+                  <h3 className="text-sm font-semibold mb-2 uppercase">{t('product.description')}</h3>
                   <div className="text-xs md:text-sm">
                     <p>{currentProduct.description}</p>
                   </div>
@@ -756,15 +795,15 @@ export default function ProductDetailPage() {
               <div className="my-8">
                 <div className="flex items-center mb-2">
                   <Droplet className="w-5 h-5 mr-2" />
-                  <p className="text-xs md:text-sm font-normal">Water Resistant & Hypoallergenic</p>
+                  <p className="text-xs md:text-sm font-normal">{t('product.waterResistant')}</p>
                 </div>
                 <div className="flex items-center mb-2">
                   <Shield className="w-5 h-5 mr-2" />
-                  <p className="text-xs md:text-sm font-normal">Made To Last in Solid Gold</p>
+                  <p className="text-xs md:text-sm font-normal">{t('product.madeToLast')}</p>
                 </div>
                 <div className="flex items-center mb-2">
                   <Sparkles className="w-5 h-5 mr-2" />
-                  <p className="text-xs md:text-sm font-normal">94% Recycled 14K Gold</p>
+                  <p className="text-xs md:text-sm font-normal">{t('product.recycledGold')}</p>
                 </div>
               </div>
 
@@ -775,7 +814,7 @@ export default function ProductDetailPage() {
                   className="pointer-events-auto transition-colors ease-in-out duration-300 focus-visible:ring-1 ring-offset-4 outline-none uppercase tracking-normal w-fit hover:text-gray-700"
                   data-testid="internal-link"
                 >
-                  <p className="text-xs md:text-sm font-normal underline hover:[text-decoration-color:gray] transition-[text-decoration-color] duration-200">VIEW MORE DETAILS</p>
+                  <p className="text-xs md:text-sm font-normal underline hover:[text-decoration-color:gray] transition-[text-decoration-color] duration-200">{t('product.viewMoreDetails')}</p>
                 </button>
               </div>
             </div>
@@ -791,7 +830,7 @@ export default function ProductDetailPage() {
 
           {/* Featured Products */}
           <div className="mb-16 max-w-7xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">You May Also Like</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-8">{t('cart.youMayAlsoLike')}</h2>
             <FeaturedProducts />
           </div>
         </div>

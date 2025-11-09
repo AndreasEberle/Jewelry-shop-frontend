@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Search, X, ArrowRight } from 'lucide-react'
 import { productService, Product } from '@/services/productService'
 import { useCurrency } from '@/contexts/CurrencyContext'
+import { useTranslation } from '@/hooks/useTranslation'
+import { useLanguage } from '@/contexts/LanguageContext'
+import api from '@/services/api'
 import Link from 'next/link'
 
 interface SearchModalProps {
@@ -11,22 +14,40 @@ interface SearchModalProps {
   onClose: () => void
 }
 
-// Popular searches - can be made configurable via system_config later
-const POPULAR_SEARCHES = [
-  'Necklace',
-  'Ring',
-  'Earrings',
-  'Bracelet',
-  'Gold',
-  'Silver'
-]
-
 export function SearchModal({ isOpen, onClose }: SearchModalProps) {
+  const { t } = useTranslation()
+  const { currentLanguage } = useLanguage()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
+  const [popularSearches, setPopularSearches] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const { formatPrice } = useCurrency()
+  
+  // Load popular searches from backend based on current language
+  useEffect(() => {
+    const fetchPopularSearches = async () => {
+      try {
+        const response = await api.get('/api/public/popular-searches', {
+          params: { lang: currentLanguage },
+          headers: {
+            'Accept-Language': currentLanguage
+          }
+        })
+        if (response.data?.searches && Array.isArray(response.data.searches)) {
+          setPopularSearches(response.data.searches)
+        }
+      } catch (error) {
+        console.error('Failed to load popular searches:', error)
+        // Fallback to default
+        setPopularSearches(['Necklace', 'Ring', 'Earrings', 'Bracelet', 'Gold', 'Silver'])
+      }
+    }
+    
+    if (isOpen) {
+      fetchPopularSearches()
+    }
+  }, [isOpen, currentLanguage])
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -107,7 +128,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search for products..."
+              placeholder={t('common.searchPlaceholder')}
               className="flex-1 outline-none text-lg text-gray-900 placeholder-gray-400 bg-transparent"
             />
           </div>
@@ -125,17 +146,17 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
           {loading ? (
             <div className="px-6 py-12 text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-              <p className="mt-4 text-gray-600">Searching...</p>
+              <p className="mt-4 text-gray-600">{t('common.searching')}</p>
             </div>
           ) : showPopularSearches ? (
             <div className="px-6 py-8">
               {/* Popular Searches */}
               <div className="mb-8">
                 <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
-                  Popular Searches
+                  {t('common.popularSearches')}
                 </h3>
                 <div className="flex flex-wrap gap-3">
-                  {POPULAR_SEARCHES.map((term) => (
+                  {popularSearches.map((term) => (
                     <button
                       key={term}
                       onClick={() => handlePopularSearch(term)}
@@ -150,10 +171,10 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
               {/* Search Suggestions - Show product names/categories that might be searched */}
               <div>
                 <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-4">
-                  Suggestions
+                  {t('common.suggestions')}
                 </h3>
                 <div className="space-y-2">
-                  {POPULAR_SEARCHES.slice(0, 5).map((term) => (
+                  {popularSearches.slice(0, 5).map((term) => (
                     <button
                       key={`suggestion-${term}`}
                       onClick={() => handlePopularSearch(term)}
@@ -168,14 +189,14 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             </div>
           ) : hasQuery && results.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-gray-600 text-lg">No products found</p>
-              <p className="text-gray-400 text-sm mt-2">Try a different search term</p>
+              <p className="text-gray-600 text-lg">{t('common.noProductsFound')}</p>
+              <p className="text-gray-400 text-sm mt-2">{t('common.tryDifferentSearch')}</p>
             </div>
           ) : hasQuery && results.length > 0 ? (
             <div className="divide-y divide-gray-100">
               <div className="px-6 py-3 bg-gray-50">
                 <p className="text-sm text-gray-600">
-                  {results.length} {results.length === 1 ? 'result' : 'results'} found
+                  {results.length} {results.length === 1 ? t('common.result') : t('common.results')} {t('common.found')}
                 </p>
               </div>
               {results.map((product) => {
@@ -197,7 +218,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       </div>
                     ) : (
                       <div className="w-20 h-20 flex-shrink-0 mr-4 rounded bg-gray-100 flex items-center justify-center">
-                        <span className="text-gray-400 text-xs">No Image</span>
+                        <span className="text-gray-400 text-xs">{t('common.noImage')}</span>
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
@@ -214,7 +235,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         {formatPrice(product.displayPrice || product.price, product.baseCurrency)}
                       </p>
                       {product.quantity === 0 && (
-                        <p className="text-xs text-red-600 mt-1">Out of Stock</p>
+                        <p className="text-xs text-red-600 mt-1">{t('common.outOfStock')}</p>
                       )}
                     </div>
                   </Link>

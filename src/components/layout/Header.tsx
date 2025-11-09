@@ -12,13 +12,14 @@ import { useSectionStyles } from '@/hooks/useSectionStyles'
 import { AuthModal } from '@/components/auth/AuthModal'
 import { CurrencySelector } from '@/components/CurrencySelector'
 import { LanguageSelectorCompact } from '@/components/LanguageSelectorCompact'
-import { SearchModal } from '@/components/SearchModal'
+import { SearchNavbar } from '@/components/SearchNavbar'
 import { TopBanner } from './TopBanner'
 import { favoriteService } from '@/services/favoriteService'
 import { AccountDropdown } from '@/components/AccountDropdown'
 import { CartDrawer } from '@/components/CartDrawer'
 import { useCurrencyConfig } from '@/hooks/useCurrencyConfig'
 import { useOrderStats } from '@/hooks/useOrderStats'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface HeaderProps {
   backgroundImage?: string | null
@@ -51,6 +52,7 @@ export function Header({ backgroundImage }: HeaderProps) {
   const isAdmin = user?.roles?.includes('ADMIN')
   const { getNonDeliveredCount, loading: statsLoading } = useOrderStats()
   const nonDeliveredCount = isAdmin ? getNonDeliveredCount() : 0
+  const { t, isLoading: isLanguageLoading } = useTranslation()
   
   // Debug logging
   useEffect(() => {
@@ -62,8 +64,26 @@ export function Header({ backgroundImage }: HeaderProps) {
   }, [isAdmin, nonDeliveredCount, statsLoading, user?.roles])
   const [favoriteCount, setFavoriteCount] = useState(0)
   const [isInitialLoad, setIsInitialLoad] = useState(true)
+  const [hasScrolled, setHasScrolled] = useState(false)
   const pathname = usePathname()
   const isHomepage = pathname === '/'
+  
+  // Hide navbar on homepage until user scrolls
+  useEffect(() => {
+    if (!isHomepage) {
+      setHasScrolled(true) // Always show on other pages
+      return
+    }
+    
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setHasScrolled(true)
+      }
+    }
+    
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [isHomepage])
 
   // Only show skeleton on initial load until branding is ready
   useEffect(() => {
@@ -143,11 +163,16 @@ export function Header({ backgroundImage }: HeaderProps) {
     })
   }
 
+  // Don't render header on homepage until scrolled
+  if (isHomepage && !hasScrolled) {
+    return null
+  }
+
   return (
     <>
-      <TopBanner />
+      {(!isHomepage || hasScrolled) && <TopBanner />}
       <header
-        className="sticky top-0 z-50 w-full bg-white border-b text-gray-900 min-h-[60px]"
+        className={`sticky top-0 z-50 w-full bg-white text-gray-900 min-h-[60px] transition-opacity duration-200 ${isSearchOpen ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}
         style={{ position: 'sticky', top: 0, zIndex: 50, minHeight: '60px', display: 'block' }}
         role="banner"
         data-testid="header"
@@ -217,7 +242,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                                 className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
                                 style={{ ...navTextStyle, fontSize: '0.75em' }}
                               >
-                                All Jewelry 
+                                {t('nav.allJewelry')}
                               </Link>
                             </span>
                           </button>
@@ -240,7 +265,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                                 className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
                                 style={{ ...navTextStyle, fontSize: '0.75em' }}
                               >
-                                New In
+                                {t('nav.newIn')}
                               </Link>
                             </span>
                           </button>
@@ -263,7 +288,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                                 className="relative inline-block pointer-events-auto ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none uppercase tracking-normal w-fit flex items-center gap-xxs font-normal text-current after:content-[''] after:absolute after:right-0 after:bottom-0 after:h-[2px] after:bg-current after:w-0 hover:after:w-full after:transition-all after:duration-300"
                                 style={{ ...navTextStyle, fontSize: '0.75em' }}
                               >
-                                Best Sellers
+                                {t('nav.bestSellers')}
                               </Link>
                             </span>
                           </button>
@@ -291,9 +316,9 @@ export function Header({ backgroundImage }: HeaderProps) {
                         >
                           <span className="flex justify-center items-center gap-1">
                             {isMenuOpen ? (
-                              <X className="w-6 h-6" style={navTextStyle} />
+                              <X className="w-6 h-6" style={{ ...navTextStyle, fontSize: '0.75em' }} />
                             ) : (
-                              <Menu className="w-6 h-6" style={navTextStyle} />
+                              <Menu className="w-6 h-6" style={{ ...navTextStyle, fontSize: '0.75em' }} />
                             )}
                           </span>
                         </button>
@@ -345,7 +370,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                               <Link
                                 href={user?.roles?.includes('ADMIN') ? '/account' : '/user-account'}
                                 className="p-1"
-                                aria-label="My Account"
+                                aria-label={t('nav.myAccount')}
                               >
                                   <User className="w-5 h-5" style={{ ...navTextStyle, fontSize: '0.75em' }} />
                               </Link>
@@ -372,8 +397,8 @@ export function Header({ backgroundImage }: HeaderProps) {
                             onClick={() => setIsSearchOpen(true)}
                             className="flex items-center justify-start w-full min-w-[120px] border-b border-current pb-1"
                           >
-                            <Search className="w-5 h-5 mr-2" style={navTextStyle} />
-                            <p className="text-sm" style={navTextStyle}>Search</p>
+                            <Search className="w-5 h-5 mr-2" style={{ ...navTextStyle, fontSize: '0.75em' }} />
+                            <p className="text-sm" style={{ ...navTextStyle, fontSize: '0.75em' }}>{t('nav.search')}</p>
                           </button>
                         </div>
                         <div className="flex items-start gap-4">
@@ -395,7 +420,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                             <button
                               onClick={() => setIsCartDrawerOpen(true)}
                               className="relative pointer-events-auto inline-block text-center outline-none border-none capitalize p-0 transition-colors duration-300 ease-in-out bg-transparent"
-                              aria-label="Open Bag"
+                              aria-label={t('nav.openBag')}
                             >
                               <span className="flex justify-center items-center gap-1">
                                 <div className="relative">
@@ -431,7 +456,11 @@ export function Header({ backgroundImage }: HeaderProps) {
                         >
                           <div className="flex items-center justify-start lg:justify-between w-[120px] lg:w-[223px] min-[1280px]:w-[160px] min-[1360px]:w-[223px] border-b border-current">
                             <Search className="w-lg h-lg" aria-label="open search" style={{ ...navTextStyle, fontSize: '0.75em' }} />
-                            <p className="text-content-inherit ml-xs" style={{ ...navTextStyle, fontSize: '0.75em' }}>Search</p>
+                            <p className="text-content-inherit ml-xs" style={{ ...navTextStyle, fontSize: '0.75em' }}>
+                              {!isLanguageLoading ? t('nav.search') : (
+                                <span className="h-4 w-16 bg-gray-200 rounded animate-pulse inline-block"></span>
+                              )}
+                            </p>
                           </div>
                         </button>
                       </li>
@@ -461,7 +490,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                             <button
                               onClick={() => setIsAccountDropdownOpen(true)}
                               className="relative pointer-events-auto inline-block text-center outline-none border border-content hover:border-utility-hover disabled:text-utility-disabled focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease bg-transparent border-none capitalize p-0 tracking-utility"
-                              title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : 'My Account'}
+                              title={user?.roles?.includes('ADMIN') ? 'Admin Dashboard' : t('nav.myAccount')}
                             >
                               <span className="flex justify-center items-center gap-xxs preserve-line-height relative">
                                 <User className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="My Account" />
@@ -480,7 +509,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                               title="Login"
                             >
                               <span className="flex justify-center items-center gap-xxs preserve-line-height">
-                                <User className="w-lg h-lg" style={navTextStyle} aria-label="log in" />
+                                <User className="w-lg h-lg" style={{ ...navTextStyle, fontSize: '0.75em' }} aria-label="log in" />
                                 <span className="sr-only">My Account</span>
                               </span>
                             </button>
@@ -508,7 +537,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                                 href="/favorites"
                                 className="relative pointer-events-auto transition-[color] ease-ease duration-300 focus-visible:ring-1 ring-utility-focus ring-offset-4 outline-none type-heading-6 uppercase tracking-normal"
                               >
-                                <Heart className={`w-lg h-lg transition-all duration-300 ease-in-out ${favoriteCount > 0 ? 'fill-red-500 text-red-500' : 'text-black'}`} style={{ fontSize: '0.75em', strokeWidth: favoriteCount > 0 ? 0 : 1.5 }} aria-label="Go to your wishlist" />
+                                <Heart className={`w-lg h-lg transition-all duration-300 ease-in-out ${favoriteCount > 0 ? 'fill-red-500 text-red-500' : ''}`} style={{ ...navTextStyle, fontSize: '0.75em', strokeWidth: favoriteCount > 0 ? 0 : 1.5 }} aria-label="Go to your wishlist" />
                                 {favoriteCount > 0 && (
                                   <span key={favoriteCount} className="absolute top-0 right-[-8px] rounded-full flex items-center justify-center h-[13px] w-[13px] text-xxxs font-display bg-backgroundTheme-dark text-contentTheme-inv transition-all duration-300 ease-in-out">
                                     {favoriteCount > 9 ? '9+' : favoriteCount}
@@ -518,7 +547,7 @@ export function Header({ backgroundImage }: HeaderProps) {
                                 <span className="sr-only">Go to your wishlist</span>
                               </Link>
                             ) : (
-                              <Heart className="w-lg h-lg transition-all duration-300 ease-in-out text-black" style={{ fontSize: '0.75em', strokeWidth: 1.5 }} aria-label="Sign in to view wishlist" />
+                              <Heart className="w-lg h-lg transition-all duration-300 ease-in-out" style={{ ...navTextStyle, fontSize: '0.75em', strokeWidth: 1.5 }} aria-label="Sign in to view wishlist" />
                             )}
                           </button>
                         )}
@@ -562,8 +591,8 @@ export function Header({ backgroundImage }: HeaderProps) {
         initialMode={authMode}
       />
 
-      {/* Search Modal */}
-      <SearchModal
+      {/* Search Navbar */}
+      <SearchNavbar
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
       />

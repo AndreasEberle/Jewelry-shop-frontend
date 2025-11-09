@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface Country {
   code: string
@@ -83,15 +84,32 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
   onChange,
   disabled = false
 }) => {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Helper function to get translated country name
+  const getCountryName = (countryCode: string, defaultName: string): string => {
+    const countryKey = countryCode.toLowerCase().replace(/\s+/g, '_')
+    const translationKey = `checkout.country.${countryKey}`
+    const translated = t(translationKey)
+    // If translation exists and is different from the key, use it
+    if (translated && translated !== translationKey) {
+      return translated
+    }
+    return defaultName
+  }
+
   const selectedCountry = countries.find(c => c.code === value) || countries[0]
-  const filteredCountries = countries.filter(country =>
-    country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    country.phoneCode.includes(searchTerm)
-  )
+  const filteredCountries = countries.filter(country => {
+    const translatedName = getCountryName(country.code, country.name)
+    return (
+      translatedName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      country.phoneCode.includes(searchTerm)
+    )
+  })
 
   const handleSelect = (country: Country) => {
     onChange(country.code, country.phoneCode)
@@ -137,7 +155,7 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
           <div className="p-2 border-b border-gray-200">
             <input
               type="text"
-              placeholder="Search countries..."
+              placeholder={t('checkout.searchCountries') || 'Search countries...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -155,7 +173,7 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
                 <span className={getFlagClass(country.code)} style={{ fontSize: '1.5rem', width: '1.5rem', height: '1.5rem', flexShrink: 0 }}></span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-gray-900">
-                    {country.name}
+                    {getCountryName(country.code, country.name)}
                   </div>
                   <div className="text-sm text-gray-500">
                     {country.phoneCode}

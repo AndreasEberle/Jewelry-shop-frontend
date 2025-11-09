@@ -22,6 +22,8 @@ export function useOrderStats() {
       return
     }
 
+    // Only load stats if we have a cached version or if explicitly needed
+    // This prevents loading on every page navigation
     const loadStats = async () => {
       try {
         setLoading(true)
@@ -39,9 +41,18 @@ export function useOrderStats() {
       }
     }
 
-    loadStats()
-    // Refresh stats every 30 seconds
-    const interval = setInterval(loadStats, 30000)
+    // Only load immediately if stats are null (first load)
+    // Otherwise, use cached data and refresh less frequently
+    if (!stats) {
+      loadStats()
+    }
+    
+    // Refresh stats every 60 seconds (reduced from 30s) and only if needed
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadStats()
+      }
+    }, 60000)
     return () => clearInterval(interval)
   }, [isAdmin])
 

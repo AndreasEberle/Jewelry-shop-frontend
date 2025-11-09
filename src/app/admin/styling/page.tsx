@@ -6,6 +6,7 @@ import { BackgroundImageManager } from '@/components/admin/BackgroundImageManage
 import { HeroSliderManager } from '@/components/admin/HeroSliderManager'
 import { PackagingImageUploader } from '@/components/admin/PackagingImageUploader'
 import { Palette, Image, Upload, Eye, Trash2, Check, Trash, Settings, Paintbrush, Package } from 'lucide-react'
+import { useTranslation } from '@/hooks/useTranslation'
 import api from '@/services/api'
 
 interface BackgroundImage {
@@ -106,10 +107,83 @@ const SECTIONS: SectionInfo[] = [
     recommendedSize: '1920x600px',
     supportsGif: false,
     previewComponent: 'contact'
+  },
+  {
+    name: 'story_craftsmanship',
+    displayName: 'Story: Craftsmanship',
+    description: 'Image for the craftsmanship story section (alternating layout)',
+    recommendedSize: '1200x900px',
+    supportsGif: false,
+    previewComponent: 'story'
+  },
+  {
+    name: 'story_materials',
+    displayName: 'Story: Materials & Inspiration',
+    description: 'Image for the materials and inspiration story section (alternating layout)',
+    recommendedSize: '1200x900px',
+    supportsGif: false,
+    previewComponent: 'story'
+  },
+  {
+    name: 'story_personal',
+    displayName: 'Story: Personal Connection',
+    description: 'Image for the personal connection story section (alternating layout)',
+    recommendedSize: '1200x900px',
+    supportsGif: false,
+    previewComponent: 'story'
+  },
+  {
+    name: 'story_explore',
+    displayName: 'Story: Explore Collection',
+    description: 'Image for the explore collection story section and visual carousel',
+    recommendedSize: '1920x1080px',
+    supportsGif: false,
+    previewComponent: 'story'
+  },
+  {
+    name: 'story_craftsmanship_bg',
+    displayName: 'Story: Craftsmanship Background',
+    description: 'Light background image for the craftsmanship story section',
+    recommendedSize: '1920x1080px',
+    supportsGif: false,
+    previewComponent: 'background'
+  },
+  {
+    name: 'story_materials_bg',
+    displayName: 'Story: Materials Background',
+    description: 'Light background image for the materials story section',
+    recommendedSize: '1920x1080px',
+    supportsGif: false,
+    previewComponent: 'background'
+  },
+  {
+    name: 'story_personal_bg',
+    displayName: 'Story: Personal Connection Background',
+    description: 'Light background image for the personal connection story section',
+    recommendedSize: '1920x1080px',
+    supportsGif: false,
+    previewComponent: 'background'
+  },
+  {
+    name: 'story_explore_bg',
+    displayName: 'Story: Explore Collection Background',
+    description: 'Light background image for the explore collection story section',
+    recommendedSize: '1920x1080px',
+    supportsGif: false,
+    previewComponent: 'background'
+  },
+  {
+    name: 'washi_texture',
+    displayName: 'Washi Paper Texture',
+    description: 'Background texture image for the hero section (washi paper texture overlay)',
+    recommendedSize: '400x400px',
+    supportsGif: false,
+    previewComponent: 'texture'
   }
 ]
 
 export default function AdminStylingPage() {
+  const { t } = useTranslation()
   const [selectedSection, setSelectedSection] = useState<string>('hero')
   const [backgroundImages, setBackgroundImages] = useState<BackgroundImage[]>([])
   const [loading, setLoading] = useState(true)
@@ -191,8 +265,8 @@ export default function AdminStylingPage() {
           <div className="flex items-center space-x-3">
             <Palette className="w-8 h-8 text-primary-600" />
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Shop Styling</h1>
-              <p className="text-gray-600">Customize your shop's visual appearance with background images</p>
+              <h1 className="text-3xl font-bold text-gray-900">{t('admin.styling.title') || 'Shop Styling'}</h1>
+              <p className="text-gray-600">{t('admin.styling.description') || 'Customize your shop\'s visual appearance with background images'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">

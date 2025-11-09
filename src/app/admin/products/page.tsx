@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Minus, Edit, Trash2, Image as ImageIcon, Eye, X, ChevronLeft, ChevronRight, Trash, Power, PowerOff, AlertCircle, CheckCircle, GripVertical, Star } from 'lucide-react'
 import { Product } from '@/types'
 import { productService } from '@/services/productService'
+import { useTranslation } from '@/hooks/useTranslation'
 import api from '@/services/api'
 import { ProductImageUpload } from '@/components/admin/ProductImageUpload'
 import { AdminLayout } from '@/components/admin/AdminLayout'
@@ -16,6 +17,7 @@ import { useLanguage } from '@/contexts/LanguageContext'
 import { Tooltip } from '@/components/ui/Tooltip'
 
 export default function AdminProductsPage() {
+  const { t } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -76,7 +78,7 @@ export default function AdminProductsPage() {
       setProducts(products)
       setTotalProducts(products.length)
     } catch (err) {
-      setError('Failed to load products')
+      setError(t('admin.products.failedToLoad') || 'Failed to load products')
       console.error('Error loading products:', err)
     } finally {
       setLoading(false)
@@ -435,7 +437,7 @@ export default function AdminProductsPage() {
       setShowDeleteConfirm(false)
       setProductToDelete(null)
     } catch (err) {
-      setError('Failed to delete product')
+      setError(t('admin.products.deleteFailed') || 'Failed to delete product')
       console.error('Error deleting product:', err)
     } finally {
       setIsDeleting(false)
@@ -472,8 +474,8 @@ export default function AdminProductsPage() {
       <div className="mb-8">
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Product Management</h1>
-            <p className="text-gray-600 mt-2">Manage your jewelry products and images</p>
+            <h1 className="text-3xl font-bold text-gray-900">{t('admin.products.title') || 'Products'}</h1>
+            <p className="text-gray-600 mt-2">{t('admin.products.manageDescription') || 'Manage your jewelry products and images'}</p>
           </div>
           
           {/* Action Buttons */}
@@ -483,7 +485,7 @@ export default function AdminProductsPage() {
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors duration-200 text-sm font-medium"
             >
               <GripVertical className="w-4 h-4" />
-              <span>Manage Order</span>
+              <span>{t('admin.products.manageOrder') || 'Manage Order'}</span>
             </button>
             
             <button 
@@ -501,7 +503,7 @@ export default function AdminProductsPage() {
               disabled={isSettingInactive}
             >
               <AlertCircle className="w-4 h-4" />
-              <span>{isSettingInactive ? 'Setting...' : 'Set All Inactive'}</span>
+              <span>{isSettingInactive ? t('admin.products.clearing') || 'Setting...' : t('admin.products.setInactive') || 'Set All Inactive'}</span>
             </button>
             
             <button 
@@ -510,7 +512,7 @@ export default function AdminProductsPage() {
               disabled={isClearing}
             >
               <Trash className="w-4 h-4" />
-              <span>{isClearing ? 'Deleting...' : 'Delete All'}</span>
+              <span>{isClearing ? t('admin.products.clearing') || 'Deleting...' : t('admin.products.clearAll') || 'Delete All'}</span>
             </button>
             
             <button 
@@ -518,7 +520,7 @@ export default function AdminProductsPage() {
               className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors duration-200 text-sm font-medium"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Product</span>
+              <span>{t('admin.products.addProduct') || 'Add Product'}</span>
             </button>
           </div>
         </div>
@@ -543,10 +545,10 @@ export default function AdminProductsPage() {
                  <div className="p-6">
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                      <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.products.searchPlaceholder') || 'Search'}</label>
                        <input
                          type="text"
-                         placeholder="Search products..."
+                         placeholder={t('admin.products.searchPlaceholder') || 'Search products...'}
                          value={searchQuery}
                          onChange={(e) => setSearchQuery(e.target.value)}
                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -554,42 +556,42 @@ export default function AdminProductsPage() {
                      </div>
 
                      <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.products.filterByStatus') || 'Status'}</label>
                        <select
                          value={filter}
                          onChange={(e) => setFilter(e.target.value as 'all' | 'active' | 'inactive')}
                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                        >
-                         <option value="all">All Products</option>
-                         <option value="active">Active Only</option>
-                         <option value="inactive">Inactive Only</option>
+                         <option value="all">{t('admin.products.all') || 'All Products'}</option>
+                         <option value="active">{t('admin.products.active') || 'Active Only'}</option>
+                         <option value="inactive">{t('admin.products.inactive') || 'Inactive Only'}</option>
                        </select>
                      </div>
 
                      <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.products.sortBy') || 'Sort By'}</label>
                        <select
                          value={sortBy}
                          onChange={(e) => setSortBy(e.target.value as any)}
                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                        >
-                         <option value="sortOrder">Sort Order</option>
-                         <option value="name">Name</option>
-                         <option value="price">Price</option>
-                         <option value="createdAt">Date Created</option>
-                         <option value="quantity">Quantity</option>
+                         <option value="sortOrder">{t('admin.products.sortBy') || 'Sort Order'}</option>
+                         <option value="name">{t('admin.products.name') || 'Name'}</option>
+                         <option value="price">{t('admin.products.price') || 'Price'}</option>
+                         <option value="createdAt">{t('admin.products.createdAt') || 'Date Created'}</option>
+                         <option value="quantity">{t('admin.products.quantity') || 'Quantity'}</option>
                        </select>
                      </div>
 
                      <div>
-                       <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
+                       <label className="block text-sm font-medium text-gray-700 mb-1">{t('admin.products.sortOrder') || 'Order'}</label>
                        <select
                          value={sortOrder}
                          onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                        >
-                         <option value="asc">Ascending</option>
-                         <option value="desc">Descending</option>
+                         <option value="asc">{t('common.ascending') || 'Ascending'}</option>
+                         <option value="desc">{t('common.descending') || 'Descending'}</option>
                        </select>
                      </div>
                    </div>
@@ -608,12 +610,12 @@ export default function AdminProductsPage() {
                            <option value={50}>50</option>
                            <option value={100}>100</option>
                          </select>
-                         <span className="text-sm text-gray-500">per page</span>
+                         <span className="text-sm text-gray-500">{t('admin.users.itemsPerPage') || 'per page'}</span>
                        </div>
                      </div>
 
                      <div className="text-sm text-gray-600">
-                       Showing {filteredProducts.length} of {totalProducts} products
+                       {t('admin.users.showing') || 'Showing'} {filteredProducts.length} {t('admin.users.of') || 'of'} {totalProducts} {t('admin.products.items') || 'products'}
                      </div>
                    </div>
                  </div>
@@ -627,12 +629,12 @@ export default function AdminProductsPage() {
             <ImageIcon className="w-16 h-16 mx-auto" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No products found
+            {t('admin.products.noProducts') || 'No products found'}
           </h3>
           <p className="text-gray-500">
             {searchQuery 
-              ? `No products match "${searchQuery}"` 
-              : 'Get started by adding your first product.'
+              ? `${t('admin.products.noProducts') || 'No products'} match "${searchQuery}"` 
+              : t('admin.products.addProduct') || 'Get started by adding your first product.'
             }
           </p>
           {searchQuery && (
@@ -640,7 +642,7 @@ export default function AdminProductsPage() {
               onClick={() => setSearchQuery('')}
               className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
             >
-              Clear search
+              {t('common.clear') || 'Clear search'}
             </button>
           )}
         </div>
@@ -653,7 +655,7 @@ export default function AdminProductsPage() {
                 {/* Inactive Badge */}
                 {!product.active && (
                   <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium z-10">
-                    Inactive
+                    {t('admin.products.inactive') || 'Inactive'}
                   </div>
                 )}
                 {product.images && product.images.length > 0 ? (
@@ -701,7 +703,7 @@ export default function AdminProductsPage() {
                   <h3 className="text-lg font-semibold text-gray-900">{product.name}</h3>
                   {!product.active && (
                     <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-medium">
-                      Inactive
+                      {t('admin.products.inactive') || 'Inactive'}
                     </span>
                   )}
                 </div>
@@ -764,7 +766,7 @@ export default function AdminProductsPage() {
                 {/* Image Count */}
                 <div className="flex items-center text-sm text-gray-500 mb-4">
                   <ImageIcon className="w-4 h-4 mr-1" />
-                  <span>{product.images?.length || 0} image(s)</span>
+                    <span>{product.images?.length || 0} {t('admin.products.items') || 'image(s)'}</span>
                 </div>
 
                 {/* Actions */}
@@ -774,12 +776,12 @@ export default function AdminProductsPage() {
                     className="flex-1 btn btn-outline text-sm flex items-center justify-center space-x-1"
                   >
                     <ImageIcon className="w-4 h-4" />
-                    <span>Manage Images</span>
+                    <span>{t('admin.products.manageImages') || 'Manage Images'}</span>
                   </button>
                   <button 
                     onClick={() => handleEditProduct(product)}
                     className="btn btn-outline text-sm p-2"
-                    title="Edit Product"
+                    title={t('admin.products.editProduct') || 'Edit Product'}
                   >
                     <Edit className="w-4 h-4" />
                   </button>
@@ -790,7 +792,7 @@ export default function AdminProductsPage() {
                         ? 'text-orange-600 hover:text-orange-700 hover:bg-orange-50' 
                         : 'text-green-600 hover:text-green-700 hover:bg-green-50'
                     }`}
-                    title={product.active ? 'Deactivate Product' : 'Activate Product'}
+                    title={product.active ? t('admin.products.setInactive') || 'Deactivate Product' : t('admin.products.setActive') || 'Activate Product'}
                     disabled={loading}
                   >
                     {product.active ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
@@ -802,7 +804,7 @@ export default function AdminProductsPage() {
                         ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-50' 
                         : 'text-gray-600 hover:text-gray-700 hover:bg-gray-50'
                     }`}
-                    title={product.showInFeatured ? 'Remove from Featured' : 'Add to Featured'}
+                    title={product.showInFeatured ? t('admin.products.setInactive') || 'Remove from Featured' : t('admin.products.setActive') || 'Add to Featured'}
                     disabled={loading}
                   >
                     {product.showInFeatured ? <Star className="w-4 h-4 fill-current" /> : <Star className="w-4 h-4" />}
@@ -810,7 +812,7 @@ export default function AdminProductsPage() {
                   <button 
                     onClick={() => handleDeleteClick(product)}
                     className="btn btn-outline text-sm p-2 text-red-600 hover:text-red-700"
-                    title="Delete Product"
+                    title={t('admin.products.deleteProduct') || 'Delete Product'}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -825,7 +827,7 @@ export default function AdminProductsPage() {
       {totalPages > 1 && (
         <div className="mt-8 flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Showing {startIndex + 1} to {Math.min(endIndex, filteredProducts.length)} of {filteredProducts.length} products
+            {t('admin.users.showing') || 'Showing'} {startIndex + 1} {t('common.to') || 'to'} {Math.min(endIndex, filteredProducts.length)} {t('admin.users.of') || 'of'} {filteredProducts.length} {t('admin.products.items') || 'products'}
           </div>
           
           <div className="flex items-center space-x-2">
@@ -834,7 +836,7 @@ export default function AdminProductsPage() {
               disabled={currentPage === 1}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
+              {t('common.previous') || 'Previous'}
             </button>
             
             <div className="flex space-x-1">
@@ -861,7 +863,7 @@ export default function AdminProductsPage() {
               disabled={currentPage === totalPages}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              {t('common.next') || 'Next'}
             </button>
           </div>
         </div>
@@ -891,7 +893,7 @@ export default function AdminProductsPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  Upload Images for {selectedProduct.name}
+                  {t('admin.products.uploadImages') || 'Upload Images'} {t('common.for') || 'for'} {selectedProduct.name}
                 </h2>
                 <button
                   onClick={() => setShowImageUpload(false)}
@@ -915,14 +917,14 @@ export default function AdminProductsPage() {
           isOpen={showDeleteConfirm}
           onClose={handleDeleteCancel}
           onConfirm={handleDeleteConfirm}
-          title="Delete Product"
+          title={t('admin.products.deleteProduct') || 'Delete Product'}
           message={
             productToDelete
-              ? `Are you sure you want to delete "${productToDelete.name}"? This action cannot be undone and will permanently remove the product and all its associated images.`
+              ? t('admin.products.deleteConfirm') || `Are you sure you want to delete "${productToDelete.name}"? This action cannot be undone and will permanently remove the product and all its associated images.`
               : ''
           }
-          confirmText="Delete Product"
-          cancelText="Cancel"
+          confirmText={t('admin.products.deleteProduct') || 'Delete Product'}
+          cancelText={t('common.cancel') || 'Cancel'}
           type="danger"
           isLoading={isDeleting}
         />
@@ -932,10 +934,10 @@ export default function AdminProductsPage() {
           isOpen={showClearConfirm}
           onClose={() => setShowClearConfirm(false)}
           onConfirm={handleClearAllImages}
-          title="Delete All Products"
-          message="Are you sure you want to delete ALL products and their images? This action cannot be undone and will permanently remove all products from the database and all associated images from storage."
-          confirmText={isClearing ? "Deleting..." : "Delete All Products"}
-          cancelText="Cancel"
+          title={t('admin.products.clearAll') || 'Delete All Products'}
+          message={t('admin.products.clearAllConfirm') || 'Are you sure you want to delete ALL products and their images? This action cannot be undone and will permanently remove all products from the database and all associated images from storage.'}
+          confirmText={isClearing ? t('admin.products.clearing') || 'Deleting...' : t('admin.products.clearAll') || 'Delete All Products'}
+          cancelText={t('common.cancel') || 'Cancel'}
           type="danger"
           isLoading={isClearing}
         />
@@ -945,10 +947,10 @@ export default function AdminProductsPage() {
           isOpen={showSetInactiveConfirm}
           onClose={() => setShowSetInactiveConfirm(false)}
           onConfirm={handleSetAllProductsInactive}
-          title="Set All Products to Inactive"
-          message="Are you sure you want to set ALL active products to inactive? This will make all products unavailable for purchase on the website. You can reactivate individual products later if needed."
-          confirmText={isSettingInactive ? "Setting..." : "Set All to Inactive"}
-          cancelText="Cancel"
+          title={t('admin.products.setInactive') || 'Set All Products to Inactive'}
+          message={t('admin.products.setInactiveConfirm') || 'Are you sure you want to set ALL active products to inactive? This will make all products unavailable for purchase on the website. You can reactivate individual products later if needed.'}
+          confirmText={isSettingInactive ? t('admin.products.clearing') || 'Setting...' : t('admin.products.setInactive') || 'Set All to Inactive'}
+          cancelText={t('common.cancel') || 'Cancel'}
           type="warning"
           isLoading={isSettingInactive}
         />
@@ -958,10 +960,10 @@ export default function AdminProductsPage() {
           isOpen={showSetActiveConfirm}
           onClose={() => setShowSetActiveConfirm(false)}
           onConfirm={handleSetAllProductsActive}
-          title="Set All Products to Active"
-          message="Are you sure you want to set ALL inactive products to active? This will make all products available for purchase on the website."
-          confirmText={isSettingActive ? "Setting..." : "Set All to Active"}
-          cancelText="Cancel"
+          title={t('admin.products.setActive') || 'Set All Products to Active'}
+          message={t('admin.products.setActiveConfirm') || 'Are you sure you want to set ALL inactive products to active? This will make all products available for purchase on the website.'}
+          confirmText={isSettingActive ? t('admin.products.clearing') || 'Setting...' : t('admin.products.setActive') || 'Set All to Active'}
+          cancelText={t('common.cancel') || 'Cancel'}
           type="info"
           isLoading={isSettingActive}
         />
@@ -984,7 +986,7 @@ export default function AdminProductsPage() {
             <div className="bg-white rounded-lg max-w-2xl w-full max-h-[80vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-900">Product Order Management</h2>
+                  <h2 className="text-xl font-semibold text-gray-900">{t('admin.products.title') || 'Product Order Management'}</h2>
                   <button
                     onClick={() => setShowProductOrder(false)}
                     className="text-gray-400 hover:text-gray-600"

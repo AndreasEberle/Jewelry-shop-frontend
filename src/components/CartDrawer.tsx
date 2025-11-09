@@ -8,6 +8,8 @@ import { favoriteService } from '@/services/favoriteService'
 import { productService } from '@/services/productService'
 import { useCurrency } from '@/contexts/CurrencyContext'
 import { useFreeShippingConfig } from '@/hooks/useFreeShippingConfig'
+import { useCartAlertConfig } from '@/hooks/useCartAlertConfig'
+import { useTranslation } from '@/hooks/useTranslation'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -22,6 +24,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { isAuthenticated } = useAuth()
   const { formatPrice } = useCurrency()
   const { config: freeShippingConfig } = useFreeShippingConfig()
+  const { config: cartAlertConfig } = useCartAlertConfig()
+  const { t } = useTranslation()
   const [wishlistItems, setWishlistItems] = useState<any[]>([])
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set())
   const [loadingWishlist, setLoadingWishlist] = useState(false)
@@ -153,10 +157,20 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
   const loadYouMayAlsoLike = async () => {
     try {
-      const products = await productService.getProducts({ limit: 20 }) // Fetch more to ensure we have enough after filtering
+      const products = await productService.getProducts({ limit: 30 }) // Fetch more to ensure we have enough after filtering
       // Filter out products that are already in the cart
       const cartProductIds = cart?.items.map(item => item.product.id) || []
-      const filteredProducts = products.filter(product => !cartProductIds.includes(product.id))
+      let filteredProducts = products.filter(product => !cartProductIds.includes(product.id))
+      
+      // Filter to only show products with available quantity
+      filteredProducts = filteredProducts.filter(product => {
+        const quantity = product.quantity || 0
+        const availableQuantity = product.availableQuantity !== undefined && product.availableQuantity !== null 
+          ? product.availableQuantity 
+          : quantity
+        return availableQuantity > 0
+      })
+      
       // Limit to 5 after filtering
       setYouMayAlsoLike(filteredProducts.slice(0, 5))
     } catch (error) {
@@ -274,7 +288,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               onClick={() => setActiveTab('bag')}
               className="w-full"
             >
-              <p className={`type-utility-1 text-content ${activeTab === 'bag' ? 'font-bold' : 'font-medium'} uppercase`}>BAG ({bagItemCount})</p>
+              <p className={`type-utility-1 text-content ${activeTab === 'bag' ? 'font-bold' : 'font-medium'} uppercase`}>{t('cart.bag')} ({bagItemCount})</p>
             </button>
           </li>
           <li className={`flex-1 text-center pb-3 ${activeTab === 'wishlist' ? 'border-b-2 border-black' : ''}`}>
@@ -286,7 +300,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               onClick={() => setActiveTab('wishlist')}
               className="w-full"
             >
-              <p className={`type-utility-1 text-content ${activeTab === 'wishlist' ? 'font-bold' : 'font-medium'} uppercase`}>WISHLIST ({wishlistCount})</p>
+              <p className={`type-utility-1 text-content ${activeTab === 'wishlist' ? 'font-bold' : 'font-medium'} uppercase`}>{t('cart.wishlist')} ({wishlistCount})</p>
             </button>
           </li>
         </ul>
@@ -299,13 +313,13 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               {!cart || cart.items.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center p-8">
                   <div className="text-center">
-                    <p className="type-body-2 text-content mb-4">Your bag is empty</p>
+                    <p className="type-body-2 text-content mb-4">{t('cart.empty')}</p>
                     <Link
                       href="/products"
                       onClick={onClose}
                       className="inline-block px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors"
                     >
-                      Start Shopping
+                      {t('cart.startShopping')}
                     </Link>
                   </div>
                 </div>
@@ -391,16 +405,16 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                 )}
                                 {item.product.ringSize && (
                                   <p className="text-content">
-                                    Size: {item.product.ringSize}
+                                    {t('product.size')}: {item.product.ringSize}
                                   </p>
                                 )}
                                 {item.product.chainLength && (
                                   <p className="text-content">
-                                    Length: {item.product.chainLength}
+                                    {t('product.length')}: {item.product.chainLength}
                                     </p>
                                 )}
                                 <p className="text-content">
-                                    In Stock
+                                    {t('cart.inStock')}
                                   </p>
                               </div>
                             </div>
@@ -530,7 +544,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                   className="type-utility-1 mixed-case font-normal text-gray-600 hover:text-black transition-colors underline text-xs whitespace-nowrap"
                                   style={{ fontFamily: '"SimonMono", "Courier New", Courier, monospace', fontWeight: 400 }}
                                 >
-                                  Move to wishlist
+                                  {t('cart.moveToWishlist')}
                                 </button>
                               )}
                               <button
@@ -548,7 +562,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                   }, 700) // Match animation duration
                                 }}
                                 className="p-2 hover:bg-gray-100 rounded transition-colors"
-                                aria-label="Remove from cart"
+                                aria-label={t('cart.remove')}
                               >
                                 <Trash2 className="w-5 h-5 text-gray-600 hover:text-black transition-colors" />
                               </button>
@@ -562,23 +576,33 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   {/* You May Also Like */}
                   {youMayAlsoLike.length > 0 && (
                     <>
-                      <div className="px-4 my-6 md:px-6">
-                        <div className="min-w-[343px] py-3 px-2.5 type-body-3 flex items-center bg-yellow-50 text-yellow-800">
-                          GET IT OR REGRET IT: These styles are going fast.
+                      {cartAlertConfig.enabled && (
+                        <div className="px-4 my-6 md:px-6">
+                          <div className="min-w-[343px] py-3 px-2.5 type-body-3 flex items-center bg-yellow-50 text-yellow-800">
+                            {cartAlertConfig.message}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="my-4">
                         <h1 className="type-heading-5 mb-4 uppercase text-black px-4 md:px-6">
-                          You May Also Like
+                          {t('cart.youMayAlsoLike')}
                         </h1>
-                        {currentProduct && (
-                          <div className="px-4 md:px-6">
-                            <div className="border border-gray-300 w-full h-[160px] relative">
-                              <div 
-                                key={currentProduct.id}
-                                className="grid gap-3 grid-cols-[120px_1fr] h-full p-2 animate-fade-in"
-                              >
+                        {currentProduct && (() => {
+                          // Only show if product has available quantity
+                          const quantity = currentProduct.quantity || 0
+                          const availableQuantity = currentProduct.availableQuantity !== undefined && currentProduct.availableQuantity !== null 
+                            ? currentProduct.availableQuantity 
+                            : quantity
+                          if (availableQuantity <= 0) return null
+                          
+                          return (
+                            <div className="px-4 md:px-6">
+                              <div className="border border-gray-300 w-full h-[160px] relative">
+                                <div 
+                                  key={currentProduct.id}
+                                  className="grid gap-3 grid-cols-[120px_1fr] h-full p-2 animate-fade-in"
+                                >
                                 <div className="h-full w-full relative overflow-hidden">
                                   {(() => {
                                     const primaryImage = currentProduct.images?.find(img => img.isPrimary) || currentProduct.images?.[0] || null
@@ -609,17 +633,17 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                     <div className="text-[0.750rem] space-y-0.5">
                                       {currentProduct.material && (
                                         <p className="text-content">
-                                          Material: {currentProduct.material}
+                                          {t('product.material')}: {currentProduct.material}
                                         </p>
                                       )}
                                       {currentProduct.ringSize && (
                                         <p className="text-content">
-                                          Size: {currentProduct.ringSize}
+                                          {t('product.size')}: {currentProduct.ringSize}
                                         </p>
                                       )}
                                       {currentProduct.chainLength && (
                                         <p className="text-content">
-                                          Length: {currentProduct.chainLength}
+                                          {t('product.length')}: {currentProduct.chainLength}
                                       </p>
                                     )}
                                     </div>
@@ -636,7 +660,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                       onClick={() => handleAddRecommended(currentProduct)}
                                       className="relative inline-block text-center outline-none border border-black hover:bg-black hover:text-white transition-colors px-3 py-1.5 text-xs font-normal normal-case bg-white w-full"
                                     >
-                                      Add item
+                                      {t('cart.addItem')}
                                     </button>
                                   </div>
                                 </div>
@@ -668,7 +692,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                               </button>
                             </div>
                           </div>
-                        )}
+                          )
+                        })()}
                       </div>
                     </>
                   )}
@@ -699,13 +724,13 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               ) : wishlistItems.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center p-8">
                   <div className="text-center">
-                    <p className="type-body-2 text-content mb-4">Your wishlist is empty</p>
+                    <p className="type-body-2 text-content mb-4">{t('cart.wishlistEmpty')}</p>
                     <Link
                       href="/products"
                       onClick={onClose}
                       className="inline-block px-6 py-3 bg-black text-white hover:bg-gray-800 transition-colors"
                     >
-                      Start Shopping
+                      {t('cart.startShopping')}
                     </Link>
                   </div>
                 </div>
@@ -761,16 +786,16 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                               )}
                               {item.ringSize && (
                                 <p className="text-content">
-                                  Size: {item.ringSize}
+                                  {t('product.size')}: {item.ringSize}
                                 </p>
                               )}
                               {item.chainLength && (
                                 <p className="text-content">
-                                  Length: {item.chainLength}
+                                  {t('product.length')}: {item.chainLength}
                                 </p>
                               )}
                               <p className="text-content">
-                                In Stock
+                                {t('cart.inStock')}
                               </p>
                             </div>
 
@@ -798,7 +823,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                             <button
                               onClick={() => handleRemoveFromWishlist(item.id)}
                               className="p-2 hover:bg-gray-100 rounded transition-colors"
-                              aria-label="Remove from wishlist"
+                              aria-label={t('cart.remove')}
                             >
                               <Trash2 className="w-5 h-5 text-gray-600 hover:text-black transition-colors" />
                             </button>
@@ -819,7 +844,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <div className="bg-gray-100 p-6 flex flex-col gap-2 mt-auto border-t border-black">
               <dl className="flex gap-2 justify-between">
                 <dt>
-                  <p className="type-body-2 text-content">Subtotal</p>
+                  <p className="type-body-2 text-content">{t('cart.subtotal')}</p>
                 </dt>
                 <dd>
                   <div className="type-body-2 text-content">{formatPrice(cart.total)}</div>
@@ -827,7 +852,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               </dl>
               <dl className="flex gap-2 justify-between">
                 <dt>
-                  <p className="type-body-2 text-content">Taxes</p>
+                  <p className="type-body-2 text-content">{t('checkout.taxes')}</p>
                 </dt>
                 <dd>
                   <p className="type-body-2 text-content" data-testid="no-taxes">-</p>
@@ -835,12 +860,12 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               </dl>
               <dl className="flex gap-2 justify-between">
                 <dt>
-                  <p className="type-body-2 text-content">Estimated Shipping</p>
+                  <p className="type-body-2 text-content">{t('checkout.estimatedShipping')}</p>
                 </dt>
                 <dd>
                   <div className="type-body-2 text-content">
                     {freeShippingConfig.enabled && currentTotal >= FREE_SHIPPING_THRESHOLD ? (
-                      <span className="text-green-600">Free</span>
+                      <span className="text-green-600">{t('checkout.free')}</span>
                     ) : (
                       <div>{formatPrice(15)}</div>
                     )}
@@ -851,7 +876,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <div className="flex flex-col gap-2 px-6 py-4 shadow-lg sticky bottom-0 z-[1] bg-gray-100">
               <dl className="flex gap-2 justify-between">
                 <dt>
-                  <p className="type-body-2 text-content font-bold">Estimated Total</p>
+                  <p className="type-body-2 text-content font-bold">{t('checkout.estimatedTotal')}</p>
                 </dt>
                 <dd>
                   <div className="type-body-2 text-content">
@@ -865,7 +890,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 className="relative inline-block uppercase px-6 text-center outline-none border focus-visible:ring-2 ring-utility-focus ring-offset-2 transition-colors duration-300 ease-ease type-utility-1 tracking-px leading-5 py-3 bg-black text-white border-black hover:bg-gray-800 disabled:bg-gray-400 disabled:text-gray-200 disabled:border-gray-400 w-full mb-0"
               >
                 <span className="flex justify-center items-center gap-2 preserve-line-height">
-                  Checkout
+                  {t('cart.checkout')}
                 </span>
               </Link>
             </div>

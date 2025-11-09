@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, Linkedin, Youtube, Pinterest } from 'lucide-react'
 import api from '@/services/api'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface FooterConfig {
   companyName?: string
@@ -50,6 +51,7 @@ interface FooterConfig {
 }
 
 export function Footer() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<FooterConfig | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -69,6 +71,7 @@ export function Footer() {
 
     fetchFooterConfig()
   }, [])
+
 
   // Default values fallback
   const companyName = config?.companyName || 'JewelryShop'
@@ -184,7 +187,7 @@ export function Footer() {
           {/* Quick Links */}
           {quickLinksEnabled && (
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-black">Quick Links</h4>
+              <h4 className="text-lg font-semibold mb-4 text-black">{t('footer.quickLinks')}</h4>
               <ul className="space-y-3">
                 {quickLinks.products?.enabled && (
                   <li>
@@ -192,7 +195,7 @@ export function Footer() {
                       href="/products" 
                       className="block px-3 py-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-md transition-all duration-200 transform hover:translate-x-1 border-l-2 border-transparent hover:border-black"
                     >
-                      {quickLinks.products.label || 'All Products'}
+                      {quickLinks.products.label || t('footer.allProducts')}
                     </Link>
                   </li>
                 )}
@@ -202,7 +205,7 @@ export function Footer() {
                       href="/categories" 
                       className="block px-3 py-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-md transition-all duration-200 transform hover:translate-x-1 border-l-2 border-transparent hover:border-black"
                     >
-                      {quickLinks.categories.label || 'Categories'}
+                      {quickLinks.categories.label || t('footer.categories')}
                     </Link>
                   </li>
                 )}
@@ -212,7 +215,7 @@ export function Footer() {
                       href="/about" 
                       className="block px-3 py-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-md transition-all duration-200 transform hover:translate-x-1 border-l-2 border-transparent hover:border-black"
                     >
-                      {quickLinks.about.label || 'About Us'}
+                      {quickLinks.about.label || t('footer.aboutUs')}
                     </Link>
                   </li>
                 )}
@@ -222,7 +225,7 @@ export function Footer() {
                       href="/contact" 
                       className="block px-3 py-2 text-black hover:text-gray-600 hover:bg-gray-100 rounded-md transition-all duration-200 transform hover:translate-x-1 border-l-2 border-transparent hover:border-black"
                     >
-                      {quickLinks.contact.label || 'Contact'}
+                      {quickLinks.contact.label || t('footer.contact')}
                     </Link>
                   </li>
                 )}
@@ -233,7 +236,7 @@ export function Footer() {
           {/* Contact Info */}
           {contactEnabled && (
             <div>
-              <h4 className="text-lg font-semibold mb-4 text-black">Contact Info</h4>
+              <h4 className="text-lg font-semibold mb-4 text-black">{t('footer.contactInfo')}</h4>
               <div className="space-y-2">
                 {contactDetails.address?.enabled && contactDetails.address.value && (
                   <div className="flex items-center space-x-2">
@@ -268,15 +271,15 @@ export function Footer() {
           <div className="border-t border-black mt-8 pt-8">
             <div className="max-w-md mx-auto text-center">
               <h4 className="text-xl font-semibold mb-2 text-black">
-                {newsletter.title || 'Subscribe to Our Newsletter'}
+                {newsletter.title || t('footer.subscribeNewsletter')}
               </h4>
               <p className="text-black mb-4">
-                {newsletter.description || 'Get the latest updates on new products and upcoming sales.'}
+                {newsletter.description || t('footer.newsletterDescription')}
               </p>
               <form className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder={t('footer.enterEmail')}
                   className="flex-1 px-4 py-2 rounded-md border border-black text-black focus:outline-none focus:ring-2 focus:ring-black"
                   required
                 />
@@ -284,7 +287,7 @@ export function Footer() {
                   type="submit"
                   className="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors font-medium"
                 >
-                  {newsletter.buttonText || 'Subscribe'}
+                  {newsletter.buttonText || t('footer.subscribe')}
                 </button>
               </form>
             </div>

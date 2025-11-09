@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { X, User, MapPin, Package, Heart, LogOut, AlertCircle, XCircle, Ban, RefreshCw } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useOrderStats } from '@/hooks/useOrderStats'
+import { useTranslation } from '@/hooks/useTranslation'
 
 interface AccountDropdownProps {
   isOpen: boolean
@@ -14,6 +15,7 @@ interface AccountDropdownProps {
 
 export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
   const { user, logout } = useAuth()
+  const { t } = useTranslation()
   const router = useRouter()
   const dropdownRef = useRef<HTMLDivElement>(null)
   const isAdmin = user?.roles?.includes('ADMIN')
@@ -90,7 +92,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
             
             {/* User Info */}
             {user && (
-              <div className="mt-4 flex items-center gap-3">
+              <div className="mt-4 flex items-center gap-3 ml-8 md:ml-12">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 font-semibold">
                   {user.email?.charAt(0).toUpperCase() || 'U'}
                 </div>
@@ -116,7 +118,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <User className="w-5 h-5 text-content" />
-                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">My Profile</p>
+                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">{t('account.myProfile')}</p>
                 </div>
                 <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -134,7 +136,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <MapPin className="w-5 h-5 text-content" />
-                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">Addresses</p>
+                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">{t('account.addresses')}</p>
                 </div>
                 <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -152,7 +154,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Package className="w-5 h-5 text-content" />
-                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">My Orders</p>
+                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">{t('account.myOrders')}</p>
                 </div>
                 <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -170,7 +172,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Heart className="w-5 h-5 text-content" />
-                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">Wishlist</p>
+                  <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">{t('account.wishlist')}</p>
                 </div>
                 <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -191,7 +193,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <LogOut className="w-5 h-5 text-content" />
-                    <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">Sign Out</p>
+                    <p className="type-utility-1 text-content uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">{t('account.signOut')}</p>
                   </div>
                   <svg className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -216,7 +218,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
                       <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
-                      <p className="type-utility-1 text-blue-600 uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">Admin Dashboard</p>
+                      <p className="type-utility-1 text-blue-600 uppercase tracking-normal !font-normal bg-link-underline bg-[length:0%_1px] hover:bg-[length:100%_1px] transition-[background-size] duration-300 ease-ease">{t('account.adminDashboard')}</p>
                     </div>
                     <svg className="w-4 h-4 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -233,7 +235,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
                   >
                     <div className="flex items-center gap-3">
                       <AlertCircle className="w-4 h-4 text-orange-500" />
-                      <span className="text-sm text-gray-700">Not Delivered</span>
+                      <span className="text-sm text-gray-700">{t('account.notDelivered')}</span>
                     </div>
                     <span className="bg-orange-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
                       {nonDeliveredCount || 0}
@@ -246,7 +248,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
                   >
                     <div className="flex items-center gap-3">
                       <XCircle className="w-4 h-4 text-red-500" />
-                      <span className="text-sm text-gray-700">Cancelled</span>
+                      <span className="text-sm text-gray-700">{t('account.cancelled')}</span>
                     </div>
                     <span className="bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
                       {cancelledCount || 0}
@@ -259,7 +261,7 @@ export function AccountDropdown({ isOpen, onClose }: AccountDropdownProps) {
                   >
                     <div className="flex items-center gap-3">
                       <RefreshCw className="w-4 h-4 text-purple-500" />
-                      <span className="text-sm text-gray-700">Refunded</span>
+                      <span className="text-sm text-gray-700">{t('account.refunded')}</span>
                     </div>
                     <span className="bg-purple-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
                       {refundedCount || 0}

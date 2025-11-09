@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { useTranslation } from '@/hooks/useTranslation'
 import api from '@/services/api'
 import { 
   BarChart3, 
@@ -48,6 +49,7 @@ interface AnalyticsData {
 }
 
 export default function AdminDashboardPage() {
+  const { t } = useTranslation()
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,7 +65,7 @@ export default function AdminDashboardPage() {
       const response = await api.get(`/api/admin/analytics?range=${timeRange}`)
       setAnalytics(response.data)
     } catch (err) {
-      setError('Failed to load analytics data')
+      setError(t('admin.analytics.failedToLoad') || 'Failed to load analytics data')
       console.error('Error loading analytics:', err)
     } finally {
       setLoading(false)
@@ -78,10 +80,10 @@ export default function AdminDashboardPage() {
 
   const getTimeRangeLabel = () => {
     switch (timeRange) {
-      case '7d': return 'Last 7 days'
-      case '30d': return 'Last 30 days'
-      case '90d': return 'Last 90 days'
-      default: return 'Last 30 days'
+      case '7d': return t('admin.analytics.last7Days') || 'Last 7 days'
+      case '30d': return t('admin.analytics.last30Days') || 'Last 30 days'
+      case '90d': return t('admin.analytics.last90Days') || 'Last 90 days'
+      default: return t('admin.analytics.last30Days') || 'Last 30 days'
     }
   }
 
@@ -113,19 +115,19 @@ export default function AdminDashboardPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <BarChart3 className="w-8 h-8 text-primary-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t('admin.analytics.title') || 'Analytics Dashboard'}</h1>
           </div>
           
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700">Time Range:</span>
+            <span className="text-sm font-medium text-gray-700">{t('admin.analytics.timeRange') || 'Time Range:'}</span>
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value as any)}
               className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
-              <option value="7d">Last 7 days</option>
-              <option value="30d">Last 30 days</option>
-              <option value="90d">Last 90 days</option>
+              <option value="7d">{t('admin.analytics.last7Days') || 'Last 7 days'}</option>
+              <option value="30d">{t('admin.analytics.last30Days') || 'Last 30 days'}</option>
+              <option value="90d">{t('admin.analytics.last90Days') || 'Last 90 days'}</option>
             </select>
           </div>
         </div>
@@ -140,7 +142,7 @@ export default function AdminDashboardPage() {
                     <Users className="h-8 w-8 text-blue-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Total Users</p>
+                    <p className="text-sm font-medium text-gray-500">{t('admin.analytics.totalUsers') || 'Total Users'}</p>
                     <p className="text-2xl font-semibold text-gray-900">
                       {formatNumber(analytics.totalUsers)}
                     </p>
@@ -154,7 +156,7 @@ export default function AdminDashboardPage() {
                     <Package className="h-8 w-8 text-green-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Total Products</p>
+                    <p className="text-sm font-medium text-gray-500">{t('admin.analytics.totalProducts') || 'Total Products'}</p>
                     <p className="text-2xl font-semibold text-gray-900">
                       {formatNumber(analytics.totalProducts)}
                     </p>
@@ -168,7 +170,7 @@ export default function AdminDashboardPage() {
                     <Eye className="h-8 w-8 text-purple-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Total Views</p>
+                    <p className="text-sm font-medium text-gray-500">{t('admin.analytics.totalViews') || 'Total Views'}</p>
                     <p className="text-2xl font-semibold text-gray-900">
                       {formatNumber(analytics.totalViews)}
                     </p>
@@ -182,7 +184,7 @@ export default function AdminDashboardPage() {
                     <ShoppingCart className="h-8 w-8 text-orange-600" />
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-500">Total Orders</p>
+                    <p className="text-sm font-medium text-gray-500">{t('admin.analytics.totalOrders') || 'Total Orders'}</p>
                     <p className="text-2xl font-semibold text-gray-900">
                       {formatNumber(analytics.totalOrders)}
                     </p>
@@ -197,7 +199,7 @@ export default function AdminDashboardPage() {
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                     <Star className="w-5 h-5 text-yellow-500 mr-2" />
-                    Top Products
+                    {t('admin.analytics.topProducts') || 'Top Products'}
                   </h3>
                 </div>
                 <div className="p-6">
@@ -215,7 +217,7 @@ export default function AdminDashboardPage() {
                               {product.name}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {product.views} views • {product.orders} orders
+                              {product.views} {t('admin.analytics.views') || 'views'} • {product.orders} {t('admin.analytics.orders') || 'orders'}
                             </p>
                           </div>
                         </div>
@@ -223,7 +225,7 @@ export default function AdminDashboardPage() {
                           <p className="text-sm font-medium text-gray-900">
                             {((product.orders / product.views) * 100).toFixed(1)}%
                           </p>
-                          <p className="text-xs text-gray-500">conversion</p>
+                          <p className="text-xs text-gray-500">{t('admin.analytics.conversion') || 'conversion'}</p>
                         </div>
                       </div>
                     ))}
@@ -236,7 +238,7 @@ export default function AdminDashboardPage() {
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                     <Globe className="w-5 h-5 text-blue-500 mr-2" />
-                    Top Countries
+                    {t('admin.analytics.topCountries') || 'Top Countries'}
                   </h3>
                 </div>
                 <div className="p-6">
@@ -254,7 +256,7 @@ export default function AdminDashboardPage() {
                               {country.country}
                             </p>
                             <p className="text-sm text-gray-500">
-                              {country.users} users
+                              {country.users} {t('admin.analytics.users') || 'users'}
                             </p>
                           </div>
                         </div>
@@ -262,7 +264,7 @@ export default function AdminDashboardPage() {
                           <p className="text-sm font-medium text-gray-900">
                             {formatNumber(country.views)}
                           </p>
-                          <p className="text-xs text-gray-500">views</p>
+                          <p className="text-xs text-gray-500">{t('admin.analytics.views') || 'views'}</p>
                         </div>
                       </div>
                     ))}
@@ -276,7 +278,7 @@ export default function AdminDashboardPage() {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <Users className="w-5 h-5 text-green-500 mr-2" />
-                  Recent Users
+                  {t('admin.analytics.recentUsers') || 'Recent Users'}
                 </h3>
               </div>
               <div className="p-6">
@@ -285,13 +287,13 @@ export default function AdminDashboardPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          User
+                          {t('admin.analytics.user') || 'User'}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Email
+                          {t('admin.analytics.email') || 'Email'}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Joined
+                          {t('admin.analytics.joined') || 'Joined'}
                         </th>
                       </tr>
                     </thead>
@@ -309,7 +311,7 @@ export default function AdminDashboardPage() {
                                 <div className="text-sm font-medium text-gray-900">
                                   {user.firstName && user.lastName 
                                     ? `${user.firstName} ${user.lastName}`
-                                    : 'No Name'
+                                    : t('admin.analytics.noName') || 'No Name'
                                   }
                                 </div>
                               </div>
@@ -334,16 +336,16 @@ export default function AdminDashboardPage() {
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center">
                   <Activity className="w-5 h-5 text-purple-500 mr-2" />
-                  Daily Activity - {getTimeRangeLabel()}
+                  {t('admin.analytics.dailyActivity') || 'Daily Activity'} - {getTimeRangeLabel()}
                 </h3>
               </div>
               <div className="p-6">
                 <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
                   <div className="text-center">
                     <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">Chart visualization would go here</p>
+                    <p className="text-gray-500">{t('admin.analytics.chartPlaceholder') || 'Chart visualization would go here'}</p>
                     <p className="text-sm text-gray-400">
-                      {analytics.dailyStats.length} data points available
+                      {analytics.dailyStats.length} {t('admin.analytics.dataPointsAvailable') || 'data points available'}
                     </p>
                   </div>
                 </div>

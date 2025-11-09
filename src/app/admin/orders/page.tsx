@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { useTranslation } from '@/hooks/useTranslation'
 import api from '@/services/api'
 import { 
   Package, 
@@ -72,6 +73,7 @@ interface OrderStats {
 }
 
 export default function AdminOrdersPage() {
+  const { t } = useTranslation()
   const [orders, setOrders] = useState<Order[]>([])
   const [stats, setStats] = useState<OrderStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -113,7 +115,7 @@ export default function AdminOrdersPage() {
       setOrders(response.data.content || response.data)
       setTotalPages(response.data.totalPages || 0)
     } catch (err) {
-      setError('Failed to load orders')
+      setError(t('admin.orders.failedToLoad') || 'Failed to load orders')
       console.error('Error loading orders:', err)
     } finally {
       setLoading(false)
@@ -162,7 +164,7 @@ export default function AdminOrdersPage() {
         estimatedDeliveryDays: estimatedDeliveryDays || undefined
       })
 
-      setSuccessMessage('Order status updated successfully!')
+      setSuccessMessage(t('admin.orders.updateSuccess') || 'Order status updated successfully!')
       setShowStatusModal(false)
       setTimeout(() => {
         setSuccessMessage(null)
@@ -170,7 +172,7 @@ export default function AdminOrdersPage() {
       loadOrders()
       loadStats()
     } catch (err) {
-      setError('Failed to update order status')
+      setError(t('admin.orders.updateFailed') || 'Failed to update order status')
       setSuccessMessage(null)
       console.error('Error updating status:', err)
     }
@@ -235,8 +237,8 @@ export default function AdminOrdersPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Order Management</h1>
-            <p className="text-gray-600">Manage orders, track shipments, and update statuses</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('admin.orders.title') || 'Orders'}</h1>
+            <p className="text-gray-600">{t('admin.orders.title') || 'Orders'}</p>
           </div>
         </div>
 
@@ -260,7 +262,7 @@ export default function AdminOrdersPage() {
                 <div className="flex items-center">
                   <Package className="h-8 w-8 text-blue-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                    <p className="text-sm font-medium text-gray-600">{t('admin.orders.stats.totalOrders') || 'Total Orders'}</p>
                     <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
                   </div>
                 </div>
@@ -274,7 +276,7 @@ export default function AdminOrdersPage() {
                 <div className="flex items-center">
                   <AlertCircle className="h-8 w-8 text-orange-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Not Delivered</p>
+                    <p className="text-sm font-medium text-gray-600">{t('account.notDelivered') || 'Not Delivered'}</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {stats.totalOrders - ((stats.ordersByStatus && stats.ordersByStatus.DELIVERED) || 0)}
                     </p>
@@ -290,7 +292,7 @@ export default function AdminOrdersPage() {
                 <div className="flex items-center">
                   <XCircle className="h-8 w-8 text-red-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Cancelled</p>
+                    <p className="text-sm font-medium text-gray-600">{t('admin.orders.cancelled') || 'Cancelled'}</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {(stats.ordersByStatus && stats.ordersByStatus.CANCELLED) || 0}
                     </p>
@@ -306,7 +308,7 @@ export default function AdminOrdersPage() {
                 <div className="flex items-center">
                   <RefreshCw className="h-8 w-8 text-purple-500" />
                   <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Refunded</p>
+                    <p className="text-sm font-medium text-gray-600">{t('admin.orders.refunded') || 'Refunded'}</p>
                     <p className="text-2xl font-bold text-gray-900">
                       {(stats.ordersByStatus && stats.ordersByStatus.REFUNDED) || 0}
                     </p>
@@ -328,7 +330,7 @@ export default function AdminOrdersPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by order number..."
+                  placeholder={t('admin.orders.searchPlaceholder') || 'Search orders...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 w-full"
@@ -341,14 +343,14 @@ export default function AdminOrdersPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">All Statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="CONFIRMED">Confirmed</option>
-                <option value="PROCESSING">Processing</option>
-                <option value="SHIPPED">Shipped</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="CANCELLED">Cancelled</option>
-                <option value="REFUNDED">Refunded</option>
+                <option value="">{t('admin.orders.allStatuses') || 'All Statuses'}</option>
+                <option value="PENDING">{t('admin.orders.pending') || 'Pending'}</option>
+                <option value="CONFIRMED">{t('admin.orders.confirmed') || 'Confirmed'}</option>
+                <option value="PROCESSING">{t('admin.orders.processing') || 'Processing'}</option>
+                <option value="SHIPPED">{t('admin.orders.shipped') || 'Shipped'}</option>
+                <option value="DELIVERED">{t('admin.orders.delivered') || 'Delivered'}</option>
+                <option value="CANCELLED">{t('admin.orders.cancelled') || 'Cancelled'}</option>
+                <option value="REFUNDED">{t('admin.orders.refunded') || 'Refunded'}</option>
               </select>
             </div>
           </div>
@@ -361,22 +363,22 @@ export default function AdminOrdersPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Order
+                    {t('admin.orders.orderNumber') || 'Order'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
+                    {t('admin.orders.customer') || 'Customer'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('admin.orders.status') || 'Status'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
+                    {t('admin.orders.total') || 'Total'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    {t('admin.orders.date') || 'Date'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('admin.orders.actions') || 'Actions'}
                   </th>
                 </tr>
               </thead>
@@ -419,14 +421,14 @@ export default function AdminOrdersPage() {
                       <button
                         onClick={() => handleViewOrder(order)}
                         className="text-blue-600 hover:text-blue-900"
-                        title="View Details"
+                        title={t('admin.orders.view') || 'View'}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleUpdateStatus(order)}
                         className="text-green-600 hover:text-green-900"
-                        title="Update Status"
+                        title={t('admin.orders.updateStatus') || 'Update Status'}
                       >
                         <Edit className="h-4 w-4" />
                       </button>
@@ -446,14 +448,14 @@ export default function AdminOrdersPage() {
                   disabled={currentPage === 0}
                   className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Previous
+                  {t('common.previous') || 'Previous'}
                 </button>
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                   disabled={currentPage >= totalPages - 1}
                   className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Next
+                  {t('common.next') || 'Next'}
                 </button>
               </div>
               <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
@@ -507,40 +509,40 @@ export default function AdminOrdersPage() {
                   {/* Order Info */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Status</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.orders.status') || 'Status'}</label>
                       <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedOrder.status)}`}>
                         {getStatusIcon(selectedOrder.status)}
                         <span className="ml-1">{selectedOrder.status}</span>
                       </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Total</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.orders.total') || 'Total'}</label>
                       <p className="text-sm text-gray-900">
                         {formatCurrency(selectedOrder.totalAmount, selectedOrder.currency)}
                       </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Date</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.orders.date') || 'Date'}</label>
                       <p className="text-sm text-gray-900">{formatDate(selectedOrder.createdAt)}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Tracking</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.orders.trackingNumber') || 'Tracking'}</label>
                       <p className="text-sm text-gray-900">
-                        {selectedOrder.trackingNumber || 'Not provided'}
+                        {selectedOrder.trackingNumber || t('common.notProvided') || 'Not provided'}
                       </p>
                     </div>
                   </div>
 
                   {/* Customer Info */}
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Customer</label>
+                    <label className="text-sm font-medium text-gray-500">{t('admin.orders.customer') || 'Customer'}</label>
                     <p className="text-sm text-gray-900">{selectedOrder.customerName}</p>
                     <p className="text-sm text-gray-500">{selectedOrder.customerEmail}</p>
                   </div>
 
                   {/* Order Items */}
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Items</label>
+                    <label className="text-sm font-medium text-gray-500">{t('admin.orders.orderItems') || 'Items'}</label>
                     <div className="mt-2 space-y-2">
                       {selectedOrder.items.map((item) => (
                         <div key={item.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
@@ -588,7 +590,7 @@ export default function AdminOrdersPage() {
               <div className="mt-3">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    Update Order Status
+                    {t('admin.orders.updateStatus') || 'Update Status'}
                   </h3>
                   <button
                     onClick={() => setShowStatusModal(false)}
@@ -695,13 +697,13 @@ export default function AdminOrdersPage() {
                       onClick={() => setShowStatusModal(false)}
                       className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                     >
-                      Cancel
+                      {t('admin.orders.cancel') || 'Cancel'}
                     </button>
                     <button
                       onClick={handleSaveStatus}
                       className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
                     >
-                      Update Status
+                      {t('admin.orders.updateStatus') || 'Update Status'}
                     </button>
                   </div>
                 </div>

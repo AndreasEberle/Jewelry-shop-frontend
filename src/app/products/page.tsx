@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
@@ -13,6 +13,7 @@ import { Search, Filter, Grid, List, Star, Heart, ShoppingCart, Eye } from 'luci
 import Link from 'next/link'
 import { Product } from '@/types'
 import { productService } from '@/services/productService'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export default function ProductsPage() {
   const searchParams = useSearchParams()
@@ -22,6 +23,8 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const { user } = useAuth()
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedMaterial, setSelectedMaterial] = useState('all')
+  const [onlyAvailable, setOnlyAvailable] = useState(false)
   const [sortBy, setSortBy] = useState('name')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [priceRange, setPriceRange] = useState({ min: 0, max: 10000 })
@@ -29,10 +32,16 @@ export default function ProductsPage() {
   const [addingToCart, setAddingToCart] = useState<string | null>(null)
   const [stockUpdates, setStockUpdates] = useState<Record<string, number>>({})
   const [productsPerRow, setProductsPerRow] = useState(2) // Default x2
+  const [isFiltersSticky, setIsFiltersSticky] = useState(false)
+  const [navbarHeight, setNavbarHeight] = useState(60)
+  const filtersRef = useRef<HTMLDivElement>(null)
+  const filterButtonRef = useRef<HTMLButtonElement>(null)
+  const [preloadedImages, setPreloadedImages] = useState<Set<string>>(new Set())
 
   const { getBackgroundUrlForSection } = useBackgroundImages()
   const { formatPrice } = useCurrency()
   const { addToCart, cart } = useCart()
+  const { t } = useTranslation()
   const navigationBackground = getBackgroundUrlForSection('navigation')
   const footerBackground = getBackgroundUrlForSection('footer')
 
@@ -102,6 +111,40 @@ export default function ProductsPage() {
         }
         setProducts(productsList)
         
+        // Preload all secondary images immediately using link preload tags
+        const loadedUrls = new Set<string>()
+        const imageLoadPromises: Promise<void>[] = []
+        
+        productsList.forEach((p: Product) => {
+          if (p.images && p.images.length > 1 && p.images[1]?.url) {
+            const url = p.images[1].url
+            if (!loadedUrls.has(url)) {
+              loadedUrls.add(url)
+              
+              // Add link preload tag to head for aggressive preloading
+              const link = document.createElement('link')
+              link.rel = 'preload'
+              link.as = 'image'
+              link.href = url
+              document.head.appendChild(link)
+              
+              // Also preload with Image object
+              const promise = new Promise<void>((resolve) => {
+                const img = new Image()
+                img.onload = () => resolve()
+                img.onerror = () => resolve() // Still resolve on error to not block
+                img.src = url
+              })
+              imageLoadPromises.push(promise)
+            }
+          }
+        })
+        
+        // Wait for all images to load, then set preloaded state
+        Promise.all(imageLoadPromises).then(() => {
+          setPreloadedImages(loadedUrls)
+        })
+        
         // Debug: Log product images
         productsList.forEach((p: Product) => {
           if (p.images && p.images.length > 0) {
@@ -140,8 +183,65 @@ export default function ProductsPage() {
     }
   }, [searchParams])
 
-  // Extract unique categories from products
+  // Get navbar height on mount and resize
+  useEffect(() => {
+    const updateNavbarHeight = () => {
+      const header = document.querySelector('header[data-testid="header"]')
+      if (header) {
+        setNavbarHeight(header.getBoundingClientRect().height)
+      }
+    }
+    
+    updateNavbarHeight()
+    window.addEventListener('resize', updateNavbarHeight)
+    
+    return () => {
+      window.removeEventListener('resize', updateNavbarHeight)
+    }
+  }, [])
+
+  // Handle scroll to make filters sticky (accounting for navbar height)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (filtersRef.current) {
+        const rect = filtersRef.current.getBoundingClientRect()
+        setIsFiltersSticky(rect.top <= navbarHeight)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    handleScroll() // Check initial state
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [navbarHeight])
+
+  // Handle click outside to close filter dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showFilters && 
+          filterButtonRef.current && 
+          filtersRef.current &&
+          !filterButtonRef.current.contains(event.target as Node) &&
+          !filtersRef.current.contains(event.target as Node)) {
+        setShowFilters(false)
+      }
+    }
+
+    if (showFilters) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showFilters])
+
+  // Extract unique categories, materials, and tags from products
   const categories = ['all', ...Array.from(new Set(products.flatMap(p => p.categories || [])))]
+  const materials = Array.from(new Set(products.flatMap(p => p.material ? [p.material] : [])))
+  const tags = Array.from(new Set(products.flatMap(p => p.tags || [])))
   
   const featuredParam = searchParams.get('featured')
   
@@ -152,10 +252,31 @@ export default function ProductsPage() {
                          product.sku.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesCategory = selectedCategory === 'all' || 
                           (product.categories || []).includes(selectedCategory)
+    const matchesMaterial = selectedMaterial === 'all' || product.material === selectedMaterial
     const matchesFeatured = featuredParam !== 'true' || product.showInFeatured === true
     const productPrice = product.displayPrice || product.price
     const matchesPrice = productPrice >= priceRange.min && productPrice <= priceRange.max
-    return matchesSearch && matchesCategory && matchesFeatured && matchesPrice
+    
+    // Check availability if filter is enabled
+    let matchesAvailability = true
+    if (onlyAvailable) {
+      const stockUpdateValue = stockUpdates[product.id]
+      const hasValidStockUpdate = stockUpdateValue !== undefined && stockUpdateValue !== null
+      let availableQty: number
+      if (hasValidStockUpdate) {
+        availableQty = stockUpdateValue
+      } else {
+        const cartItem = cart?.items?.find(item => item.product?.id === product.id || (item as any).productId === product.id)
+        const cartQuantity = cartItem?.quantity || 0
+        availableQty = product.availableQuantity !== undefined && product.availableQuantity !== null && product.availableQuantity > 0
+          ? product.availableQuantity 
+          : (product.quantity !== undefined && product.quantity !== null ? product.quantity : 0)
+        availableQty = Math.max(0, availableQty - cartQuantity)
+      }
+      matchesAvailability = availableQty > 0
+    }
+    
+    return matchesSearch && matchesCategory && matchesMaterial && matchesFeatured && matchesPrice && matchesAvailability
   })
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
@@ -231,6 +352,8 @@ export default function ProductsPage() {
     // Get cart quantity for this product - CartItem has product: Product, not productId
     const cartItem = cart?.items?.find(item => item.product?.id === product.id || (item as any).productId === product.id)
     const cartQuantity = cartItem?.quantity || 0
+    
+    // Secondary image is always rendered, no need for complex preload checks
     
     // Check if we have stock updates loaded (to show skeleton until ready)
     const hasStockUpdate = stockUpdates[product.id] !== undefined
@@ -332,11 +455,11 @@ export default function ProductsPage() {
                   className="bg-utility-loading md:grid flex flex-nowrap overflow-hidden overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar relative w-full aspect-square z-base" 
                   data-testid="product-card-images"
                 >
-                  <div className="absolute top-0 left-0 w-full h-full flex md:grid relative">
+                  <div className="absolute top-0 left-0 w-full h-full flex md:grid relative group/product-card">
                     {/* Primary Image */}
                     {primaryImage && (
                       <div 
-                        className={`relative overflow-hidden z-[1] flex-shrink-0 snap-start mx-px md:mx-0 w-full h-full object-cover ${secondaryImage ? 'transition-opacity duration-500 ease-in-out group-hover/product-card:opacity-0' : ''}`}
+                        className={`relative overflow-hidden z-[1] flex-shrink-0 snap-start mx-px md:mx-0 w-full h-full ${secondaryImage ? 'transition-opacity duration-300 ease-in-out group-hover/product-card:opacity-0' : ''}`}
                         data-testid="product-card-primary-image"
                         style={{ backgroundColor: '#f8f8f8' }}
                       >
@@ -346,9 +469,8 @@ export default function ProductsPage() {
                           loading="eager" 
                           sizes="(min-width: 1024px) 25vw, 50vw" 
                           src={primaryImage.url}
-                          className="relative object-cover z-[1] h-full w-full" 
+                          className="absolute inset-0 w-full h-full object-cover z-[1]" 
                           fetchPriority="high"
-                          style={{ width: '100%' }}
                         />
                       </div>
                     )}
@@ -356,7 +478,7 @@ export default function ProductsPage() {
                     {/* Secondary/Hover Image */}
                     {secondaryImage && (
                       <div 
-                        className="absolute inset-0 overflow-hidden z-[2] flex-shrink-0 snap-start mx-px md:mx-0 w-full h-full object-cover opacity-0 transition-opacity duration-500 ease-in-out group-hover/product-card:opacity-100" 
+                        className="absolute inset-0 overflow-hidden z-[2] flex-shrink-0 snap-start mx-px md:mx-0 w-full h-full opacity-0 transition-opacity duration-300 ease-in-out group-hover/product-card:opacity-100" 
                         data-testid="product-card-secondary-image"
                       >
                         <img 
@@ -365,8 +487,7 @@ export default function ProductsPage() {
                           loading="lazy" 
                           sizes="(min-width: 1024px) 25vw, 50vw" 
                           src={secondaryImage.url}
-                          className="relative object-cover z-[1] h-full w-full"
-                          style={{ width: '100%' }}
+                          className="absolute inset-0 w-full h-full object-cover z-[1]"
                         />
                       </div>
                     )}
@@ -390,7 +511,7 @@ export default function ProductsPage() {
                       style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 400, color: 'rgba(121,120,108,var(--tw-text-opacity, 1))' }} 
                       className="p-xxs md:px-xs md:py-xxs type-caption flex justify-between items-center !p-0 text-nowrap type-utility-2 uppercase !text-xxs md:!text-xs"
                     >
-                      OUT OF STOCK
+                      {t('common.outOfStock')}
                     </div>
                   </div>
                 )}
@@ -442,12 +563,12 @@ export default function ProductsPage() {
                     <>
                       {inStock && availableQty > 0 && (
                         <div className="text-xs" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 400, color: 'rgba(121,120,108,var(--tw-text-opacity, 1))' }}>
-                          {availableQty} {availableQty === 1 ? 'item' : 'items'} available
+                          {availableQty} {availableQty === 1 ? t('common.itemAvailable') : t('common.itemsAvailable')}
                         </div>
                       )}
                       {(!inStock || availableQty === 0) && (
                         <div className="text-xs font-medium" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 400, color: 'rgba(121,120,108,var(--tw-text-opacity, 1))' }}>
-                          Request when available
+                          {t('common.requestWhenAvailable')}
                         </div>
                       )}
                     </>
@@ -476,7 +597,7 @@ export default function ProductsPage() {
                     >
                       <span className="flex justify-center items-center gap-xxs preserve-line-height">
                         <p className="type-utility-2 !text-xxs md:!text-xs font-normal uppercase text-content-mid" aria-label={`${product.name} Add`} style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 400 }}>
-                          + ADD
+                          {t('common.add')}
                         </p>
                       </span>
                     </button>
@@ -517,7 +638,7 @@ export default function ProductsPage() {
                     >
                       <span className="flex justify-center items-center gap-xxs preserve-line-height">
                         <p className="type-utility-2 !text-xxs md:!text-xs font-normal uppercase text-content-mid" aria-label={`${product.name} Request`} style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 400 }}>
-                          REQUEST
+                          {t('common.request')}
                         </p>
                       </span>
                     </button>
@@ -547,21 +668,17 @@ export default function ProductsPage() {
               </div>
               
               {/* Price */}
-              <div className="flex items-center gap-xxs md:gap-xs" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 400, color: 'rgba(121,120,108,var(--tw-text-opacity, 1))' }}>
+              <div className="flex items-center justify-between gap-xxs md:gap-xs w-full" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 400, color: 'rgba(121,120,108,var(--tw-text-opacity, 1))' }}>
                 <div className="flex flex-shrink-0 type-utility-2 !text-xxs md:!text-xs !font-normal type-body-2 items-end">
-                  <div className="flex flex-wrap gap-x-xs">
-                    <div className="flex gap-xxs md:gap-xs">
-                      {hasSpecialOffer && product.specialOfferPrice ? (
-                        <>
-                          <span className="text-red-600" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 900, textRendering: 'optimizeLegibility', WebkitFontSmoothing: 'antialiased', color: '#000000' }}>{formatPrice(product.specialOfferPrice, product.baseCurrency)}</span>
-                          <span className="line-through text-gray-400" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 900, textRendering: 'optimizeLegibility', WebkitFontSmoothing: 'antialiased' }}>{formatPrice(productPrice, product.baseCurrency)}</span>
-                        </>
-                      ) : (
-                        <span style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 900, textRendering: 'optimizeLegibility', WebkitFontSmoothing: 'antialiased', color: '#000000' }}>{formatPrice(displayPrice, product.baseCurrency)}</span>
-                      )}
-                    </div>
-                  </div>
+                  {hasSpecialOffer && product.specialOfferPrice ? (
+                    <span className="text-red-600" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 900, textRendering: 'optimizeLegibility', WebkitFontSmoothing: 'antialiased', color: '#000000' }}>{formatPrice(product.specialOfferPrice, product.baseCurrency)}</span>
+                  ) : (
+                    <span style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 900, textRendering: 'optimizeLegibility', WebkitFontSmoothing: 'antialiased', color: '#000000' }}>{formatPrice(displayPrice, product.baseCurrency)}</span>
+                  )}
                 </div>
+                {hasSpecialOffer && product.specialOfferPrice && (
+                  <span className="line-through text-gray-400" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontWeight: 900, textRendering: 'optimizeLegibility', WebkitFontSmoothing: 'antialiased' }}>{formatPrice(productPrice, product.baseCurrency)}</span>
+                )}
               </div>
               
               {/* Variant Selector */}
@@ -631,7 +748,7 @@ export default function ProductsPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header backgroundImage={navigationBackground} />
-        <main className="py-12">
+        <main className="py-12 bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="animate-pulse">
               <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
@@ -656,88 +773,104 @@ export default function ProductsPage() {
     <div className="min-h-screen bg-gray-50">
       <Header backgroundImage={navigationBackground} />
       
-      <main className="py-12">
+      <main className="py-12 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Search and Filters - Improved */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-4">
-              {/* Search */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent transition-all"
-                  style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}
-                />
-              </div>
-
-              {/* Filters and Controls */}
+          <div 
+            ref={filtersRef}
+            className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8 transition-all ${
+              isFiltersSticky ? 'sticky z-40 rounded-t-none border-t-0' : ''
+            }`}
+            style={isFiltersSticky ? {
+              top: `${navbarHeight}px`,
+              borderBottom: '1px solid #e5e7eb',
+              marginLeft: 'calc(-50vw + 50%)',
+              marginRight: 'calc(-50vw + 50%)',
+              width: '100vw',
+              maxWidth: '100vw',
+              paddingLeft: 'max(1rem, calc((100vw - 80rem) / 2 + 1rem))',
+              paddingRight: 'max(1rem, calc((100vw - 80rem) / 2 + 1rem))'
+            } : {}}
+          >
+            <div className="flex flex-col gap-4 mb-4">
+              {/* Filters and Controls - All aligned to left */}
               <div className="flex items-center gap-3 flex-wrap">
+                {/* Only Available Filter - Always visible */}
+                <label className="flex items-center gap-2 cursor-pointer group px-3 py-2 border border-gray-300 hover:border-gray-900 transition-all bg-white">
+                  <input
+                    type="checkbox"
+                    checked={onlyAvailable}
+                    onChange={(e) => setOnlyAvailable(e.target.checked)}
+                    className="w-4 h-4 border-gray-300 rounded focus:ring-2 focus:ring-black text-black cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-900 group-hover:text-black transition-colors uppercase tracking-wider" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
+                    {t('common.onlyAvailable')}
+                  </span>
+                </label>
+                
                 <button
+                  ref={filterButtonRef}
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`flex items-center gap-2 px-4 py-2.5 border rounded-md transition-colors ${
+                  className={`flex items-center gap-2 px-4 py-2 border transition-all ${
                     showFilters 
-                      ? 'bg-gray-100 border-gray-400 text-gray-900' 
-                      : 'border-gray-300 hover:bg-gray-50 text-gray-700'
+                      ? 'bg-black text-white border-black' 
+                      : 'bg-white text-gray-900 border-gray-300 hover:border-gray-900'
                   }`}
-                  style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}
+                  style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.75rem', letterSpacing: '0.05em' }}
                 >
-                  <Filter className="w-4 h-4" />
-                  <span>Filters</span>
+                  <Filter className="w-3.5 h-3.5" />
+                  <span className="uppercase tracking-wider">{t('common.filters')}</span>
                 </button>
 
-                <div className="flex items-center gap-1 border border-gray-300 rounded-md p-1">
+                <div className="flex items-center gap-1 border border-gray-300 p-0.5">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded transition-colors ${
+                    className={`p-1.5 transition-colors ${
                       viewMode === 'grid' 
-                        ? 'bg-gray-900 text-white' 
-                        : 'text-gray-400 hover:text-gray-600'
+                        ? 'bg-black text-white' 
+                        : 'text-gray-400 hover:text-gray-900'
                     }`}
                     aria-label="Grid view"
                   >
-                    <Grid className="w-4 h-4" />
+                    <Grid className="w-3.5 h-3.5" />
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2 rounded transition-colors ${
+                    className={`p-1.5 transition-colors ${
                       viewMode === 'list' 
-                        ? 'bg-gray-900 text-white' 
-                        : 'text-gray-400 hover:text-gray-600'
+                        ? 'bg-black text-white' 
+                        : 'text-gray-400 hover:text-gray-900'
                     }`}
                     aria-label="List view"
                   >
-                    <List className="w-4 h-4" />
+                    <List className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400 bg-white transition-all"
-                  style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}
+                  className="px-3 py-2 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-black focus:border-black bg-white transition-all"
+                  style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.75rem' }}
                 >
-                  <option value="name">Sort by Name</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                  <option value="rating">Highest Rated</option>
-                  <option value="newest">Newest First</option>
+                  <option value="name">{t('common.sortByName')}</option>
+                  <option value="price-low">{t('common.sortByPriceLow')}</option>
+                  <option value="price-high">{t('common.sortByPriceHigh')}</option>
+                  <option value="rating">{t('common.sortByRating')}</option>
+                  <option value="newest">{t('common.sortByNewest')}</option>
                 </select>
 
                 {/* Products Per Row Selector */}
                 {viewMode === 'grid' && (
                   <div className="flex items-center gap-2">
-                    <label className="text-sm text-gray-600" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
-                      Per Row:
+                    <label className="text-xs text-gray-600 uppercase tracking-wider" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      {t('common.perRow')}:
                     </label>
                     <select
                       value={productsPerRow}
                       onChange={(e) => setProductsPerRow(parseInt(e.target.value))}
-                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-400 bg-white text-sm"
-                      style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}
+                      className="px-3 py-2 border border-gray-300 focus:outline-none focus:ring-1 focus:ring-black focus:border-black bg-white"
+                      style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.75rem' }}
                     >
                       <option value={1}>1</option>
                       <option value={2}>2</option>
@@ -749,55 +882,230 @@ export default function ProductsPage() {
                   </div>
                 )}
               </div>
+              
+              {/* Active Filters Display */}
+              {(selectedCategory !== 'all' || selectedMaterial !== 'all' || priceRange.min > 0 || priceRange.max < 10000 || searchQuery || onlyAvailable) && (
+                <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-gray-200">
+                  <span className="text-xs text-gray-500 uppercase tracking-wider" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                    {t('common.active')}:
+                  </span>
+                  <button
+                    onClick={() => {
+                      setSelectedCategory('all')
+                      setSelectedMaterial('all')
+                      setPriceRange({ min: 0, max: 10000 })
+                      setSearchQuery('')
+                      setOnlyAvailable(false)
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs bg-gray-200 text-gray-900 border border-gray-300 hover:bg-gray-300 transition-colors"
+                    style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}
+                  >
+                    {t('common.clearAll')}
+                  </button>
+                  {selectedCategory !== 'all' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gray-100 text-gray-900 border border-gray-300" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      {(() => {
+                        const categoryKey = selectedCategory.toLowerCase() as 'necklaces' | 'bracelets' | 'rings' | 'earrings'
+                        return t(`common.${categoryKey}`) || selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)
+                      })()}
+                      <button
+                        onClick={() => setSelectedCategory('all')}
+                        className="hover:text-gray-600 transition-colors"
+                        aria-label="Remove category filter"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {selectedMaterial !== 'all' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gray-100 text-gray-900 border border-gray-300" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      {(() => {
+                        const materialKey = selectedMaterial.toLowerCase() as 'silver' | 'gold' | 'platinum'
+                        return t(`common.${materialKey}`) || selectedMaterial
+                      })()}
+                      <button
+                        onClick={() => setSelectedMaterial('all')}
+                        className="hover:text-gray-600 transition-colors"
+                        aria-label="Remove material filter"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {(priceRange.min > 0 || priceRange.max < 10000) && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gray-100 text-gray-900 border border-gray-300" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      {formatPrice(priceRange.min, 'CHF')} - {formatPrice(priceRange.max, 'CHF')}
+                      <button
+                        onClick={() => setPriceRange({ min: 0, max: 10000 })}
+                        className="hover:text-gray-600 transition-colors"
+                        aria-label="Remove price filter"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {searchQuery && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gray-100 text-gray-900 border border-gray-300" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      "{searchQuery}"
+                      <button
+                        onClick={() => setSearchQuery('')}
+                        className="hover:text-gray-600 transition-colors"
+                        aria-label="Clear search"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                  {onlyAvailable && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gray-100 text-gray-900 border border-gray-300" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      {t('common.onlyAvailable')}
+                      <button
+                        onClick={() => setOnlyAvailable(false)}
+                        className="hover:text-gray-600 transition-colors"
+                        aria-label="Remove availability filter"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Advanced Filters */}
             {showFilters && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div ref={filtersRef} className="mt-6 pt-6 border-t border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {/* Category Filter */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <label className="block text-xs font-semibold text-gray-900 mb-2 uppercase tracking-wider" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      {t('common.category')}
+                    </label>
                     <select
                       value={selectedCategory}
                       onChange={(e) => setSelectedCategory(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-white transition-all"
+                      style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.875rem' }}
                     >
-                      {categories.map(category => (
-                        <option key={category} value={category}>
-                          {category === 'all' ? 'All Categories' : category}
-                        </option>
-                      ))}
+                      {categories.map(category => {
+                        const categoryKey = category.toLowerCase() as 'necklaces' | 'bracelets' | 'rings' | 'earrings'
+                        return (
+                          <option key={category} value={category}>
+                            {category === 'all' ? t('common.allCategories') : t(`common.${categoryKey}`) || category.charAt(0).toUpperCase() + category.slice(1)}
+                          </option>
+                        )
+                      })}
                     </select>
                   </div>
 
+                  {/* Material Filter */}
+                  {materials.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-900 mb-2 uppercase tracking-wider" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                        {t('common.material')}
+                      </label>
+                      <select
+                        value={selectedMaterial}
+                        onChange={(e) => setSelectedMaterial(e.target.value)}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 bg-white transition-all"
+                        style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.875rem' }}
+                      >
+                        <option value="all">{t('common.allMaterials')}</option>
+                        {materials.map(material => {
+                          const materialKey = material.toLowerCase() as 'silver' | 'gold' | 'platinum'
+                          return (
+                            <option key={material} value={material}>
+                              {t(`common.${materialKey}`) || material}
+                            </option>
+                          )
+                        })}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Price Range */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+                    <label className="block text-xs font-semibold text-gray-900 mb-2 uppercase tracking-wider" style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace' }}>
+                      {t('common.priceRange')}
+                    </label>
+                    {/* Range Slider */}
+                    <div className="mb-3">
+                      <div className="relative h-2">
+                        {/* Background track */}
+                        <div className="absolute w-full h-2 bg-gray-200 rounded-lg" />
+                        {/* Active range track */}
+                        <div 
+                          className="absolute h-2 bg-black rounded-lg"
+                          style={{
+                            left: `${(priceRange.min / 10000) * 100}%`,
+                            width: `${((priceRange.max - priceRange.min) / 10000) * 100}%`
+                          }}
+                        />
+                        {/* Min slider */}
+                        <input
+                          type="range"
+                          min="0"
+                          max="10000"
+                          step="100"
+                          value={priceRange.min}
+                          onChange={(e) => {
+                            const newMin = parseInt(e.target.value)
+                            setPriceRange({...priceRange, min: Math.min(newMin, priceRange.max)})
+                          }}
+                          className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer"
+                          style={{
+                            zIndex: priceRange.min > priceRange.max - 200 ? 20 : 10,
+                            pointerEvents: 'auto',
+                            WebkitAppearance: 'none',
+                            appearance: 'none'
+                          }}
+                        />
+                        {/* Max slider */}
+                        <input
+                          type="range"
+                          min="0"
+                          max="10000"
+                          step="100"
+                          value={priceRange.max}
+                          onChange={(e) => {
+                            const newMax = parseInt(e.target.value)
+                            setPriceRange({...priceRange, max: Math.max(newMax, priceRange.min)})
+                          }}
+                          className="absolute w-full h-2 bg-transparent appearance-none cursor-pointer"
+                          style={{
+                            zIndex: 10,
+                            pointerEvents: 'auto',
+                            WebkitAppearance: 'none',
+                            appearance: 'none'
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>{formatPrice(0, 'CHF')}</span>
+                        <span>{formatPrice(10000, 'CHF')}</span>
+                      </div>
+                    </div>
+                    {/* Input Fields */}
                     <div className="flex space-x-2">
                       <input
                         type="number"
                         placeholder="Min"
                         value={priceRange.min}
-                        onChange={(e) => setPriceRange({...priceRange, min: parseInt(e.target.value) || 0})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        onChange={(e) => setPriceRange({...priceRange, min: Math.max(0, Math.min(parseInt(e.target.value) || 0, priceRange.max))})}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition-all"
+                        style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.875rem' }}
                       />
                       <input
                         type="number"
                         placeholder="Max"
                         value={priceRange.max}
-                        onChange={(e) => setPriceRange({...priceRange, max: parseInt(e.target.value) || 10000})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        onChange={(e) => setPriceRange({...priceRange, max: Math.min(10000, Math.max(parseInt(e.target.value) || 10000, priceRange.min))})}
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition-all"
+                        style={{ fontFamily: 'SimonMono, "Courier New", Courier, monospace', fontSize: '0.875rem' }}
                       />
                     </div>
                   </div>
 
-                  {/* Results Count */}
-                  <div className="flex items-end">
-                    <p className="text-sm text-gray-600">
-                      Showing {sortedProducts.length} of {products.length} products
-                    </p>
-                  </div>
                 </div>
               </div>
             )}

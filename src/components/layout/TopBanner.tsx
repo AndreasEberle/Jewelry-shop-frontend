@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import api from '@/services/api'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Slide {
   text: string
@@ -13,11 +14,13 @@ interface Slide {
 interface TopBannerConfig {
   enabled: boolean
   backgroundColor?: string
+  fontSize?: string
   text?: string
   slides?: Slide[]
 }
 
 export function TopBanner() {
+  const { currentLanguage } = useLanguage()
   const [config, setConfig] = useState<TopBannerConfig | null>(null)
   const [currentSlide, setCurrentSlide] = useState(0)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -27,7 +30,13 @@ export function TopBanner() {
   useEffect(() => {
     const fetchBannerConfig = async () => {
       try {
-        const response = await api.get('/api/public/top-banner-config')
+        // Send current language to backend so it can return the appropriate translation
+        const response = await api.get('/api/public/top-banner-config', {
+          params: { lang: currentLanguage },
+          headers: {
+            'Accept-Language': currentLanguage
+          }
+        })
         setConfig(response.data)
       } catch (error) {
         console.error('Failed to load top banner configuration:', error)
@@ -36,7 +45,7 @@ export function TopBanner() {
     }
 
     fetchBannerConfig()
-  }, [])
+  }, [currentLanguage]) // Refetch when language changes
 
   // Filter slides BEFORE using them for calculations (before any conditional returns)
   const allSlides = config?.enabled && config
@@ -245,7 +254,7 @@ export function TopBanner() {
                               <span 
                                 className="type-caption overflow-visible"
                                 style={{
-                                  fontSize: 'var(--font-size-xxs, 0.625rem)',
+                                  fontSize: config?.fontSize || '0.875rem',
                                   fontFamily: 'var(--font-body, "SimonMono", "Courier New", Courier, monospace)',
                                   color: 'inherit', // Keep text color from parent
                                   textDecoration: 'underline',
@@ -266,7 +275,7 @@ export function TopBanner() {
                                   data-testid="notification-bar-link"
                                   aria-label={slide.linkText}
                                   style={{
-                                    fontSize: 'var(--font-size-xxs, 0.6875rem)',
+                                    fontSize: config?.fontSize || '0.875rem',
                                     fontFamily: 'var(--font-body, "SimonMono", "Courier New", Courier, monospace)',
                                     color: 'inherit'
                                   }}

@@ -1,16 +1,20 @@
 'use client'
 
 import { Header } from '@/components/layout/Header'
-import { FeaturedProducts } from '@/components/sections/FeaturedProducts'
+import { JapaneseHero } from '@/components/sections/JapaneseHero'
+import { StorySections } from '@/components/sections/StorySections'
+import { HomeProductGrid } from '@/components/sections/HomeProductGrid'
 import { Footer } from '@/components/layout/Footer'
 import { useBackgroundImages } from '@/hooks/useBackgroundImages'
 import { useWebsiteStatus } from '@/hooks/useWebsiteStatus'
+import { useSmoothScrollSnap } from '@/hooks/useSmoothScrollSnap'
 import ConstructionPage from '@/components/ConstructionPage'
 import VacationPage from '@/components/VacationPage'
 
 export default function Home() {
   const { getBackgroundUrlForSection } = useBackgroundImages()
   const { websiteStatus, loading: statusLoading, isConstruction, isVacation } = useWebsiteStatus()
+  useSmoothScrollSnap() // Enable smooth scroll snapping
 
   // Get background URLs for different sections
   const navigationBackground = getBackgroundUrlForSection('navigation')
@@ -37,10 +41,17 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#faf8f5]">
       <Header backgroundImage={navigationBackground} />
-      <main>
-        <FeaturedProducts backgroundImage={featuredProductsBackground} />
+      <main className="snap-y snap-mandatory" style={{ scrollBehavior: 'smooth', scrollPaddingTop: '0px' }}>
+        {/* Japanese Hero Section */}
+        <JapaneseHero />
+        
+        {/* Story Sections - Alternating Image + Text */}
+        <StorySections />
+        
+        {/* Home Product Grid - Configurable 2-4 items */}
+        <HomeProductGrid />
       </main>
       <Footer backgroundImage={footerBackground} />
     </div>

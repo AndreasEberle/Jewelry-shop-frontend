@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { useTranslation } from '@/hooks/useTranslation'
 import api from '@/services/api'
 import { Bell, Calendar, Filter, Trash2, Check, Mail, Package, User } from 'lucide-react'
 
@@ -19,6 +20,7 @@ interface StockNotification {
 }
 
 export default function AdminStockNotificationsPage() {
+  const { t } = useTranslation()
   const [notifications, setNotifications] = useState<StockNotification[]>([])
   const [loading, setLoading] = useState(true)
   const [filterDays, setFilterDays] = useState<number | null>(null)
@@ -58,7 +60,7 @@ export default function AdminStockNotificationsPage() {
       // Enrich with product names
       const enriched = notificationsList.map((n: StockNotification) => ({
         ...n,
-        productName: products.get(n.productId) || 'Unknown Product'
+        productName: products.get(n.productId) || t('admin.stockNotifications.unknownProduct') || 'Unknown Product'
       }))
       
       setNotifications(enriched)
@@ -75,12 +77,12 @@ export default function AdminStockNotificationsPage() {
       loadNotifications()
     } catch (error) {
       console.error('Failed to mark as notified:', error)
-      alert('Failed to mark notification as notified')
+      alert(t('admin.stockNotifications.failedToMarkNotified') || 'Failed to mark notification as notified')
     }
   }
 
   const handleDelete = async (notificationId: string) => {
-    if (!confirm('Are you sure you want to delete this notification request?')) {
+    if (!confirm(t('admin.stockNotifications.deleteConfirm') || 'Are you sure you want to delete this notification request?')) {
       return
     }
     
@@ -89,7 +91,7 @@ export default function AdminStockNotificationsPage() {
       loadNotifications()
     } catch (error) {
       console.error('Failed to delete notification:', error)
-      alert('Failed to delete notification')
+      alert(t('admin.stockNotifications.failedToDelete') || 'Failed to delete notification')
     }
   }
 
@@ -113,7 +115,7 @@ export default function AdminStockNotificationsPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <Bell className="w-8 h-8 text-primary-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Stock Notifications</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t('admin.stockNotifications.title') || 'Stock Notifications'}</h1>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
@@ -123,10 +125,10 @@ export default function AdminStockNotificationsPage() {
                 onChange={(e) => setFilterDays(e.target.value ? parseInt(e.target.value) : null)}
                 className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">All Time</option>
-                <option value="7">Last 7 Days</option>
-                <option value="30">Last 30 Days</option>
-                <option value="90">Last 90 Days</option>
+                <option value="">{t('admin.stockNotifications.allTime') || 'All Time'}</option>
+                <option value="7">{t('admin.stockNotifications.last7Days') || 'Last 7 Days'}</option>
+                <option value="30">{t('admin.stockNotifications.last30Days') || 'Last 30 Days'}</option>
+                <option value="90">{t('admin.stockNotifications.last90Days') || 'Last 90 Days'}</option>
               </select>
             </div>
           </div>
@@ -137,7 +139,7 @@ export default function AdminStockNotificationsPage() {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Requests</p>
+                <p className="text-sm text-gray-600">{t('admin.stockNotifications.totalRequests') || 'Total Requests'}</p>
                 <p className="text-2xl font-bold text-gray-900">{notifications.length}</p>
               </div>
               <Bell className="w-8 h-8 text-primary-600" />
@@ -146,7 +148,7 @@ export default function AdminStockNotificationsPage() {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending</p>
+                <p className="text-sm text-gray-600">{t('admin.stockNotifications.pending') || 'Pending'}</p>
                 <p className="text-2xl font-bold text-orange-600">
                   {notifications.filter(n => !n.notified).length}
                 </p>
@@ -157,7 +159,7 @@ export default function AdminStockNotificationsPage() {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Notified</p>
+                <p className="text-sm text-gray-600">{t('admin.stockNotifications.notified') || 'Notified'}</p>
                 <p className="text-2xl font-bold text-green-600">
                   {notifications.filter(n => n.notified).length}
                 </p>
@@ -172,20 +174,20 @@ export default function AdminStockNotificationsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requested</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notified</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.stockNotifications.product') || 'Product'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.stockNotifications.email') || 'Email'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.stockNotifications.user') || 'User'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.stockNotifications.status') || 'Status'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.stockNotifications.requested') || 'Requested'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.stockNotifications.notifiedAt') || 'Notified'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.stockNotifications.actions') || 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {notifications.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                    No stock notification requests found
+                    {t('admin.stockNotifications.noNotifications') || 'No stock notification requests found'}
                   </td>
                 </tr>
               ) : (
@@ -195,7 +197,7 @@ export default function AdminStockNotificationsPage() {
                       <div className="flex items-center">
                         <Package className="w-4 h-4 text-gray-400 mr-2" />
                         <span className="text-sm font-medium text-gray-900">
-                          {notification.productName || notification.productId}
+                          {notification.productName || notification.productId || t('admin.stockNotifications.unknownProduct') || 'Unknown Product'}
                         </span>
                       </div>
                     </td>
@@ -209,21 +211,21 @@ export default function AdminStockNotificationsPage() {
                       {notification.userId ? (
                         <div className="flex items-center">
                           <User className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">Registered User</span>
+                          <span className="text-sm text-gray-900">{t('admin.stockNotifications.registeredUser') || 'Registered User'}</span>
                         </div>
                       ) : (
-                        <span className="text-sm text-gray-500">Guest</span>
+                        <span className="text-sm text-gray-500">{t('admin.stockNotifications.guest') || 'Guest'}</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {notification.notified ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <Check className="w-3 h-3 mr-1" />
-                          Notified
+                          {t('admin.stockNotifications.notified') || 'Notified'}
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          Pending
+                          {t('admin.stockNotifications.pending') || 'Pending'}
                         </span>
                       )}
                     </td>
@@ -239,7 +241,7 @@ export default function AdminStockNotificationsPage() {
                           <button
                             onClick={() => handleMarkAsNotified(notification.id)}
                             className="text-green-600 hover:text-green-900"
-                            title="Mark as notified"
+                            title={t('admin.stockNotifications.markAsNotified') || 'Mark as notified'}
                           >
                             <Check className="w-5 h-5" />
                           </button>
@@ -247,7 +249,7 @@ export default function AdminStockNotificationsPage() {
                         <button
                           onClick={() => handleDelete(notification.id)}
                           className="text-red-600 hover:text-red-900"
-                          title="Delete"
+                          title={t('admin.stockNotifications.delete') || 'Delete'}
                         >
                           <Trash2 className="w-5 h-5" />
                         </button>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { useTranslation } from '@/hooks/useTranslation'
 import api from '@/services/api'
 import { 
   CreditCard, 
@@ -45,6 +46,7 @@ interface PaymentStats {
 }
 
 export default function AdminPaymentsPage() {
+  const { t } = useTranslation()
   const [payments, setPayments] = useState<Payment[]>([])
   const [stats, setStats] = useState<PaymentStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -80,7 +82,7 @@ export default function AdminPaymentsPage() {
       setPayments(response.data.content || response.data)
       setTotalPages(response.data.totalPages || 0)
     } catch (err) {
-      setError('Failed to load payments')
+      setError(t('admin.payments.failedToLoad') || 'Failed to load payments')
       console.error('Error loading payments:', err)
     } finally {
       setLoading(false)
@@ -154,8 +156,8 @@ export default function AdminPaymentsPage() {
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Payment Management</h1>
-            <p className="text-gray-600">Monitor payments, transactions, and revenue</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('admin.payments.title') || 'Payment Management'}</h1>
+            <p className="text-gray-600">{t('admin.payments.description') || 'Monitor payments, transactions, and revenue'}</p>
           </div>
         </div>
 
@@ -166,7 +168,7 @@ export default function AdminPaymentsPage() {
               <div className="flex items-center">
                 <CreditCard className="h-8 w-8 text-blue-500" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Payments</p>
+                  <p className="text-sm font-medium text-gray-600">{t('admin.payments.stats.totalPayments') || 'Total Payments'}</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.totalPayments}</p>
                 </div>
               </div>
@@ -175,7 +177,7 @@ export default function AdminPaymentsPage() {
               <div className="flex items-center">
                 <CheckCircle className="h-8 w-8 text-green-500" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-sm font-medium text-gray-600">{t('admin.payments.stats.completed') || 'Completed'}</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.paymentsByStatus.COMPLETED || 0}</p>
                 </div>
               </div>
@@ -184,7 +186,7 @@ export default function AdminPaymentsPage() {
               <div className="flex items-center">
                 <DollarSign className="h-8 w-8 text-green-500" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                  <p className="text-sm font-medium text-gray-600">{t('admin.payments.stats.totalRevenue') || 'Total Revenue'}</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {formatCurrency(stats.totalRevenue, 'CHF')}
                   </p>
@@ -195,7 +197,7 @@ export default function AdminPaymentsPage() {
               <div className="flex items-center">
                 <TrendingUp className="h-8 w-8 text-blue-500" />
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Avg Payment</p>
+                  <p className="text-sm font-medium text-gray-600">{t('admin.payments.stats.avgPayment') || 'Avg Payment'}</p>
                   <p className="text-2xl font-bold text-gray-900">
                     {formatCurrency(stats.avgPaymentAmount, 'CHF')}
                   </p>
@@ -213,7 +215,7 @@ export default function AdminPaymentsPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search by customer email..."
+                  placeholder={t('admin.payments.searchPlaceholder') || 'Search by customer email...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 w-full"
@@ -226,11 +228,11 @@ export default function AdminPaymentsPage() {
                 onChange={(e) => setStatusFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">All Statuses</option>
-                <option value="PENDING">Pending</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="FAILED">Failed</option>
-                <option value="REFUNDED">Refunded</option>
+                <option value="">{t('admin.payments.allStatuses') || 'All Statuses'}</option>
+                <option value="PENDING">{t('admin.payments.pending') || 'Pending'}</option>
+                <option value="COMPLETED">{t('admin.payments.completed') || 'Completed'}</option>
+                <option value="FAILED">{t('admin.payments.failed') || 'Failed'}</option>
+                <option value="REFUNDED">{t('admin.payments.refunded') || 'Refunded'}</option>
               </select>
             </div>
             <div className="sm:w-48">
@@ -239,11 +241,11 @@ export default function AdminPaymentsPage() {
                 onChange={(e) => setMethodFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                <option value="">All Methods</option>
-                <option value="CREDIT_CARD">Credit Card</option>
-                <option value="PAYPAL">PayPal</option>
-                <option value="BANK_TRANSFER">Bank Transfer</option>
-                <option value="CASH">Cash</option>
+                <option value="">{t('admin.payments.allMethods') || 'All Methods'}</option>
+                <option value="CREDIT_CARD">{t('admin.payments.creditCard') || 'Credit Card'}</option>
+                <option value="PAYPAL">{t('admin.payments.paypal') || 'PayPal'}</option>
+                <option value="BANK_TRANSFER">{t('admin.payments.bankTransfer') || 'Bank Transfer'}</option>
+                <option value="CASH">{t('admin.payments.cash') || 'Cash'}</option>
               </select>
             </div>
           </div>
@@ -256,25 +258,25 @@ export default function AdminPaymentsPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Payment
+                    {t('admin.payments.payment') || 'Payment'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
+                    {t('admin.payments.customer') || 'Customer'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Method
+                    {t('admin.payments.method') || 'Method'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('admin.payments.status') || 'Status'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
+                    {t('admin.payments.amount') || 'Amount'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
+                    {t('admin.payments.date') || 'Date'}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                    {t('admin.payments.actions') || 'Actions'}
                   </th>
                 </tr>
               </thead>
@@ -288,7 +290,7 @@ export default function AdminPaymentsPage() {
                         </div>
                         {payment.transactionId && (
                           <div className="text-sm text-gray-500">
-                            TXN: {payment.transactionId}
+                            {t('admin.payments.transactionPrefix') || 'TXN:'} {payment.transactionId}
                           </div>
                         )}
                       </div>
@@ -304,12 +306,22 @@ export default function AdminPaymentsPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {payment.paymentMethod}
+                      {payment.paymentMethod === 'CREDIT_CARD' ? t('admin.payments.creditCard') || 'Credit Card' :
+                       payment.paymentMethod === 'PAYPAL' ? t('admin.payments.paypal') || 'PayPal' :
+                       payment.paymentMethod === 'BANK_TRANSFER' ? t('admin.payments.bankTransfer') || 'Bank Transfer' :
+                       payment.paymentMethod === 'CASH' ? t('admin.payments.cash') || 'Cash' :
+                       payment.paymentMethod}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(payment.status)}`}>
                         {getStatusIcon(payment.status)}
-                        <span className="ml-1">{payment.status}</span>
+                        <span className="ml-1">
+                          {payment.status === 'PENDING' ? t('admin.payments.pending') || 'Pending' :
+                           payment.status === 'COMPLETED' ? t('admin.payments.completed') || 'Completed' :
+                           payment.status === 'FAILED' ? t('admin.payments.failed') || 'Failed' :
+                           payment.status === 'REFUNDED' ? t('admin.payments.refunded') || 'Refunded' :
+                           payment.status}
+                        </span>
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -322,7 +334,7 @@ export default function AdminPaymentsPage() {
                       <button
                         onClick={() => handleViewPayment(payment)}
                         className="text-blue-600 hover:text-blue-900"
-                        title="View Details"
+                        title={t('admin.payments.viewDetails') || 'View Details'}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -342,20 +354,20 @@ export default function AdminPaymentsPage() {
                   disabled={currentPage === 0}
                   className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Previous
+                  {t('common.previous') || 'Previous'}
                 </button>
                 <button
                   onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                   disabled={currentPage >= totalPages - 1}
                   className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Next
+                  {t('common.next') || 'Next'}
                 </button>
               </div>
               <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm text-gray-700">
-                    Showing page <span className="font-medium">{currentPage + 1}</span> of{' '}
+                    {t('admin.payments.showingPage') || 'Showing page'} <span className="font-medium">{currentPage + 1}</span> {t('common.of') || 'of'}{' '}
                     <span className="font-medium">{totalPages}</span>
                   </p>
                 </div>
@@ -366,14 +378,14 @@ export default function AdminPaymentsPage() {
                       disabled={currentPage === 0}
                       className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                     >
-                      Previous
+                      {t('common.previous') || 'Previous'}
                     </button>
                     <button
                       onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
                       disabled={currentPage >= totalPages - 1}
                       className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
                     >
-                      Next
+                      {t('common.next') || 'Next'}
                     </button>
                   </nav>
                 </div>
@@ -389,7 +401,7 @@ export default function AdminPaymentsPage() {
               <div className="mt-3">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-medium text-gray-900">
-                    Payment Details
+                    {t('admin.payments.paymentDetails') || 'Payment Details'}
                   </h3>
                   <button
                     onClick={() => setShowPaymentModal(false)}
@@ -403,41 +415,53 @@ export default function AdminPaymentsPage() {
                   {/* Payment Info */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Order Number</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.orderNumber') || 'Order Number'}</label>
                       <p className="text-sm text-gray-900">#{selectedPayment.orderNumber}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Status</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.status') || 'Status'}</label>
                       <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedPayment.status)}`}>
                         {getStatusIcon(selectedPayment.status)}
-                        <span className="ml-1">{selectedPayment.status}</span>
+                        <span className="ml-1">
+                          {selectedPayment.status === 'PENDING' ? t('admin.payments.pending') || 'Pending' :
+                           selectedPayment.status === 'COMPLETED' ? t('admin.payments.completed') || 'Completed' :
+                           selectedPayment.status === 'FAILED' ? t('admin.payments.failed') || 'Failed' :
+                           selectedPayment.status === 'REFUNDED' ? t('admin.payments.refunded') || 'Refunded' :
+                           selectedPayment.status}
+                        </span>
                       </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Amount</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.amount') || 'Amount'}</label>
                       <p className="text-sm text-gray-900">
                         {formatCurrency(selectedPayment.amount, selectedPayment.currency)}
                       </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Method</label>
-                      <p className="text-sm text-gray-900">{selectedPayment.paymentMethod}</p>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.method') || 'Method'}</label>
+                      <p className="text-sm text-gray-900">
+                        {selectedPayment.paymentMethod === 'CREDIT_CARD' ? t('admin.payments.creditCard') || 'Credit Card' :
+                         selectedPayment.paymentMethod === 'PAYPAL' ? t('admin.payments.paypal') || 'PayPal' :
+                         selectedPayment.paymentMethod === 'BANK_TRANSFER' ? t('admin.payments.bankTransfer') || 'Bank Transfer' :
+                         selectedPayment.paymentMethod === 'CASH' ? t('admin.payments.cash') || 'Cash' :
+                         selectedPayment.paymentMethod}
+                      </p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Date</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.date') || 'Date'}</label>
                       <p className="text-sm text-gray-900">{formatDate(selectedPayment.createdAt)}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Processed</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.processed') || 'Processed'}</label>
                       <p className="text-sm text-gray-900">
-                        {selectedPayment.processedAt ? formatDate(selectedPayment.processedAt) : 'Not processed'}
+                        {selectedPayment.processedAt ? formatDate(selectedPayment.processedAt) : (t('admin.payments.notProcessed') || 'Not processed')}
                       </p>
                     </div>
                   </div>
 
                   {/* Customer Info */}
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Customer</label>
+                    <label className="text-sm font-medium text-gray-500">{t('admin.payments.customer') || 'Customer'}</label>
                     <p className="text-sm text-gray-900">{selectedPayment.customerName}</p>
                     <p className="text-sm text-gray-500">{selectedPayment.customerEmail}</p>
                   </div>
@@ -445,7 +469,7 @@ export default function AdminPaymentsPage() {
                   {/* Transaction Info */}
                   {selectedPayment.transactionId && (
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Transaction ID</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.transactionId') || 'Transaction ID'}</label>
                       <p className="text-sm text-gray-900 font-mono">{selectedPayment.transactionId}</p>
                     </div>
                   )}
@@ -453,7 +477,7 @@ export default function AdminPaymentsPage() {
                   {/* Gateway Response */}
                   {selectedPayment.gatewayResponse && (
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Gateway Response</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.gatewayResponse') || 'Gateway Response'}</label>
                       <p className="text-sm text-gray-900 font-mono bg-gray-50 p-2 rounded">
                         {selectedPayment.gatewayResponse}
                       </p>
@@ -463,7 +487,7 @@ export default function AdminPaymentsPage() {
                   {/* Notes */}
                   {selectedPayment.notes && (
                     <div>
-                      <label className="text-sm font-medium text-gray-500">Notes</label>
+                      <label className="text-sm font-medium text-gray-500">{t('admin.payments.notes') || 'Notes'}</label>
                       <p className="text-sm text-gray-900">{selectedPayment.notes}</p>
                     </div>
                   )}

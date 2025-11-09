@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout'
+import { useTranslation } from '@/hooks/useTranslation'
 import api from '@/services/api'
 import { Tag, Plus, Edit, Trash2, Check, X, Calendar, DollarSign, Percent } from 'lucide-react'
 
@@ -23,6 +24,7 @@ interface DiscountCode {
 }
 
 export default function AdminDiscountCodesPage() {
+  const { t } = useTranslation()
   const [discountCodes, setDiscountCodes] = useState<DiscountCode[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -53,7 +55,7 @@ export default function AdminDiscountCodesPage() {
       setDiscountCodes(response.data)
     } catch (error: any) {
       console.error('Failed to load discount codes:', error)
-      setError('Failed to load discount codes')
+      setError(t('admin.discountCodes.failedToLoad') || 'Failed to load discount codes')
     } finally {
       setLoading(false)
     }
@@ -96,7 +98,7 @@ export default function AdminDiscountCodesPage() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this discount code?')) {
+    if (!confirm(t('admin.discountCodes.deleteConfirm') || 'Are you sure you want to delete this discount code?')) {
       return
     }
 
@@ -104,7 +106,7 @@ export default function AdminDiscountCodesPage() {
       await api.delete(`/api/admin/discount-codes/${id}`)
       loadDiscountCodes()
     } catch (error: any) {
-      alert('Failed to delete discount code: ' + (error.response?.data?.message || error.message))
+      alert(t('admin.discountCodes.failedToDelete') || 'Failed to delete discount code: ' + (error.response?.data?.message || error.message))
     }
   }
 
@@ -136,14 +138,14 @@ export default function AdminDiscountCodesPage() {
       setShowCreateModal(false)
       loadDiscountCodes()
     } catch (error: any) {
-      setError(error.response?.data?.message || error.message || 'Failed to save discount code')
+      setError(error.response?.data?.message || error.message || t('admin.discountCodes.failedToSave') || 'Failed to save discount code')
     } finally {
       setIsSaving(false)
     }
   }
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Not set'
+    if (!dateString) return t('admin.discountCodes.notSet') || 'Not set'
     return new Date(dateString).toLocaleDateString()
   }
 
@@ -163,14 +165,14 @@ export default function AdminDiscountCodesPage() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
             <Tag className="w-8 h-8 text-primary-600" />
-            <h1 className="text-3xl font-bold text-gray-900">Discount Codes</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t('admin.discountCodes.title') || 'Discount Codes'}</h1>
           </div>
           <button
             onClick={handleCreate}
             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            Create Discount Code
+            {t('admin.discountCodes.createDiscountCode') || 'Create Discount Code'}
           </button>
         </div>
 
@@ -179,13 +181,13 @@ export default function AdminDiscountCodesPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Value</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valid Dates</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.discountCodes.code') || 'Code'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.discountCodes.type') || 'Type'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.discountCodes.value') || 'Value'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.discountCodes.usage') || 'Usage'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.discountCodes.status') || 'Status'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.discountCodes.validDates') || 'Valid Dates'}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('admin.discountCodes.actions') || 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -219,21 +221,21 @@ export default function AdminDiscountCodesPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {code.usageLimit ? `${code.usageCount} / ${code.usageLimit}` : `${code.usageCount} (unlimited)`}
+                    {code.usageLimit ? `${code.usageCount} / ${code.usageLimit}` : `${code.usageCount} (${t('admin.discountCodes.unlimited') || 'unlimited'})`}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       code.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {code.isActive ? 'Active' : 'Inactive'}
+                      {code.isActive ? t('admin.discountCodes.active') || 'Active' : t('admin.discountCodes.inactive') || 'Inactive'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     <div className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
                       <div>
-                        <div>From: {formatDate(code.validFrom)}</div>
-                        <div>Until: {formatDate(code.validUntil)}</div>
+                        <div>{t('admin.discountCodes.from') || 'From'}: {formatDate(code.validFrom)}</div>
+                        <div>{t('admin.discountCodes.until') || 'Until'}: {formatDate(code.validUntil)}</div>
                       </div>
                     </div>
                   </td>
@@ -265,7 +267,7 @@ export default function AdminDiscountCodesPage() {
             <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {editingCode ? 'Edit Discount Code' : 'Create Discount Code'}
+                  {editingCode ? t('admin.discountCodes.editDiscountCode') || 'Edit Discount Code' : t('admin.discountCodes.createDiscountCode') || 'Create Discount Code'}
                 </h2>
                 <button
                   onClick={() => setShowCreateModal(false)}
@@ -284,7 +286,7 @@ export default function AdminDiscountCodesPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Code <span className="text-red-500">*</span>
+                    {t('admin.discountCodes.code') || 'Code'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -292,27 +294,27 @@ export default function AdminDiscountCodesPage() {
                     onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     required
-                    placeholder="SUMMER2024"
+                    placeholder={t('admin.discountCodes.placeholderCode') || 'SUMMER2024'}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
+                    {t('admin.discountCodes.description') || 'Description'}
                   </label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                     rows={3}
-                    placeholder="Summer sale discount"
+                    placeholder={t('admin.discountCodes.placeholderDescription') || 'Summer sale discount'}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Discount Type <span className="text-red-500">*</span>
+                      {t('admin.discountCodes.discountType') || 'Discount Type'} <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={formData.discountType}
@@ -320,14 +322,14 @@ export default function AdminDiscountCodesPage() {
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                       required
                     >
-                      <option value="PERCENTAGE">Percentage</option>
-                      <option value="FIXED_AMOUNT">Fixed Amount</option>
+                      <option value="PERCENTAGE">{t('admin.discountCodes.percentage') || 'Percentage'}</option>
+                      <option value="FIXED_AMOUNT">{t('admin.discountCodes.fixedAmount') || 'Fixed Amount'}</option>
                     </select>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Discount Value <span className="text-red-500">*</span>
+                      {t('admin.discountCodes.discountValue') || 'Discount Value'} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="number"
@@ -340,7 +342,7 @@ export default function AdminDiscountCodesPage() {
                       placeholder={formData.discountType === 'PERCENTAGE' ? '10' : '50.00'}
                     />
                     <span className="text-xs text-gray-500 mt-1">
-                      {formData.discountType === 'PERCENTAGE' ? 'Percentage (e.g., 10 for 10%)' : 'Fixed amount in CHF'}
+                      {formData.discountType === 'PERCENTAGE' ? t('admin.discountCodes.percentageHelp') || 'Percentage (e.g., 10 for 10%)' : t('admin.discountCodes.fixedAmountHelp') || 'Fixed amount in CHF'}
                     </span>
                   </div>
                 </div>
@@ -348,7 +350,7 @@ export default function AdminDiscountCodesPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Minimum Purchase Amount (CHF)
+                      {t('admin.discountCodes.minimumPurchaseAmount') || 'Minimum Purchase Amount (CHF)'}
                     </label>
                     <input
                       type="number"
@@ -363,7 +365,7 @@ export default function AdminDiscountCodesPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Maximum Discount Amount (CHF)
+                      {t('admin.discountCodes.maximumDiscountAmount') || 'Maximum Discount Amount (CHF)'}
                     </label>
                     <input
                       type="number"
@@ -372,14 +374,14 @@ export default function AdminDiscountCodesPage() {
                       value={formData.maximumDiscountAmount}
                       onChange={(e) => setFormData({ ...formData, maximumDiscountAmount: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      placeholder="Leave empty for no limit"
+                      placeholder={t('admin.discountCodes.placeholderMaxDiscount') || 'Leave empty for no limit'}
                     />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Usage Limit
+                    {t('admin.discountCodes.usageLimit') || 'Usage Limit'}
                   </label>
                   <input
                     type="number"
@@ -387,17 +389,17 @@ export default function AdminDiscountCodesPage() {
                     value={formData.usageLimit}
                     onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="Leave empty for unlimited"
+                    placeholder={t('admin.discountCodes.placeholderUsageLimit') || 'Leave empty for unlimited'}
                   />
                   <span className="text-xs text-gray-500 mt-1">
-                    Maximum number of times this code can be used (leave empty for unlimited)
+                    {t('admin.discountCodes.usageLimitHelp') || 'Maximum number of times this code can be used (leave empty for unlimited)'}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Valid From
+                      {t('admin.discountCodes.validFrom') || 'Valid From'}
                     </label>
                     <input
                       type="datetime-local"
@@ -409,7 +411,7 @@ export default function AdminDiscountCodesPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Valid Until
+                      {t('admin.discountCodes.validUntil') || 'Valid Until'}
                     </label>
                     <input
                       type="datetime-local"
@@ -429,7 +431,7 @@ export default function AdminDiscountCodesPage() {
                     className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500"
                   />
                   <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
-                    Active
+                    {t('admin.discountCodes.active') || 'Active'}
                   </label>
                 </div>
 
@@ -439,14 +441,14 @@ export default function AdminDiscountCodesPage() {
                     disabled={isSaving}
                     className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors disabled:opacity-50"
                   >
-                    {isSaving ? 'Saving...' : editingCode ? 'Update' : 'Create'}
+                    {isSaving ? t('admin.discountCodes.saving') || 'Saving...' : editingCode ? t('admin.discountCodes.update') || 'Update' : t('admin.discountCodes.create') || 'Create'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
                     className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
                   >
-                    Cancel
+                    {t('admin.discountCodes.cancel') || 'Cancel'}
                   </button>
                 </div>
               </form>
